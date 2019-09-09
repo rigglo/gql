@@ -22,6 +22,7 @@ type (
 	// Field ...
 	Field struct {
 		Name   string      `json:"name"`
+		Alias  string      `json:"alias"`
 		Fields []*Field    `json:"fields"`
 		Args   []*Argument `json:"args"`
 	}
@@ -68,6 +69,7 @@ func ParseFields(sf *Field, prevToken *tokens.Token, l *lexer.Lexer) {
 	} else {
 		token = l.NextToken()
 	}
+	var f *Field
 
 	for {
 		if l.IsEOF() {
@@ -75,11 +77,20 @@ func ParseFields(sf *Field, prevToken *tokens.Token, l *lexer.Lexer) {
 		}
 
 		switch token.Type {
+		case tokens.TokenAlias:
+			f = new(Field)
+			f.Alias = token.Value
 		case tokens.TokenField:
-			f := new(Field)
+			if f == nil {
+				f = new(Field)
+			}
 			f.Name = strings.TrimSpace(token.Value)
+			if f.Alias == "" {
+				f.Alias = f.Name
+			}
 			ParseField(l, f, sf)
 			sf.Fields = append(sf.Fields, f)
+			f = nil
 			break
 		case tokens.TokenSelectionSetEnd:
 			return

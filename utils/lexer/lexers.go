@@ -82,6 +82,10 @@ func LexField(l *Lexer) LexFn {
 			l.Pos += len(tokens.LeftBracket)
 			l.Start = l.Pos
 			return LexArgument
+		} else if strings.HasPrefix(l.InputToEnd(), tokens.Colon) {
+			l.Emit(tokens.TokenAlias)
+			l.Pos += len(tokens.Colon)
+			l.Start = l.Pos
 		} else if strings.HasPrefix(l.InputToEnd(), tokens.LeftCurlyBracket) {
 			l.Emit(tokens.TokenField)
 			l.Pos += len(tokens.LeftCurlyBracket)

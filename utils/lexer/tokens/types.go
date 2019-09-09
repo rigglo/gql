@@ -31,6 +31,8 @@ const (
 	TokenFieldArgumentValue
 	TokenFieldEnd
 
+	TokenAlias
+
 	TokenSelectionSetStart
 	TokenSelectionSetEnd
 )

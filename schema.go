@@ -48,11 +48,12 @@ func (s *Schema) Do(ctx context.Context, query string) *Result {
 					dv := reflect.ValueOf(data)
 					for i := 0; i < dv.NumField(); i++ {
 						if dv.Type().Field(i).Tag.Get("json") == pf.Name {
-							dataRes[pf.Name] = dv.Field(i).Interface()
+							log.Println(pf.Alias)
+							dataRes[pf.Alias] = dv.Field(i).Interface()
 						}
 					}
 				}
-				res[f.Name] = dataRes
+				res[f.Alias] = dataRes
 			}
 		}
 	case "mutation":
