@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/rigglo/gql/utils/lexer"
 	"github.com/rigglo/gql/utils/lexer/tokens"
 )
@@ -75,7 +77,7 @@ func ParseFields(sf *Field, prevToken *tokens.Token, l *lexer.Lexer) {
 		switch token.Type {
 		case tokens.TokenField:
 			f := new(Field)
-			f.Name = token.Value
+			f.Name = strings.TrimSpace(token.Value)
 			ParseField(l, f, sf)
 			sf.Fields = append(sf.Fields, f)
 			break

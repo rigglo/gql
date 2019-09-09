@@ -26,15 +26,21 @@ func (s *Schema) Do(ctx context.Context, query string) *Result {
 		Tokens: make(chan tokens.Token, 3),
 	})
 	res := map[string]interface{}{}
-	res["data"] = map[string]interface{}{}
 	switch op.RootField.Name {
 	case "query":
 		{
 			for _, f := range op.RootField.Fields {
 				log.Println("'"+f.Name+"'", s.RootQuery.Fields)
-				field := s.RootQuery.Fields[f.Name]
+				field, ok := s.RootQuery.Fields[f.Name]
+				if !ok {
+					return &Result{
+						Errors: []error{
+							fmt.Errorf("field '%s' is not defined", f.Name),
+						},
+					}
+				}
 				data, _ := field.Resolver(ctx, nil, ResolverInfo{
-					Path: []interface{}{f.Name},
+					//Path: []interface{}{f.Name},
 				})
 				log.Println(data)
 				dataRes := map[string]interface{}{}
@@ -46,7 +52,7 @@ func (s *Schema) Do(ctx context.Context, query string) *Result {
 						}
 					}
 				}
-				res["data"].(map[string]interface{})[f.Name] = dataRes
+				res[f.Name] = dataRes
 			}
 		}
 	case "mutation":
@@ -62,8 +68,9 @@ func (s *Schema) Do(ctx context.Context, query string) *Result {
 		}
 		fmt.Println(string(bs))
 	*/
-	fmt.Println(res)
-	return nil
+	return &Result{
+		Data: res,
+	}
 }
 
 func (s *Schema) resolveField(ctx context.Context, parent interface{}, lexField *parser.Field, field *Field) (interface{}, error) {

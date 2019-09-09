@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/rigglo/gql"
 )
@@ -39,11 +40,12 @@ func main() {
 		},
 	}
 
-	schema.Do(context.Background(), `
+	res := schema.Do(context.Background(), `
 	query {
-		movies{
+		movies	{
 			title
 			rate
 		}
 	}`)
+	log.Printf("%+v", res)
 }
