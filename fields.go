@@ -12,8 +12,4 @@ func (f *Field) getFields() Fields {
 	return f.Fields
 }
 
-func (f *Field) FieldType() FieldType {
-	return ObjectType
-}
-
 type Fields map[string]*Field

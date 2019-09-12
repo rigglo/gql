@@ -19,7 +19,7 @@ func NewObject() *Object {
 	return &Object{}
 }
 
-func (o *Object) FieldType() FieldType {
+func (o *Object) Type() FieldType {
 	return ObjectType
 }
 
