@@ -40,7 +40,7 @@ func (s *Schema) Do(ctx context.Context, query string) *Result {
 					}
 				}
 				log.Println("type", field.Type.Type())
-				_ = s.ResolveField(ctx, nil, lexField, field, res)
+				_ = s.ResolveField(ctx, []interface{}{lexField.Name}, nil, lexField, field, res)
 				log.Printf("res: %+v", res)
 			}
 		}
@@ -54,32 +54,55 @@ func (s *Schema) Do(ctx context.Context, query string) *Result {
 	}
 }
 
-func (s *Schema) ResolveField(ctx context.Context, parent interface{}, lexField *parser.Field, field *Field, out map[string]interface{}) error {
+func (s *Schema) ResolveField(ctx context.Context, path []interface{}, parent interface{}, lexField *parser.Field, field *Field, out map[string]interface{}) error {
 	log.Println("---------")
 	log.Printf("field: %+v", field)
 	log.Printf("field.Type.Type(): %+v", field.Type.Type())
 	if field.Type.Type() == ObjectType {
-		data, _ := field.Resolver(ctx, nil, ResolverInfo{
-			Path: []interface{}{},
+		resolverFunc := defaultObjectResolver
+		if field.Resolver != nil {
+			resolverFunc = field.Resolver
+		}
+		data, _ := resolverFunc(ctx, nil, ResolverInfo{
+			Path:   path,
+			Parent: parent,
+			Field:  *field,
 		})
 		o := map[string]interface{}{}
 
 		for _, lf := range lexField.Fields {
-			s.ResolveField(ctx, data, lf, field.Type.Value().(*Object).Fields[lf.Name], o)
+			tpath := append(path, lf.Name)
+			s.ResolveField(ctx, tpath, data, lf, field.Type.Value().(*Object).Fields[lf.Name], o)
 		}
 		out[lexField.Alias] = o
 	} else if field.Type.Type() == ScalarType {
-		log.Printf("lexField: %+v", lexField)
-		dv := reflect.ValueOf(parent)
-		for i := 0; i < dv.NumField(); i++ {
-			if dv.Type().Field(i).Tag.Get("json") == field.Name {
-				res, _ := field.Type.Value().(*Scalar).Encode(dv.Field(i).Interface())
-				out[func() string {
-					if lexField.Alias == "" {
-						return lexField.Name
-					}
-					return lexField.Alias
-				}()] = res
+		// TODO: Have to resolve the resolve function if there is one
+		if field.Resolver != nil {
+			data, _ := field.Resolver(ctx, nil, ResolverInfo{
+				Path:   path,
+				Parent: parent,
+				Field:  *field,
+			})
+			res, _ := field.Type.Value().(*Scalar).Encode(data)
+			out[func() string {
+				if lexField.Alias == "" {
+					return lexField.Name
+				}
+				return lexField.Alias
+			}()] = res
+		} else {
+			log.Printf("lexField: %+v", lexField)
+			dv := reflect.ValueOf(parent)
+			for i := 0; i < dv.NumField(); i++ {
+				if dv.Type().Field(i).Tag.Get("json") == field.Name {
+					res, _ := field.Type.Value().(*Scalar).Encode(dv.Field(i).Interface())
+					out[func() string {
+						if lexField.Alias == "" {
+							return lexField.Name
+						}
+						return lexField.Alias
+					}()] = res
+				}
 			}
 		}
 		return nil

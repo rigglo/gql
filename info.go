@@ -1,5 +1,7 @@
 package gql
 
 type ResolverInfo struct {
-	Path []interface{}
+	Path   []interface{}
+	Parent interface{}
+	Field  Field
 }
