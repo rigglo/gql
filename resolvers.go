@@ -10,9 +10,12 @@ type ResolverFunc func(context.Context, Arguments, ResolverInfo) (interface{}, e
 var defaultObjectResolver = func(ctx context.Context, args Arguments, info ResolverInfo) (interface{}, error) {
 	dv := reflect.ValueOf(info.Parent)
 	for i := 0; i < dv.NumField(); i++ {
-		if dv.Type().Field(i).Tag.Get("json") == info.Field.Name {
+		if dv.Type().Field(i).Tag.Get(fieldTagName) == info.Field.Name {
 			return dv.Field(i).Interface(), nil
 		}
 	}
-	return nil, nil
+	return nil, &Error{
+		Path:    info.Path,
+		Message: ErrNoResolver,
+	}
 }

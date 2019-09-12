@@ -17,6 +17,8 @@ type Schema struct {
 	RootMutation *Field
 }
 
+const fieldTagName = "json"
+
 type Map map[string]interface{}
 
 func (s *Schema) Do(ctx context.Context, query string) *Result {
@@ -76,7 +78,6 @@ func (s *Schema) ResolveField(ctx context.Context, path []interface{}, parent in
 		}
 		out[lexField.Alias] = o
 	} else if field.Type.Type() == ScalarType {
-		// TODO: Have to resolve the resolve function if there is one
 		if field.Resolver != nil {
 			data, _ := field.Resolver(ctx, nil, ResolverInfo{
 				Path:   path,
@@ -91,10 +92,9 @@ func (s *Schema) ResolveField(ctx context.Context, path []interface{}, parent in
 				return lexField.Alias
 			}()] = res
 		} else {
-			log.Printf("lexField: %+v", lexField)
 			dv := reflect.ValueOf(parent)
 			for i := 0; i < dv.NumField(); i++ {
-				if dv.Type().Field(i).Tag.Get("json") == field.Name {
+				if dv.Type().Field(i).Tag.Get(fieldTagName) == field.Name {
 					res, _ := field.Type.Value().(*Scalar).Encode(dv.Field(i).Interface())
 					out[func() string {
 						if lexField.Alias == "" {
