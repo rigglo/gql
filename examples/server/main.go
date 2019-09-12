@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 
 	"github.com/rigglo/gql"
@@ -21,6 +22,11 @@ type Category struct {
 	Rank int    `json:"rank"`
 }
 
+type User struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
 var (
 	MovieType = &gql.Object{
 		Name: "Movie",
@@ -35,13 +41,27 @@ var (
 			},
 			"category": &gql.Field{
 				Name: "category",
-				Type: CategoryType,
-				Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
-					return Category{
-						Name: "Sci-fi",
-						Rank: 2,
-					}, nil
-				},
+				Type: CategoryType, /*
+					Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
+						return Category{
+							Name: "Sci-fi",
+							Rank: 2,
+						}, nil
+					}, */
+			},
+		},
+	}
+
+	UserType = &gql.Object{
+		Name: "User",
+		Fields: gql.Fields{
+			"name": &gql.Field{
+				Name: "name",
+				Type: gql.String,
+			},
+			"email": &gql.Field{
+				Name: "email",
+				Type: gql.String,
 			},
 		},
 	}
@@ -56,6 +76,19 @@ var (
 			"rank": &gql.Field{
 				Name: "rank",
 				Type: gql.Int,
+				Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
+					return rand.Intn(1000), nil
+				},
+			},
+			"managed_by": &gql.Field{
+				Name: "managed_by",
+				Type: UserType,
+				Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
+					return User{
+						Name:  "John Doe",
+						Email: "john.doe@rigglo.io",
+					}, nil
+				},
 			},
 		},
 	}
@@ -89,6 +122,10 @@ func main() {
 			category {
 				name
 				rank
+				managed_by {
+					name
+					email
+				}
 			}
 		}
 	}`)
