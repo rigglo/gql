@@ -26,3 +26,7 @@ func (o *Object) Type() FieldType {
 func (o *Object) Value() interface{} {
 	return o
 }
+
+func (o *Object) IsNullable() bool {
+	return true
+}

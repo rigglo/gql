@@ -7,11 +7,13 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/rigglo/gql"
 )
 
 type Movie struct {
+	ID       int      `json:"id"`
 	Title    string   `json:"title"`
 	Category Category `json:"category"`
 	Rate     int      `json:"rate"`
@@ -31,6 +33,10 @@ var (
 	MovieType = &gql.Object{
 		Name: "Movie",
 		Fields: gql.Fields{
+			"id": &gql.Field{
+				Name: "id",
+				Type: gql.Int,
+			},
 			"title": &gql.Field{
 				Name: "title",
 				Type: gql.String,
@@ -38,6 +44,13 @@ var (
 			"rate": &gql.Field{
 				Name: "rate",
 				Type: gql.Int,
+			},
+			"now": &gql.Field{
+				Name: "now",
+				Type: gql.UnixTime,
+				Resolver: func(ctx context.Context, args gql.ResolverArgs, info gql.ResolverInfo) (interface{}, error) {
+					return time.Now(), nil
+				},
 			},
 			"category": &gql.Field{
 				Name: "category",
@@ -76,14 +89,14 @@ var (
 			"rank": &gql.Field{
 				Name: "rank",
 				Type: gql.Int,
-				Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
+				Resolver: func(ctx context.Context, args gql.ResolverArgs, info gql.ResolverInfo) (interface{}, error) {
 					return rand.Intn(1000), nil
 				},
 			},
 			"managed_by": &gql.Field{
 				Name: "managed_by",
 				Type: UserType,
-				Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
+				Resolver: func(ctx context.Context, args gql.ResolverArgs, info gql.ResolverInfo) (interface{}, error) {
 					return User{
 						Name:  "John Doe",
 						Email: "john.doe@rigglo.io",
@@ -93,15 +106,26 @@ var (
 		},
 	}
 )
+var movies = []*Movie{
+	31: &Movie{},
+}
 
 func main() {
 	schema := new(gql.Schema)
 	schema.RootQuery = &gql.Field{
 		Fields: gql.Fields{
-			"movies": &gql.Field{
+			"movie": &gql.Field{
 				Type: MovieType,
-				Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
+				Args: gql.Arguments{
+					"id": &gql.Argument{
+						Name: "id",
+						Type: gql.NewNonNull(gql.Int),
+					},
+				},
+				Resolver: func(ctx context.Context, args gql.ResolverArgs, info gql.ResolverInfo) (interface{}, error) {
+					id, _ := args.Get("id")
 					return Movie{
+						ID:    id.(int),
 						Title: "Interstellar",
 						Category: Category{
 							Name: "Sci-fi",
@@ -116,9 +140,10 @@ func main() {
 
 	res := schema.Do(context.Background(), `
 	query {
-		movies	{
+		movie {
 			title
 			rate
+			now
 			category {
 				name
 				rank
