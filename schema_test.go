@@ -33,7 +33,7 @@ var (
 			"category": &gql.Field{
 				Name: "category",
 				Type: CategoryType,
-				Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
+				Resolver: func(ctx context.Context, args gql.ResolverArgs, info gql.ResolverInfo) (interface{}, error) {
 					return Category{
 						Name: "Sci-fi",
 						Rank: 2,
@@ -65,7 +65,7 @@ func TestSchema(t *testing.T) {
 			"movies": &gql.Field{
 				Name: "movies",
 				Type: MovieType,
-				Resolver: func(ctx context.Context, args gql.Arguments, info gql.ResolverInfo) (interface{}, error) {
+				Resolver: func(ctx context.Context, args gql.ResolverArgs, info gql.ResolverInfo) (interface{}, error) {
 					return Movie{
 						Title: "Interstellar",
 						Category: Category{

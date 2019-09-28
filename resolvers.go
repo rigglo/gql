@@ -5,9 +5,9 @@ import (
 	"reflect"
 )
 
-type ResolverFunc func(context.Context, Arguments, ResolverInfo) (interface{}, error)
+type ResolverFunc func(context.Context, ResolverArgs, ResolverInfo) (interface{}, error)
 
-var defaultObjectResolver = func(ctx context.Context, args Arguments, info ResolverInfo) (interface{}, error) {
+var defaultObjectResolver = func(ctx context.Context, args ResolverArgs, info ResolverInfo) (interface{}, error) {
 	dv := reflect.ValueOf(info.Parent)
 	for i := 0; i < dv.NumField(); i++ {
 		if dv.Type().Field(i).Tag.Get(fieldTagName) == info.Field.Name {

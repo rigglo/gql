@@ -92,7 +92,6 @@ func LexField(l *Lexer) LexFn {
 			l.Emit(tokens.TokenSelectionSetStart)
 			return LexFields
 		} else if strings.HasPrefix(l.InputToEnd(), tokens.RightCurlyBracket) {
-			//l.Inc()
 			l.Pos += len(tokens.RightCurlyBracket)
 			l.Emit(tokens.TokenSelectionSetEnd)
 			return LexFields
@@ -105,7 +104,6 @@ func LexField(l *Lexer) LexFn {
 func LexArgument(l *Lexer) LexFn {
 	l.SkipIgnoredTokens()
 	for {
-		//log.Print("LexArgument:", l.InputToEnd())
 		if strings.HasPrefix(l.InputToEnd(), tokens.Colon) {
 			l.Emit(tokens.TokenFieldArgument)
 			l.Pos += len(tokens.Colon)
@@ -124,7 +122,6 @@ func LexArgument(l *Lexer) LexFn {
 func LexArgumentValue(l *Lexer) LexFn {
 	l.SkipIgnoredTokens()
 	for {
-		//log.Print("LexArgumentValue:", l.InputToEnd())
 		if strings.HasPrefix(l.InputToEnd(), tokens.RightBracket) {
 			l.Emit(tokens.TokenFieldArgumentValue)
 			l.Inc()
@@ -136,6 +133,9 @@ func LexArgumentValue(l *Lexer) LexFn {
 		} else if strings.HasPrefix(l.InputToEnd(), tokens.Comma) {
 			l.Emit(tokens.TokenFieldArgumentValue)
 			l.Inc()
+			return LexArgument
+		} else if strings.HasPrefix(l.InputToEnd(), tokens.NewLine) {
+			l.Emit(tokens.TokenFieldEnd)
 			return LexArgument
 		} else if false {
 			// TODO: check if it's an ArgumentGroup

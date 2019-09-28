@@ -65,7 +65,11 @@ func (s *Schema) ResolveField(ctx context.Context, path []interface{}, parent in
 		if field.Resolver != nil {
 			resolverFunc = field.Resolver
 		}
-		data, _ := resolverFunc(ctx, nil, ResolverInfo{
+		args, err := fromParsedArguments(field.Args, lexField.Args)
+		if err != nil {
+			return err
+		}
+		data, _ := resolverFunc(ctx, args, ResolverInfo{
 			Path:   path,
 			Parent: parent,
 			Field:  *field,

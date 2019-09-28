@@ -11,5 +11,7 @@ func (e *Error) Error() string {
 }
 
 const (
-	ErrNoResolver = "No resolver found"
+	ErrNoResolver   = "no resolver found"
+	ErrNullValue    = "got null where should not"
+	ErrArgNotExists = "the given argument does not exist"
 )
