@@ -1,4 +1,4 @@
-package lex_test
+package lexer_test
 
 import (
 	"bufio"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rigglo/gql/utils/lex"
+	"github.com/rigglo/gql/utils/lexer"
 )
 
 func TestLexer(t *testing.T) {
@@ -33,10 +33,10 @@ func TestLexer(t *testing.T) {
 	  }	
 `
 
-	tokens := make(chan lex.Token)
+	tokens := make(chan lexer.Token)
 	src := strings.NewReader(query)
 	readr := bufio.NewReader(src)
-	go lex.Lex(readr, tokens)
+	go lexer.Lex(readr, tokens)
 	for token := range tokens {
 		log.Printf("token: %#v", token)
 		//log.Print(token.Value)

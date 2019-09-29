@@ -1,5 +1,6 @@
 package ast
 
+/*
 type ValueKind int
 
 const (
@@ -140,3 +141,4 @@ func (v *ObjectFieldValue) GetValue() interface{} {
 func (v *ObjectFieldValue) Kind() ValueKind {
 	return ObjectFieldValueKind
 }
+*/

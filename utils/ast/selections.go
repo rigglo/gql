@@ -1,5 +1,6 @@
 package ast
 
+/*
 type SelectionKind int
 
 const (
@@ -48,3 +49,4 @@ type InlineFragment struct {
 	Directives    []*Directive
 	SelectionSet  []*Selection
 }
+*/
