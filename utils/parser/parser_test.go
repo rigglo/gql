@@ -9,10 +9,24 @@ import (
 
 func TestParse(t *testing.T) {
 	query := `
-query {
+fragment basicInfo on User {
+	id
+	name
+}
+
+query myNamed {
 	users {
 		... basicInfo
-	} }
+	} 
+}
+query myNamed2 {
+	users {
+		id
+		email
+		name
+		phone
+	}
+}
 `
 	token, doc, err := parser.Parse(query)
 	if err != nil {

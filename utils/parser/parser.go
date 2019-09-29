@@ -25,40 +25,96 @@ func Parse(query string) (lexer.Token, *ast.Document, error) {
 
 func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) {
 	doc := ast.NewDocument()
+	var err error
 	token := <-tokens
-	switch {
-	case token.Kind == lexer.NameToken && token.Value == "fragment":
-		// TODO: parse fragment definitions
-		break
-	case token.Kind == lexer.NameToken:
-		op := new(ast.Operation)
-		token, op, err := parseOperation(token, tokens)
-		if err != nil {
-			return token, nil, err
+	for {
+		switch {
+		case token.Kind == lexer.NameToken && token.Value == "fragment":
+			f := new(ast.Fragment)
+			token, f, err = parseFragment(tokens)
+			if err != nil {
+				return token, nil, err
+			}
+			doc.Fragments = append(doc.Fragments, f)
+			break
+		case token.Kind == lexer.NameToken:
+			op := new(ast.Operation)
+			token, op, err = parseOperation(token, tokens)
+			if err != nil {
+				return token, nil, err
+			}
+			doc.Operations = append(doc.Operations, op)
+			break
+		case token.Kind == lexer.PunctuatorToken && token.Value == "{":
+			set := []*ast.Selection{}
+			token, set, err = parseSelectionSet(tokens)
+			if err != nil {
+				return token, nil, err
+			}
+			doc.Operations = append(doc.Operations, &ast.Operation{
+				OperationType: ast.Query,
+				SelectionSet:  set,
+			})
+			break
+		case token.Kind == lexer.BadToken && token.Err == nil:
+			return token, doc, nil
+		default:
+			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 		}
-		doc.Operation = op
-		break
-	case token.Kind == lexer.PunctuatorToken && token.Value == "{":
-		token, set, err := parseSelectionSet(tokens)
-		if err != nil {
-			return token, nil, err
-		}
-		doc.Operation = &ast.Operation{
-			OperationType: ast.Query,
-			SelectionSet:  set,
-		}
-		token = <-tokens
-		break
-	default:
+	}
+}
+
+func parseFragment(tokens chan lexer.Token) (lexer.Token, *ast.Fragment, error) {
+	f := new(ast.Fragment)
+	var err error
+
+	token := <-tokens
+	if token.Kind == lexer.NameToken && token.Value != "on" {
+		f.Name = token.Value
+	} else {
 		return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 	}
-	return token, doc, nil
+
+	token = <-tokens
+	if token.Kind == lexer.NameToken && token.Value == "on" {
+		token = <-tokens
+		if token.Kind == lexer.NameToken {
+			f.TypeCondition = token.Value
+		} else {
+			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
+		}
+	} else {
+		return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
+	}
+
+	token = <-tokens
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		ds := []*ast.Directive{}
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		f.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
+		sSet := []*ast.Selection{}
+		token, sSet, err = parseSelectionSet(tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		f.SelectionSet = sSet
+	} else {
+		return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
+	}
+
+	return token, f, nil
 }
 
 func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.Operation, error) {
 	var err error
 	if token.Kind != lexer.NameToken {
-		return token, nil, fmt.Errorf("unexpected token")
+		return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 	}
 	var ot ast.OperationType
 	if token.Value == "query" {

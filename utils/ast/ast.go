@@ -1,11 +1,19 @@
 package ast
 
 type Document struct {
-	Operation *Operation
+	Operations []*Operation
+	Fragments  []*Fragment
 }
 
 func NewDocument() *Document {
 	return &Document{}
+}
+
+type Fragment struct {
+	Name          string
+	TypeCondition string
+	Directives    []*Directive
+	SelectionSet  []*Selection
 }
 
 type OperationType int
