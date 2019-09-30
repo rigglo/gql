@@ -14,18 +14,10 @@ fragment basicInfo on User {
 	name
 }
 
-query myNamed {
-	users {
+query myNamed($device: [Int]! [4, 3]) {
+	users(foo:bar) {
 		... basicInfo
 	} 
-}
-query myNamed2 {
-	users {
-		id
-		email
-		name
-		phone
-	}
 }
 `
 	token, doc, err := parser.Parse(query)

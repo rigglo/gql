@@ -76,7 +76,7 @@ func (t *NamedType) Kind() TypeKind {
 }
 
 func (t *NamedType) GetValue() interface{} {
-	return t
+	return t.Name
 }
 
 type ListType struct {

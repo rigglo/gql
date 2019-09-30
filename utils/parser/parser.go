@@ -137,6 +137,14 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 			op.Name = token.Value
 			token = <-tokens
 			break
+		case token.Kind == lexer.PunctuatorToken && token.Value == "(":
+			vs := []*ast.Variable{}
+			token, vs, err = parseVariables(tokens)
+			if err != nil {
+				return token, nil, err
+			}
+			op.Variables = vs
+			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "@":
 			ds := []*ast.Directive{}
 			var err error
@@ -155,7 +163,110 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 			op.SelectionSet = sSet
 			return token, op, nil
 		}
-		// TODO: Variables
+	}
+}
+
+func parseVariables(tokens chan lexer.Token) (lexer.Token, []*ast.Variable, error) {
+	token := <-tokens
+	vs := []*ast.Variable{}
+	var err error
+
+	for {
+		if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
+			return <-tokens, vs, nil
+		}
+
+		v := new(ast.Variable)
+		if token.Kind == lexer.PunctuatorToken && token.Value == "$" {
+			token = <-tokens
+			if token.Kind == lexer.NameToken {
+				v.Name = token.Value
+			} else {
+				return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
+			}
+		} else {
+			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
+		}
+
+		token = <-tokens
+		if token.Kind == lexer.PunctuatorToken && token.Value == ":" {
+			token = <-tokens
+		} else {
+			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
+		}
+
+		var t ast.Type
+		token, t, err = parseType(token, tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		v.Type = t
+
+		if token.Kind == lexer.PunctuatorToken && token.Value == "$" {
+			vs = append(vs, v)
+			token = <-tokens
+			continue
+		} else if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
+			vs = append(vs, v)
+			return <-tokens, vs, nil
+		}
+		var dv ast.Value
+		token, dv, err = parseValue(token, tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		v.DefaultValue = dv
+		vs = append(vs, v)
+	}
+}
+
+func parseType(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Type, error) {
+	log.Println("start type")
+	defer func() {
+		log.Println("exit type")
+	}()
+
+	switch {
+	case token.Kind == lexer.NameToken:
+		nt := new(ast.NamedType)
+		nt.Name = token.Value
+
+		token = <-tokens
+		if token.Kind == lexer.PunctuatorToken && token.Value == "!" {
+			nnt := new(ast.NonNullType)
+			nnt.Type = nt
+			return <-tokens, nnt, nil
+		}
+		return token, nt, nil
+	case token.Kind == lexer.PunctuatorToken && token.Value == "[":
+		token = <-tokens
+		var (
+			t   ast.Type
+			err error
+		)
+		token, t, err = parseType(token, tokens)
+		if err != nil {
+			return token, nil, err
+		}
+
+		if token.Kind == lexer.PunctuatorToken && token.Value == "]" {
+			token = <-tokens
+		} else {
+			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
+		}
+
+		lt := &ast.ListType{
+			Type: t,
+		}
+
+		if token.Kind == lexer.PunctuatorToken && token.Value == "!" {
+			return <-tokens, &ast.NonNullType{
+				Type: lt,
+			}, nil
+		}
+		return token, lt, nil
+	default:
+		return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 	}
 }
 
@@ -281,107 +392,110 @@ func parseArguments(tokens chan lexer.Token) (args []*ast.Argument, err error) {
 		}
 
 		token = <-tokens
-		val, err := parseValue(token, tokens)
+		token, val, err := parseValue(token, tokens)
 		if err != nil {
 			return nil, err
 		}
 		arg.Value = val
 		args = append(args, arg)
 
-		token = <-tokens
 		if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
 			return args, nil
 		}
 	}
 }
 
-func parseValue(token lexer.Token, tokens chan lexer.Token) (ast.Value, error) {
+func parseValue(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Value, error) {
 	switch {
 	case token.Kind == lexer.PunctuatorToken && token.Value == "$":
 		v := new(ast.VariableValue)
 		token = <-tokens
 		if token.Kind != lexer.NameToken {
-			return nil, fmt.Errorf("invalid token")
+			return token, nil, fmt.Errorf("invalid token")
 		}
 		v.Name = token.Value
-		return v, nil
+		return <-tokens, v, nil
 	case token.Kind == lexer.IntValueToken:
 		v := new(ast.IntValue)
 		v.Value = token.Value
-		return v, nil
+		return <-tokens, v, nil
 	case token.Kind == lexer.FloatValueToken:
 		v := new(ast.FloatValue)
 		v.Value = token.Value
-		return v, nil
+		return <-tokens, v, nil
 	case token.Kind == lexer.StringValueToken:
 		v := new(ast.StringValue)
 		v.Value = token.Value
-		return v, nil
+		return <-tokens, v, nil
 	case token.Kind == lexer.NameToken && (token.Value == "false" || token.Value == "true"):
 		v := new(ast.BooleanValue)
 		v.Value = token.Value
-		return v, nil
+		return <-tokens, v, nil
 	case token.Kind == lexer.NameToken && token.Value == "null":
 		v := new(ast.NullValue)
 		v.Value = token.Value
-		return v, nil
+		return <-tokens, v, nil
 	case token.Kind == lexer.NameToken:
 		v := new(ast.EnumValue)
 		v.Value = token.Value
-		return v, nil
+		return <-tokens, v, nil
 	case token.Kind == lexer.PunctuatorToken && token.Value == "[":
 		return parseListValue(tokens)
 	case token.Kind == lexer.PunctuatorToken && token.Value == "{":
 		return parseObjectValue(tokens)
 	}
-	return nil, fmt.Errorf("unexpected token: %s", token.Value)
+	return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 }
 
-func parseListValue(tokens chan lexer.Token) (*ast.ListValue, error) {
+func parseListValue(tokens chan lexer.Token) (lexer.Token, *ast.ListValue, error) {
 	list := new(ast.ListValue)
+	token := <-tokens
 	for {
-		log.Println("lists")
-		token := <-tokens
+		log.Println("listValue loop start")
 		if token.Kind == lexer.PunctuatorToken && token.Value == "]" {
-			return list, nil
+			return <-tokens, list, nil
 		}
 
-		v, err := parseValue(token, tokens)
+		var (
+			err error
+			v   ast.Value
+		)
+		token, v, err = parseValue(token, tokens)
 		if err != nil {
-			return nil, err
+			return token, nil, err
 		}
 		list.Values = append(list.Values, v)
 	}
 }
 
-func parseObjectValue(tokens chan lexer.Token) (*ast.ObjectValue, error) {
+func parseObjectValue(tokens chan lexer.Token) (lexer.Token, *ast.ObjectValue, error) {
 	token := <-tokens
+	var err error
 	o := new(ast.ObjectValue)
 	for {
-		log.Println("objs")
 		field := new(ast.ObjectFieldValue)
 		if token.Kind == lexer.NameToken {
 			field.Name = token.Value
 		} else {
-			return nil, fmt.Errorf("unexpected token: %s", token.Value)
+			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 		}
 
 		token = <-tokens
 		if token.Kind != lexer.PunctuatorToken && token.Value != ":" {
-			return nil, fmt.Errorf("unexpected token: %s", token.Value)
+			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 		}
 
 		token = <-tokens
-		val, err := parseValue(token, tokens)
+		var val ast.Value
+		token, val, err = parseValue(token, tokens)
 		if err != nil {
-			return nil, err
+			return token, nil, err
 		}
 		field.Value = val
 		o.Fields = append(o.Fields, field)
 
-		token = <-tokens
 		if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
-			return o, nil
+			return <-tokens, o, nil
 		}
 	}
 }
