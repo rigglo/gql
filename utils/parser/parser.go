@@ -3,7 +3,6 @@ package parser
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/rigglo/gql/utils/ast"
@@ -131,7 +130,6 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 
 	token = <-tokens
 	for {
-		log.Println("ops")
 		switch {
 		case token.Kind == lexer.NameToken:
 			op.Name = token.Value
@@ -221,11 +219,6 @@ func parseVariables(tokens chan lexer.Token) (lexer.Token, []*ast.Variable, erro
 }
 
 func parseType(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Type, error) {
-	log.Println("start type")
-	defer func() {
-		log.Println("exit type")
-	}()
-
 	switch {
 	case token.Kind == lexer.NameToken:
 		nt := new(ast.NamedType)
@@ -271,15 +264,9 @@ func parseType(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Typ
 }
 
 func parseSelectionSet(tokens chan lexer.Token) (token lexer.Token, set []*ast.Selection, err error) {
-	log.Println("start selectionset")
-	defer func() {
-		log.Println("exit selectionset")
-	}()
 	end := false
 	token = <-tokens
 	for {
-
-		log.Println("selectionset", token.Value)
 		switch {
 		case token.Kind == lexer.PunctuatorToken && token.Value == "...":
 			sel := new(ast.Selection)
@@ -325,7 +312,6 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 
 	end := false
 	for {
-		log.Println("fields")
 		token = <-tokens
 		switch {
 		case token.Kind == lexer.PunctuatorToken && token.Value == ":" && f.Name == "":
@@ -378,7 +364,6 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 func parseArguments(tokens chan lexer.Token) (args []*ast.Argument, err error) {
 	token := <-tokens
 	for {
-		log.Println("args")
 		arg := new(ast.Argument)
 		if token.Kind == lexer.NameToken {
 			arg.Name = token.Value
@@ -451,7 +436,6 @@ func parseListValue(tokens chan lexer.Token) (lexer.Token, *ast.ListValue, error
 	list := new(ast.ListValue)
 	token := <-tokens
 	for {
-		log.Println("listValue loop start")
 		if token.Kind == lexer.PunctuatorToken && token.Value == "]" {
 			return <-tokens, list, nil
 		}

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// A token is a single lexical element.
+// A Token is a single lexical element.
 type Token struct {
 	Kind  TokenKind
 	Value string
@@ -17,21 +17,32 @@ type Token struct {
 	Line, Col int
 }
 
+// TokenKind tells what kind of value is in the Token
 type TokenKind int
 
 const (
+	// BadToken is bad.. too bad..
 	BadToken TokenKind = iota
-
-	PunctuatorToken     // !	$	(	)	...	:	=	@	[	]	{	|	}
-	NameToken           // /[_A-Za-z][_0-9A-Za-z]*/
-	IntValueToken       // NegativeSign(opt) | NonZeroDigit | Digit (list, opt)
-	FloatValueToken     // Sign (opt) | IntegerPart | FractionalPart (ExponentPart
-	StringValueToken    // "something which is a string"
-	UnicodeBOMToken     // \ufeff
-	WhitespaceToken     // \t and 'space'
+	// PunctuatorToken has special characters
+	PunctuatorToken // !	$	(	)	...	:	=	@	[	]	{	|	}
+	// NameToken has names
+	NameToken // /[_A-Za-z][_0-9A-Za-z]*/
+	// IntValueToken has iteger numbers
+	IntValueToken // NegativeSign(opt) | NonZeroDigit | Digit (list, opt)
+	// FloatValueToken has float numbers
+	FloatValueToken // Sign (opt) | IntegerPart | FractionalPart (ExponentPart)
+	// StringValueToken has string values
+	StringValueToken // "something which is a string"
+	// UnicodeBOMToken is just the \ufeff
+	UnicodeBOMToken // \ufeff
+	// WhitespaceToken is \t and 'space'
+	WhitespaceToken // \t and 'space'
+	// LineTerminatorToken is \n and \r
 	LineTerminatorToken // \n
-	CommentToken        // # Just a comment....
-	CommaToken          // ,
+	// CommentToken is # something like this
+	CommentToken // # Just a comment....
+	// CommaToken is just a ','
+	CommaToken // ,
 )
 
 // lexFn is a lexer state function. Each lexFn lexes a token, sends it on the
@@ -298,4 +309,63 @@ func lexTriplequotedString(src *bufio.Reader, tokens chan<- Token, line, col int
 		}
 		b = append(b, string(r)...)
 	}
+}
+
+// nummLexer helps to lex a number and decide if it's an integer or a float
+type numLexer struct {
+	negSign       string
+	firstDigit    string
+	integerDigits []string
+	dot           string
+	fractionals   []string
+	expIndicator  string
+	expSign       string
+	expDigits     []string
+	Err           error
+}
+
+// Predicate helps decide what to read from the source
+func (nl *numLexer) Predicate(r rune) bool {
+	if nl.firstDigit == "" && nl.negSign == "" && r == '-' {
+		nl.negSign = string(r)
+		return true
+	} else if nl.firstDigit == "" && '0' <= r && r <= '9' {
+		nl.firstDigit = string(r)
+		return true
+	} else if nl.firstDigit != "" && nl.firstDigit != "0" && '0' <= r && r <= '9' && nl.dot == "" {
+		nl.integerDigits = append(nl.integerDigits, string(r))
+		return true
+	} else if nl.firstDigit != "" && nl.dot == "" && r == '.' {
+		nl.dot = string(r)
+		return true
+	} else if nl.dot != "" && '0' <= r && r <= '9' {
+		nl.fractionals = append(nl.fractionals, string(r))
+		return true
+	} else if nl.firstDigit != "" && strings.ContainsRune("eE", r) {
+		nl.expIndicator = string(r)
+		return true
+	} else if nl.expIndicator != "" && len(nl.expDigits) == 0 && strings.ContainsRune("+-", r) {
+		nl.expSign = string(r)
+		return true
+	} else if nl.expIndicator != "" && '0' <= r && r <= '9' {
+		nl.expDigits = append(nl.expDigits, string(r))
+		return true
+	} else if !strings.ContainsRune(",)]} \n\r\t", r) {
+		nl.Err = fmt.Errorf("invalid form of number: %s", nl.String()+string(r))
+		return false
+	}
+	return false
+}
+
+// Kind returns if the final number is Float or Int
+func (nl *numLexer) Kind() TokenKind {
+	if nl.dot != "" || nl.expIndicator != "" {
+		return FloatValueToken
+	}
+	return IntValueToken
+}
+
+// String just returns the final number
+func (nl *numLexer) String() string {
+	return nl.negSign + nl.firstDigit + strings.Join(nl.integerDigits, "") + nl.dot + strings.Join(nl.fractionals, "") + nl.expIndicator + nl.expSign + strings.Join(nl.expDigits, "")
 }

@@ -11,26 +11,11 @@ import (
 
 func TestLexer(t *testing.T) {
 	query := `
-	query withNestedFragments {
-		user(id: 4) asd ") {
-		  friends(first: 10) {
-			...friendFields
-		  }
-		  mutualFriends(first: 10) {
-			...friendFields
-		  }
+	query  {
+		foo {
+			bar
 		}
 	  }
-	  
-	  fragment friendFields on User {
-		id
-		name
-		...standardProfilePic
-	  }
-	  
-	  fragment standardProfilePic on User {
-		profilePic(size: 50)
-	  }	
 `
 
 	tokens := make(chan lexer.Token)
