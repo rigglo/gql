@@ -34,7 +34,10 @@ func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) 
 			if err != nil {
 				return token, nil, err
 			}
-			doc.Fragments = append(doc.Fragments, f)
+			if _, ok := doc.Fragments[f.Name]; ok {
+				return token, nil, fmt.Errorf("fragment is already exist")
+			}
+			doc.Fragments[f.Name] = f
 			break
 		case token.Kind == lexer.NameToken:
 			op := new(ast.Operation)
@@ -45,7 +48,7 @@ func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) 
 			doc.Operations = append(doc.Operations, op)
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "{":
-			set := []*ast.Selection{}
+			set := []ast.Selection{}
 			token, set, err = parseSelectionSet(tokens)
 			if err != nil {
 				return token, nil, err
@@ -97,7 +100,7 @@ func parseFragment(tokens chan lexer.Token) (lexer.Token, *ast.Fragment, error) 
 	}
 
 	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
-		sSet := []*ast.Selection{}
+		sSet := []ast.Selection{}
 		token, sSet, err = parseSelectionSet(tokens)
 		if err != nil {
 			return token, nil, err
@@ -153,7 +156,7 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 			op.Directives = ds
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "{":
-			sSet := []*ast.Selection{}
+			sSet := []ast.Selection{}
 			token, sSet, err = parseSelectionSet(tokens)
 			if err != nil {
 				return token, nil, err
@@ -263,13 +266,13 @@ func parseType(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Typ
 	}
 }
 
-func parseSelectionSet(tokens chan lexer.Token) (token lexer.Token, set []*ast.Selection, err error) {
+func parseSelectionSet(tokens chan lexer.Token) (token lexer.Token, set []ast.Selection, err error) {
 	end := false
 	token = <-tokens
 	for {
 		switch {
 		case token.Kind == lexer.PunctuatorToken && token.Value == "...":
-			sel := new(ast.Selection)
+			var sel ast.Selection
 			token, sel, err = parseFragments(tokens)
 			if err != nil {
 				return token, nil, err
@@ -282,10 +285,7 @@ func parseSelectionSet(tokens chan lexer.Token) (token lexer.Token, set []*ast.S
 			if err != nil {
 				return token, nil, err
 			}
-			set = append(set, &ast.Selection{
-				Kind:  ast.FieldSelectionKind,
-				Field: f,
-			})
+			set = append(set, f)
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "}":
 			end = true
@@ -339,7 +339,7 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 			f.Directives = ds
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "{":
-			sSet := []*ast.Selection{}
+			sSet := []ast.Selection{}
 			token, sSet, err = parseSelectionSet(tokens)
 			if err != nil {
 				return token, nil, err
@@ -351,7 +351,10 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 		case token.Kind == lexer.PunctuatorToken && token.Value == "}":
 			return token, f, nil
 		default:
-			return token, nil, fmt.Errorf("invalid token")
+			if f.Alias != "" {
+				return token, f, nil
+			}
+			return token, nil, fmt.Errorf("invalid token: '%s'", token.Value)
 		}
 
 		if end {
@@ -484,9 +487,8 @@ func parseObjectValue(tokens chan lexer.Token) (lexer.Token, *ast.ObjectValue, e
 	}
 }
 
-func parseFragments(tokens chan lexer.Token) (token lexer.Token, sel *ast.Selection, err error) {
+func parseFragments(tokens chan lexer.Token) (token lexer.Token, sel ast.Selection, err error) {
 	token = <-tokens
-	sel = new(ast.Selection)
 	if token.Kind == lexer.NameToken && token.Value == "on" {
 		inf := new(ast.InlineFragment)
 
@@ -506,7 +508,7 @@ func parseFragments(tokens chan lexer.Token) (token lexer.Token, sel *ast.Select
 		}
 
 		if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
-			sSet := []*ast.Selection{}
+			sSet := []ast.Selection{}
 			token, sSet, err = parseSelectionSet(tokens)
 			if err != nil {
 				return token, nil, err
@@ -515,11 +517,10 @@ func parseFragments(tokens chan lexer.Token) (token lexer.Token, sel *ast.Select
 		} else {
 			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 		}
-		sel.Kind = ast.InlineFragmentSelectionKind
-		sel.InlineFragment = inf
-		return token, sel, nil
+
+		return token, inf, nil
 	} else if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
-		sSet := []*ast.Selection{}
+		sSet := []ast.Selection{}
 		token, sSet, err = parseSelectionSet(tokens)
 		if err != nil {
 			return token, nil, err
@@ -528,9 +529,7 @@ func parseFragments(tokens chan lexer.Token) (token lexer.Token, sel *ast.Select
 			SelectionSet: sSet,
 		}
 
-		sel.Kind = ast.InlineFragmentSelectionKind
-		sel.InlineFragment = inf
-		return token, sel, nil
+		return token, inf, nil
 	} else if token.Kind == lexer.NameToken && token.Value != "on" {
 		fs := new(ast.FragmentSpread)
 		fs.Name = token.Value
@@ -545,9 +544,7 @@ func parseFragments(tokens chan lexer.Token) (token lexer.Token, sel *ast.Select
 			fs.Directives = ds
 		}
 
-		sel.Kind = ast.FragmentSpreadSelectionKind
-		sel.FragmentSpread = fs
-		return token, sel, nil
+		return token, fs, nil
 	}
 	return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 }

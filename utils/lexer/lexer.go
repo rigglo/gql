@@ -216,7 +216,7 @@ func lexThreeDot(src *bufio.Reader, tokens chan<- Token, line, col int) (lexFn, 
 		}
 		return nil, line, ncol
 	}
-	return lexsend(err, tokens, Token{Kind: PunctuatorToken, Value: string(b), Line: line, Col: col}), line, ncol
+	return lexsend(err, tokens, Token{Kind: PunctuatorToken, Value: "...", Line: line, Col: col}), line, ncol
 }
 
 // lexNumber lexes a number, an integer or a float

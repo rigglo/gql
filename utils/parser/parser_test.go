@@ -9,15 +9,15 @@ import (
 
 func TestParse(t *testing.T) {
 	query := `
-fragment basicInfo on User {
-	id
-	name
-}
-
-query myNamed($device: [Int]! [4, 3]) {
-	users(foo:bar) {
-		... basicInfo
-	} 
+query {
+	a
+	b
+	c
+	d {
+		da
+		db
+		...asd
+	}
 }
 `
 	token, doc, err := parser.Parse(query)

@@ -2,18 +2,21 @@ package ast
 
 type Document struct {
 	Operations []*Operation
-	Fragments  []*Fragment
+	Fragments  map[string]*Fragment
 }
 
 func NewDocument() *Document {
-	return &Document{}
+	return &Document{
+		Operations: []*Operation{},
+		Fragments:  map[string]*Fragment{},
+	}
 }
 
 type Fragment struct {
 	Name          string
 	TypeCondition string
 	Directives    []*Directive
-	SelectionSet  []*Selection
+	SelectionSet  []Selection
 }
 
 type OperationType int
@@ -29,7 +32,7 @@ type Operation struct {
 	Name          string
 	Variables     []*Variable
 	Directives    []*Directive
-	SelectionSet  []*Selection
+	SelectionSet  []Selection
 }
 
 func NewOperation(ot OperationType) *Operation {
@@ -113,34 +116,27 @@ const (
 	InlineFragmentSelectionKind
 )
 
-type Selection struct {
-	Kind           SelectionKind
-	Field          *Field
-	FragmentSpread *FragmentSpread
-	InlineFragment *InlineFragment
+type Selection interface {
+	Kind() SelectionKind
+	GetDirectives() []*Directive
 }
 
-func (s *Selection) GetKind() SelectionKind {
-	return s.Kind
-}
-
-func (s *Selection) GetValue() interface{} {
-	if s.Kind == FieldSelectionKind {
-		return s.Field
-	} else if s.Kind == FragmentSpreadSelectionKind {
-		return s.FragmentSpread
-	} else if s.Kind == InlineFragmentSelectionKind {
-		return s.InlineFragment
-	}
-	return nil
-}
+type Fields []*Field
 
 type Field struct {
 	Alias        string
 	Name         string
 	Arguments    []*Argument
 	Directives   []*Directive
-	SelectionSet []*Selection
+	SelectionSet []Selection
+}
+
+func (f *Field) Kind() SelectionKind {
+	return FieldSelectionKind
+}
+
+func (f *Field) GetDirectives() []*Directive {
+	return f.Directives
 }
 
 type FragmentSpread struct {
@@ -148,10 +144,26 @@ type FragmentSpread struct {
 	Directives []*Directive
 }
 
+func (fs *FragmentSpread) Kind() SelectionKind {
+	return FragmentSpreadSelectionKind
+}
+
+func (fs *FragmentSpread) GetDirectives() []*Directive {
+	return fs.Directives
+}
+
 type InlineFragment struct {
 	TypeCondition string
 	Directives    []*Directive
-	SelectionSet  []*Selection
+	SelectionSet  []Selection
+}
+
+func (inf *InlineFragment) Kind() SelectionKind {
+	return InlineFragmentSelectionKind
+}
+
+func (inf *InlineFragment) GetDirectives() []*Directive {
+	return inf.Directives
 }
 
 // VALUES
