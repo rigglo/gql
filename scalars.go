@@ -1,71 +1,93 @@
 package gql
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
+	"reflect"
 	"strings"
-	"time"
+	"unicode/utf8"
 )
 
-var (
-	String = &Scalar{
-		Name: "String",
-		Encode: func(v interface{}) (interface{}, error) {
-			return fmt.Sprintf("%v", v), nil
-		},
-		Decode: func(bs []byte) (interface{}, error) {
-			return strings.Trim(string(bs), "\""), nil
-		},
-	}
-
-	Int = &Scalar{
-		Name: "Int",
-		Encode: func(v interface{}) (interface{}, error) {
-			return v.(int), nil
-		},
-		Decode: func(bs []byte) (interface{}, error) {
-			n, err := strconv.Atoi(string(bs))
-			if err != nil {
-				return nil, err
-			} else {
-				return n, nil
-			}
-			return nil, nil
-		},
-	}
-
-	UnixTime = &Scalar{
-		Name: "Timestamp",
-		Encode: func(v interface{}) (interface{}, error) {
-			return v.(time.Time).Unix(), nil
-		},
-		Decode: func(bs []byte) (interface{}, error) {
-			i, err := strconv.ParseInt(string(bs), 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			return time.Unix(i, 0), nil
-		},
-	}
-)
-
-type Encoder func(interface{}) (interface{}, error)
-type Decoder func([]byte) (interface{}, error)
+type InputCoercion func(string) (interface{}, error)
+type OutputCoercion func(interface{}) ([]byte, error)
 
 type Scalar struct {
-	Name   string
-	Encode Encoder
-	Decode Decoder
+	Name           string
+	Description    string
+	InputCoercion  InputCoercion
+	OutputCoercion OutputCoercion
 }
 
-func (s *Scalar) Type() FieldType {
-	return ScalarType
+func (s *Scalar) Unwrap() Type {
+	return nil
 }
 
-func (s *Scalar) Value() interface{} {
-	return s
+func (s *Scalar) Kind() TypeDefinition {
+	return ScalarTypeDefinition
 }
 
-func (s *Scalar) IsNullable() bool {
-	return true
-}
+var (
+	// String is a built-in type in GraphQL
+	String = &Scalar{
+		Name:        "String",
+		Description: "This is the built-in String scalar",
+		InputCoercion: func(s string) (interface{}, error) {
+			if strings.HasPrefix(s, "\"") && strings.HasSuffix(s, "\"") {
+				t := s[1 : len(s)-1]
+				if utf8.ValidString(t) {
+					return t, nil
+				}
+			}
+			return nil, fmt.Errorf("value '%s' couldn't be coerced as input for String", s)
+		},
+		OutputCoercion: func(v interface{}) ([]byte, error) {
+			r := reflect.ValueOf(v)
+			switch {
+			case v == nil:
+				return []byte("null"), nil
+			case r.Kind() == reflect.String:
+				if utf8.ValidString(r.String()) {
+					return json.Marshal(r.String())
+				}
+			case r.Kind() == reflect.Bool:
+				if r.Bool() {
+					return []byte("true"), nil
+				}
+				return []byte("false"), nil
+			case r.Kind() == reflect.Int || r.Kind() == reflect.Int16 || r.Kind() == reflect.Int32:
+				return []byte(fmt.Sprintf(`"%v"`, r.Int())), nil
+			case r.Kind() == reflect.Float32 || r.Kind() == reflect.Float64:
+				return []byte(fmt.Sprintf(`"%v"`, r.Float())), nil
+			}
+			return nil, fmt.Errorf("value '%v' couldn't be coerced as output for String", v)
+		},
+	}
+	// ID is a built-in type in GraphQL
+	ID = &Scalar{
+		Name:        "ID",
+		Description: "This is the built-in ID scalar",
+		InputCoercion: func(s string) (interface{}, error) {
+			if strings.HasPrefix(s, "\"") && strings.HasSuffix(s, "\"") {
+				t := s[1 : len(s)-1]
+				if utf8.ValidString(t) {
+					return t, nil
+				}
+			}
+			return nil, fmt.Errorf("value '%s' couldn't be coerced as input for String", s)
+		},
+		OutputCoercion: func(v interface{}) ([]byte, error) {
+			r := reflect.ValueOf(v)
+			switch {
+			case v == nil:
+				return []byte("null"), nil
+			case r.Kind() == reflect.String:
+				if utf8.ValidString(r.String()) {
+					return json.Marshal(r.String())
+				}
+			case r.Kind() == reflect.Int || r.Kind() == reflect.Int16 || r.Kind() == reflect.Int32:
+				return []byte(fmt.Sprintf(`"%v"`, r.Int())), nil
+			}
+			return nil, fmt.Errorf("value '%v' couldn't be coerced as output for String", v)
+		},
+	}
+)
