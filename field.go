@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// Argument ...
 type Argument struct {
 	Name              string
 	Description       string
@@ -13,11 +14,13 @@ type Argument struct {
 	Type              Type
 }
 
+// Directive ..
 type Directive struct {
 	Name      string
 	Arguments []*Argument
 }
 
+// Field ...
 type Field struct {
 	Name              string
 	Description       string
@@ -28,10 +31,13 @@ type Field struct {
 	Resolver          ResolverFunc
 }
 
+// ResolverFunc ..
 type ResolverFunc func(context.Context, map[string]interface{}, interface{}) (interface{}, error)
 
+// Fields ...
 type Fields []*Field
 
+// Get returns the field with the given name (if exists)
 func (fs Fields) Get(name string) (*Field, error) {
 	for f := range fs {
 		if fs[f].Name == name {

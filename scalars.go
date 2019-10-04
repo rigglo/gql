@@ -8,9 +8,13 @@ import (
 	"unicode/utf8"
 )
 
+// InputCoercion func
 type InputCoercion func(string) (interface{}, error)
+
+// OutputCoercion func
 type OutputCoercion func(interface{}) ([]byte, error)
 
+// Scalar ...
 type Scalar struct {
 	Name           string
 	Description    string
@@ -18,10 +22,12 @@ type Scalar struct {
 	OutputCoercion OutputCoercion
 }
 
+// Unwrap ...
 func (s *Scalar) Unwrap() Type {
 	return nil
 }
 
+// Kind ...
 func (s *Scalar) Kind() TypeDefinition {
 	return ScalarTypeDefinition
 }

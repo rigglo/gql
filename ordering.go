@@ -67,6 +67,7 @@ func (iter *ofgIterator) Value() (string, ast.Fields) {
 	return iter.ofg.Orders[iter.i], iter.ofg.ByOrder(iter.i)
 }
 
+// NewOrderedMap creates a new OrderedMap
 func NewOrderedMap() *OrderedMap {
 	return &OrderedMap{
 		Values: map[string]interface{}{},
@@ -74,11 +75,13 @@ func NewOrderedMap() *OrderedMap {
 	}
 }
 
+// OrderedMap ...
 type OrderedMap struct {
 	Values map[string]interface{}
 	Orders []string
 }
 
+// MarshalJSON implements the json Marshaler interface
 func (om *OrderedMap) MarshalJSON() ([]byte, error) {
 	out := "{"
 	var err error
@@ -99,23 +102,28 @@ func (om *OrderedMap) MarshalJSON() ([]byte, error) {
 	return []byte(out), nil
 }
 
+// Append appends a key value pair to the map
 func (om *OrderedMap) Append(key string, value interface{}) {
 	om.Orders = append(om.Orders, key)
 	om.Values[key] = value
 }
 
+// ByName return a value ByName
 func (om *OrderedMap) ByName(name string) interface{} {
 	return om.Values[name]
 }
 
+// ByOrder returns a value ByOrder
 func (om *OrderedMap) ByOrder(i int) interface{} {
 	return om.Values[om.Orders[i]]
 }
 
+// Len returns the size of the map
 func (om *OrderedMap) Len() int {
 	return len(om.Orders)
 }
 
+// Iter returns an iterator for the map
 func (om *OrderedMap) Iter() *MapIterator {
 	return newMapIterator(om)
 }
@@ -127,11 +135,13 @@ func newMapIterator(om *OrderedMap) *MapIterator {
 	}
 }
 
+// MapIterator is an iterator for an OrderedMap
 type MapIterator struct {
 	i  int
 	om *OrderedMap
 }
 
+// Next returns true if there's a next element in the OrderedMap
 func (iter *MapIterator) Next() bool {
 	if iter.om.Len()-1 > iter.i {
 		iter.i++
@@ -140,6 +150,7 @@ func (iter *MapIterator) Next() bool {
 	return false
 }
 
+// Value returns the current element of the iterator
 func (iter *MapIterator) Value() (string, interface{}) {
 	return iter.om.Orders[iter.i], iter.om.ByOrder(iter.i)
 }

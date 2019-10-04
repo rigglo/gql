@@ -1,5 +1,6 @@
 package gql
 
+// Schema ...
 type Schema struct {
 	Mutation    *Object
 	Query       *Object
