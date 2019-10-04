@@ -57,16 +57,32 @@ func (s *Schema) ValidateSelectionSet(ctx *execCtx, o *Object, set []ast.Selecti
 			astField := selection.(*ast.Field)
 			fieldType, err := o.Fields.Get(astField.Name)
 			if err != nil {
-				return []error{err}
+				return []error{fmt.Errorf("field '%s' is not defined on type '%s'", astField.Name, fieldType.Name)}
 			}
 			// TODO: ValidateArguments
 			// TODO: ValidateDirectives
 			s.ValidateLeafFieldSelections(ctx, fieldType)
 		}
 	}
-	return nil
+	return s.ValidateSelectionSetMerges(ctx, o, set)
 }
 
 func (s *Schema) ValidateLeafFieldSelections(ctx *execCtx, f *Field) {
 
+}
+
+func (s *Schema) ValidateSelectionSetMerges(ctx *execCtx, o *Object, set []ast.Selection) []error {
+	/*ofg := s.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
+	for _, fieldsForName := range ofg.Fields {
+
+	}*/
+	return nil
+}
+
+func (s *Schema) ValidateFieldsInSetCanMerge(ctx *execCtx, set []ast.Selection) []error {
+	return nil
+}
+
+func (s *Schema) ValidateSameResponseShape(ctx *execCtx, fieldA *ast.Field, fieldB *ast.Field) bool {
+	return true
 }
