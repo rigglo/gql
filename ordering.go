@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/rigglo/gql/utils/ast"
-	"log"
 )
 
 func newOrderedFieldGroups() *orderedFieldGroups {
@@ -91,7 +90,6 @@ func (om *OrderedMap) MarshalJSON() ([]byte, error) {
 				return nil, err
 			}
 		}
-		log.Println(i, key, string(val))
 		out += fmt.Sprintf(`"%s": %s`, key, string(val))
 		if i < len(om.Orders)-1 {
 			out += ","

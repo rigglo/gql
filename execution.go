@@ -108,7 +108,7 @@ func (schema *Schema) CompleteValue(ctx *execCtx, fT Type, fields ast.Fields, cV
 		out, errs := schema.ExecuteSelectionSet(ctx, fT.(*Object), fields[0].SelectionSet, cVal)
 		return out, errs
 	}
-	return cVal, nil
+	return nil, []error{fmt.Errorf("Schema.CompleteValue - END - you should not get here.. ")}
 }
 
 func (schema *Schema) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, vf map[string]*ast.FragmentSpread) *orderedFieldGroups {

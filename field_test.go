@@ -3,10 +3,9 @@ package gql_test
 import (
 	"context"
 	"encoding/json"
+	"github.com/rigglo/gql"
 	"log"
 	"testing"
-
-	"github.com/rigglo/gql"
 )
 
 type (
@@ -100,7 +99,7 @@ query GetMoviesWithFragments {
 			},
 		},
 	}
-	res := schema.Execute(context.Background(), query, "GetMoviesWithFragments", map[string]interface{}{})
+	res := schema.Execute(context.Background(), query, "GetMovies", map[string]interface{}{})
 	//spew.Dump(res)
 	bs, _ := json.MarshalIndent(res, "", "\t")
 	log.Println(string(bs))
