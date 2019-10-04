@@ -53,7 +53,7 @@ func (schema *Schema) ExecuteField(ctx *execCtx, o *Object, val interface{}, fie
 	field := fields[0]
 	errs := []error{}
 	fieldName := field.Name
-	args, cErrs := schema.CoerceArgumentValues(o, field, ctx.vars)
+	args, cErrs := schema.CoerceArgumentValues(ctx, o, field)
 	errs = append(errs, cErrs...)
 	resVal, err := schema.ResolveFieldValue(o, val, fieldName, args)
 	errs = append(errs, err)
@@ -64,7 +64,7 @@ func (schema *Schema) ExecuteField(ctx *execCtx, o *Object, val interface{}, fie
 	return cVal, errs
 }
 
-func (schema *Schema) CoerceArgumentValues(o *Object, field *ast.Field, vars map[string]interface{}) (map[string]interface{}, []error) {
+func (schema *Schema) CoerceArgumentValues(ctx *execCtx, o *Object, field *ast.Field) (map[string]interface{}, []error) {
 	return nil, nil
 }
 
@@ -105,10 +105,18 @@ func (schema *Schema) CompleteValue(ctx *execCtx, fT Type, fields ast.Fields, cV
 		}
 		return cRes, errs
 	case fT.Kind() == ObjectTypeDefinition: // TODO: check Interface and Union too
-		out, errs := schema.ExecuteSelectionSet(ctx, fT.(*Object), fields[0].SelectionSet, cVal)
+		out, errs := schema.ExecuteSelectionSet(ctx, fT.(*Object), schema.MergeSelectionSets(ctx, fields), cVal)
 		return out, errs
 	}
 	return nil, []error{fmt.Errorf("Schema.CompleteValue - END - you should not get here.. ")}
+}
+
+func (s *Schema) MergeSelectionSets(ctx *execCtx, fields ast.Fields) []ast.Selection {
+	set := []ast.Selection{}
+	for _, f := range fields {
+		set = append(set, f.SelectionSet...)
+	}
+	return set
 }
 
 func (schema *Schema) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, vf map[string]*ast.FragmentSpread) *orderedFieldGroups {
