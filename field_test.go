@@ -78,9 +78,10 @@ fragment IdAndTitle on Movie {
 
 query GetMovies {
 	movies {
-		category
 		title
-		id
+	}
+	movies {
+		category
 	}
 }
 
