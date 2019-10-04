@@ -13,16 +13,24 @@ type Result struct {
 	Errors []error     `json:"errors"`
 }
 
-func (schema *Schema) ExecuteQuery(doc *ast.Document, query *ast.Operation, vars map[string]interface{}, initVal interface{}) *Result {
-	data, err := schema.ExecuteSelectionSet(doc, schema.Query, query.SelectionSet, vars, initVal)
+type execCtx struct {
+	query         string
+	Context       context.Context
+	doc           *ast.Document
+	operationName string
+	vars          map[string]interface{}
+}
+
+func (schema *Schema) ExecuteQuery(ctx *execCtx, query *ast.Operation, initVal interface{}) *Result {
+	data, err := schema.ExecuteSelectionSet(ctx, schema.Query, query.SelectionSet, initVal)
 	return &Result{
 		Data:   data,
 		Errors: err,
 	}
 }
 
-func (schema *Schema) ExecuteSelectionSet(doc *ast.Document, o *Object, set []ast.Selection, vars map[string]interface{}, val interface{}) (*OrderedMap, []error) {
-	ofg := schema.CollectFields(doc, o, set, vars, map[string]*ast.FragmentSpread{})
+func (schema *Schema) ExecuteSelectionSet(ctx *execCtx, o *Object, set []ast.Selection, val interface{}) (*OrderedMap, []error) {
+	ofg := schema.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
 	res := NewOrderedMap()
 	errs := []error{}
 	iter := ofg.Iter()
@@ -33,7 +41,7 @@ func (schema *Schema) ExecuteSelectionSet(doc *ast.Document, o *Object, set []as
 		if err != nil {
 			errs = append(errs, err)
 		}
-		fVal, fErrs := schema.ExecuteField(doc, o, val, fields, f.Type, vars)
+		fVal, fErrs := schema.ExecuteField(ctx, o, val, fields, f.Type)
 		errs = append(errs, fErrs...)
 		res.Append(key, fVal)
 	}
@@ -41,17 +49,17 @@ func (schema *Schema) ExecuteSelectionSet(doc *ast.Document, o *Object, set []as
 	return res, nil
 }
 
-func (schema *Schema) ExecuteField(doc *ast.Document, o *Object, val interface{}, fields ast.Fields, ftype Type, vars map[string]interface{}) (interface{}, []error) {
+func (schema *Schema) ExecuteField(ctx *execCtx, o *Object, val interface{}, fields ast.Fields, ftype Type) (interface{}, []error) {
 	field := fields[0]
 	errs := []error{}
 	fieldName := field.Name
-	args, cErrs := schema.CoerceArgumentValues(o, field, vars)
+	args, cErrs := schema.CoerceArgumentValues(o, field, ctx.vars)
 	errs = append(errs, cErrs...)
 	resVal, err := schema.ResolveFieldValue(o, val, fieldName, args)
 	errs = append(errs, err)
 	fT, err := o.Fields.Get(fieldName)
 	errs = append(errs, err)
-	cVal, cErrs := schema.CompleteValue(doc, fT.Type, fields, resVal, vars)
+	cVal, cErrs := schema.CompleteValue(ctx, fT.Type, fields, resVal)
 	errs = append(errs, cErrs...)
 	return cVal, errs
 }
@@ -62,15 +70,16 @@ func (schema *Schema) CoerceArgumentValues(o *Object, field *ast.Field, vars map
 
 func (schema *Schema) ResolveFieldValue(o *Object, val interface{}, fieldName string, args map[string]interface{}) (interface{}, error) {
 	field, _ := o.Fields.Get(fieldName)
+	// TODO: run resolver in VM
 	return field.Resolver(context.Background(), args, val)
 }
 
-func (schema *Schema) CompleteValue(doc *ast.Document, fT Type, fields ast.Fields, cVal interface{}, vars map[string]interface{}) (interface{}, []error) {
+func (schema *Schema) CompleteValue(ctx *execCtx, fT Type, fields ast.Fields, cVal interface{}) (interface{}, []error) {
 	errs := []error{}
 	switch {
 	case fT.Kind() == NonNullTypeDefinition:
 		innerType := fT.Unwrap()
-		cRes, cErrs := schema.CompleteValue(doc, innerType, fields, cVal, vars)
+		cRes, cErrs := schema.CompleteValue(ctx, innerType, fields, cVal)
 		errs = append(errs, cErrs...)
 		if cRes == nil {
 			errs = append(errs, fmt.Errorf("null value error on NonNull field"))
@@ -82,7 +91,7 @@ func (schema *Schema) CompleteValue(doc *ast.Document, fT Type, fields ast.Field
 		out := []interface{}{}
 		if reflect.TypeOf(cVal).Kind() == reflect.Slice {
 			for i := 0; i < reflect.ValueOf(cVal).Len(); i++ {
-				cRes, cErrs := schema.CompleteValue(doc, fT.Unwrap(), fields, reflect.ValueOf(cVal).Index(i).Interface(), vars)
+				cRes, cErrs := schema.CompleteValue(ctx, fT.Unwrap(), fields, reflect.ValueOf(cVal).Index(i).Interface())
 				errs = append(errs, cErrs...)
 				out = append(out, cRes)
 			}
@@ -96,13 +105,13 @@ func (schema *Schema) CompleteValue(doc *ast.Document, fT Type, fields ast.Field
 		}
 		return cRes, errs
 	case fT.Kind() == ObjectTypeDefinition: // TODO: check Interface and Union too
-		out, errs := schema.ExecuteSelectionSet(doc, fT.(*Object), fields[0].SelectionSet, vars, cVal)
+		out, errs := schema.ExecuteSelectionSet(ctx, fT.(*Object), fields[0].SelectionSet, cVal)
 		return out, errs
 	}
 	return cVal, nil
 }
 
-func (schema *Schema) CollectFields(doc *ast.Document, o *Object, set []ast.Selection, vars map[string]interface{}, vf map[string]*ast.FragmentSpread) *orderedFieldGroups {
+func (schema *Schema) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, vf map[string]*ast.FragmentSpread) *orderedFieldGroups {
 	groupedFields := newOrderedFieldGroups()
 	for s := range set {
 		// TODO: Check skip and include directives
@@ -118,16 +127,22 @@ func (schema *Schema) CollectFields(doc *ast.Document, o *Object, set []ast.Sele
 			}
 			vf[f.Name] = f
 
-			fragment, ok := doc.Fragments[f.Name]
+			fragment, ok := ctx.doc.Fragments[f.Name]
 			if ok {
-				if fragment.TypeCondition != o.Name {
+				fragmentType, ok := schema.types[fragment.TypeCondition]
+				if !ok {
+					// RAISE FIELD ERROR
 					continue
 				}
-				// TODO: Check if fragment on type matches the object type
+				if !schema.DoesFragmentTypeApply(o, fragmentType) {
+					// RAISE FIELD ERROR
+					continue
+				}
 			} else {
+				// RAISE FIELD ERROR
 				continue
 			}
-			res := schema.CollectFields(doc, o, fragment.SelectionSet, vars, vf)
+			res := schema.CollectFields(ctx, o, fragment.SelectionSet, vf)
 			rIter := res.Iter()
 			for rIter.Next() {
 				alias, rfs := rIter.Value()
@@ -135,25 +150,83 @@ func (schema *Schema) CollectFields(doc *ast.Document, o *Object, set []ast.Sele
 					groupedFields.Append(alias, rfs[rf])
 				}
 			}
-		} else if _, ok := set[s].(*ast.InlineFragment); ok {
-			// log.Println("InlineFragment:", f)
-			// TODO: add inline fragments
+		} else if f, ok := set[s].(*ast.InlineFragment); ok {
+			fragment, ok := ctx.doc.Fragments[f.TypeCondition]
+			if ok {
+				fragmentType, ok := schema.types[fragment.TypeCondition]
+				if !ok {
+					// RAISE FIELD ERROR
+					continue
+				}
+				if !schema.DoesFragmentTypeApply(o, fragmentType) {
+					// RAISE FIELD ERROR
+					continue
+				}
+			} else {
+				// RAISE FIELD ERROR
+				continue
+			}
 		}
 	}
 	return groupedFields
 }
 
-func (s *Schema) Resolve(ctx context.Context, query string) (*Result, error) {
+func (s *Schema) DoesFragmentTypeApply(o *Object, fragmentType Type) bool {
+	return true
+}
+
+func (s *Schema) Execute(ctx context.Context, query string, operationName string, vars map[string]interface{}) *Result {
 	_, doc, err := parser.Parse(query)
 	if err != nil {
-		return nil, err
-	}
-
-	for _, op := range doc.Operations {
-		if op.OperationType == ast.Query {
-			// TODO: check if s.Query is nil
-			return s.ExecuteQuery(doc, op, map[string]interface{}{}, nil), nil
+		return &Result{
+			Errors: []error{err},
 		}
 	}
-	return nil, nil
+
+	eCtx := &execCtx{
+		Context:       ctx,
+		doc:           doc,
+		operationName: operationName,
+		query:         query,
+		vars:          vars,
+	}
+
+	if errs := s.ValidateRequest(eCtx); len(errs) > 0 {
+		return &Result{
+			Errors: errs,
+		}
+	}
+
+	op, err := s.GetOperation(doc, operationName)
+	if err != nil {
+		return &Result{
+			Errors: []error{err},
+		}
+	}
+
+	switch op.OperationType {
+	case ast.Query:
+		return s.ExecuteQuery(eCtx, op, nil)
+	case ast.Mutation:
+		// TODO: implement ExecuteMutation
+		break
+	case ast.Subscription:
+		// TODO: implement ExecuteSubscription
+		break
+	}
+	return &Result{
+		Errors: []error{fmt.Errorf("invalid operation type")},
+	}
+}
+
+func (s *Schema) GetOperation(doc *ast.Document, operationName string) (*ast.Operation, error) {
+	if operationName == "" && len(doc.Operations) != 1 {
+		return nil, fmt.Errorf("operationName is required")
+	}
+	for i := range doc.Operations {
+		if doc.Operations[i].Name == operationName {
+			return doc.Operations[i], nil
+		}
+	}
+	return nil, fmt.Errorf("invalid operationName: operation '%s' not found", operationName)
 }

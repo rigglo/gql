@@ -72,25 +72,22 @@ var (
 
 func TestFieldResolver(t *testing.T) {
 	query := `
-
-fragment v2 on Movie {
-	cat:category
-}
-
-fragment asd on Movie {
+fragment IdAndTitle on Movie {
 	id
-	...v2
+	title
 }
 
-query {
+query GetMovies {
 	movies {
 		category
 		title
 		id
 	}
-	v2:movies {
-		title
-		...asd
+}
+
+query GetMoviesWithFragments {
+	movies {
+		...IdAndTitle
 	}
 }
 	`
@@ -103,7 +100,7 @@ query {
 			},
 		},
 	}
-	res, _ := schema.Resolve(context.Background(), query)
+	res := schema.Execute(context.Background(), query, "GetMoviesWithFragments", map[string]interface{}{})
 	//spew.Dump(res)
 	bs, _ := json.MarshalIndent(res, "", "\t")
 	log.Println(string(bs))
