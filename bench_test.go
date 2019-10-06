@@ -47,7 +47,7 @@ func banchN(n int) func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			query := `
-				query {
+				query asd {
 					colors {
 						hex
 						r
@@ -62,10 +62,10 @@ func banchN(n int) func(b *testing.B) {
 }
 
 func benchGraphql(s *gql.Schema, q string, t testing.TB) {
-	/*result, _ := s.Resolve(context.Background(), q)
+	result := s.Execute(context.Background(), q, "asd", map[string]interface{}{})
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
-	}*/
+	}
 }
 
 func ListWithNItem(n int) *gql.Schema {
@@ -80,7 +80,7 @@ func ListWithNItem(n int) *gql.Schema {
 				Name: "colors",
 				Type: gql.NewList(color),
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
-					return nil, nil
+					return generateXListItems(n), nil
 				},
 			},
 		},
