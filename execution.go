@@ -18,6 +18,7 @@ type execCtx struct {
 	Context       context.Context
 	doc           *ast.Document
 	operationName string
+	types         map[string]Type
 	vars          map[string]interface{}
 }
 
@@ -35,6 +36,7 @@ func (schema *Schema) ExecuteSelectionSet(ctx *execCtx, o *Object, set []ast.Sel
 	errs := []error{}
 	iter := ofg.Iter()
 	for iter.Next() {
+		// TODO: FieldsInSetCanMerge
 		key, fields := iter.Value()
 		fName := fields[0].Name
 		f, err := o.Fields.Get(fName)
@@ -65,7 +67,24 @@ func (schema *Schema) ExecuteField(ctx *execCtx, o *Object, val interface{}, fie
 }
 
 func (schema *Schema) CoerceArgumentValues(ctx *execCtx, o *Object, field *ast.Field) (map[string]interface{}, []error) {
-	return nil, nil
+	vals := map[string]interface{}{}
+	/* fieldDef, _ := o.Fields.Get(field.Name)
+	argVals := field.Arguments
+	argDefs := fieldDef.Arguments
+	for _, argDef := range argDefs {
+		argName := argDef.Name
+		argType := argDef.Type
+		defaultVal := argDef.DefaultValue
+		hasVal := false
+		for _, arg := range field.Arguments {
+			if arg.Name == argName {
+				hasVal = true
+				break
+			}
+		}
+
+	} */
+	return vals, nil
 }
 
 func (schema *Schema) ResolveFieldValue(o *Object, val interface{}, fieldName string, args map[string]interface{}) (interface{}, error) {
@@ -197,11 +216,12 @@ func (s *Schema) Execute(ctx context.Context, query string, operationName string
 		operationName: operationName,
 		query:         query,
 		vars:          vars,
+		types:         map[string]Type{},
 	}
 
 	if errs := s.ValidateRequest(eCtx); len(errs) > 0 {
 		return &Result{
-			Errors: errs,
+			Errors: append(errs, fmt.Errorf("validation error")),
 		}
 	}
 
