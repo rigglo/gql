@@ -1,4 +1,4 @@
-package gql
+package schema
 
 import (
 	"encoding/json"

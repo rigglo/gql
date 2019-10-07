@@ -1,9 +1,10 @@
-package gql_test
+package tests
 
 import (
 	"context"
 	"encoding/json"
 	"github.com/rigglo/gql"
+	"github.com/rigglo/gql/schema"
 	"log"
 	"testing"
 )
@@ -12,35 +13,49 @@ type (
 	Movie struct {
 		ID       string
 		Title    string
-		Category string
+		Category int
 	}
 )
 
 var (
-	MovieType = &gql.Object{
+	CategoryEnum = &schema.Enum{
+		Name: "Categories",
+		Values: schema.EnumValues{
+			&schema.EnumValue{
+				Value: 3,
+				Name:  "SCIFI",
+			},
+			&schema.EnumValue{
+				Value: 4,
+				Name:  "ACTION",
+			},
+		},
+	}
+
+	MovieType = &schema.Object{
 		Name:        "Movie",
 		Description: "This is a record of a Movie",
-		Fields: []*gql.Field{
-			&gql.Field{
+		Fields: []*schema.Field{
+			&schema.Field{
 				Name:        "id",
 				Description: "this is the id of a move",
-				Type:        gql.ID,
+				Type:        schema.ID,
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return parent.(*Movie).ID, nil
 				},
 			},
-			&gql.Field{
+			&schema.Field{
 				Name:        "title",
 				Description: "title of a move",
-				Type:        gql.String,
+				Type:        schema.String,
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return parent.(*Movie).Title, nil
 				},
 			},
-			&gql.Field{
+			&schema.Field{
 				Name:        "category",
 				Description: "category of a move",
-				Type:        gql.String,
+				Type:        CategoryEnum,
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return parent.(*Movie).Category, nil
 				},
@@ -48,21 +63,21 @@ var (
 		},
 	}
 
-	MoviesQuery = &gql.Field{
+	MoviesQuery = &schema.Field{
 		Name:        "movies",
 		Description: "This is a record of a Movie",
-		Type:        gql.NewList(MovieType),
+		Type:        schema.NewList(MovieType),
 		Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 			return []*Movie{
 				&Movie{
 					ID:       "91902d98-f1a0-473a-9ff1-74b7b59b0ffa",
 					Title:    "Interstellar",
-					Category: "Sci-fi",
+					Category: 3,
 				},
 				&Movie{
 					ID:       "6d122f45-77a4-41ca-a7a7-fcb20853684d",
 					Title:    "Avatar",
-					Category: "Sci-fi",
+					Category: 4,
 				},
 			}, nil
 		},
@@ -92,16 +107,30 @@ query GetMoviesWithFragments {
 }
 	`
 
-	schema := &gql.Schema{
-		Query: &gql.Object{
+	schema := schema.Schema{
+		Query: &schema.Object{
 			Name: "Query",
-			Fields: gql.Fields{
+			Fields: schema.Fields{
 				MoviesQuery,
 			},
 		},
 	}
-	res := schema.Execute(context.Background(), query, "GetMovies", map[string]interface{}{})
-	//spew.Dump(res)
-	bs, _ := json.MarshalIndent(res, "", "\t")
-	log.Println(string(bs))
+
+	res := gql.Execute(&gql.Params{
+		Ctx:           context.Background(),
+		Schema:        schema,
+		OperationName: "GetMovies",
+		Query:         query,
+		Variables:     map[string]interface{}{},
+	})
+	if len(res.Errors) != 0 {
+		t.Fatal(res.Errors)
+	} else if res.Data == nil {
+		t.Fatal("res is nil")
+	}
+	bs, err := json.MarshalIndent(res, "", "\t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Println("'", string(bs), "'")
 }

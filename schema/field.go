@@ -1,19 +1,9 @@
-package gql
+package schema
 
 import (
 	"context"
 	"fmt"
 )
-
-// Argument ...
-type Argument struct {
-	Name              string
-	DefaultValue      interface{}
-	Description       string
-	Depricated        bool
-	DepricationReason string
-	Type              Type
-}
 
 // Directive ..
 type Directive struct {
