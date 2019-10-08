@@ -40,7 +40,7 @@ const (
 type Type interface {
 	Unwrap() Type
 	Kind() TypeDefinition
-	Validate() error
+	Validate(*ValidationContext) error
 }
 
 // NewNonNull ...
@@ -66,9 +66,9 @@ func (nn *NonNull) Kind() TypeDefinition {
 }
 
 // Validate ...
-func (nn *NonNull) Validate() error {
+func (nn *NonNull) Validate(ctx *ValidationContext) error {
 	if nn.Type != nil {
-		return nn.Type.Validate()
+		return nn.Type.Validate(ctx)
 	}
 	return fmt.Errorf("invalid type definition")
 }
@@ -96,9 +96,9 @@ func (l *List) Kind() TypeDefinition {
 }
 
 // Validate ...
-func (l *List) Validate() error {
+func (l *List) Validate(ctx *ValidationContext) error {
 	if l.Type != nil {
-		return l.Type.Validate()
+		return l.Type.Validate(ctx)
 	}
 	return fmt.Errorf("invalid type definition")
 }

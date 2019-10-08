@@ -44,6 +44,7 @@ func (e *Enum) OutputCoercion(v interface{}) ([]byte, error) {
 	return nil, fmt.Errorf("invalid value for %s enum: %v", e.Name, v)
 }
 
-func (e *Enum) Validate() error {
+func (e *Enum) Validate(ctx *ValidationContext) error {
+
 	return nil
 }

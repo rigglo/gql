@@ -32,10 +32,12 @@ func (s *Scalar) Kind() TypeDefinition {
 	return ScalarTypeDefinition
 }
 
-func (s *Scalar) Validate() error {
+// Validate validates the Type
+func (s *Scalar) Validate(ctx *ValidationContext) error {
 	if strings.HasPrefix(s.Name, "__") {
 		return fmt.Errorf("invalid name (%s) for Scalar", s.Name)
 	}
+	ctx.types[s.Name] = s
 	return nil
 }
 

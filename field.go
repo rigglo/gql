@@ -38,8 +38,8 @@ func (fs Fields) Get(name string) (*Field, error) {
 	return nil, fmt.Errorf("there's no field named '%s'", name)
 }
 
-func (f *Field) Validate() error {
-	if err := f.Type.Validate(); err != nil {
+func (f *Field) Validate(ctx *ValidationContext) error {
+	if err := f.Type.Validate(ctx); err != nil {
 		return err
 	}
 	return nil
