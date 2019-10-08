@@ -4,14 +4,16 @@ import (
 	"context"
 )
 
+// Params ...
 type Params struct {
-	Ctx           context.Context
-	Schema        Schema
-	Query         string
-	OperationName string
-	Variables     map[string]interface{}
+	Ctx           context.Context        `json:"-"`
+	Schema        Schema                 `json:"-"`
+	Query         string                 `json:"query"`
+	OperationName string                 `json:"operationName"`
+	Variables     map[string]interface{} `json:"variables"`
 }
 
+// Execute ...
 func Execute(p *Params) *Result {
 	e := &executor{
 		schema: &p.Schema,
