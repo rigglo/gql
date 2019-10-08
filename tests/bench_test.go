@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/rigglo/gql"
-	"github.com/rigglo/gql/schema"
 	"testing"
 )
 
@@ -62,10 +61,9 @@ func banchN(n int) func(b *testing.B) {
 	}
 }
 
-func benchGraphql(s *schema.Schema, q string, t testing.TB) {
-	result := gql.Execute(&gql.Params{
+func benchGraphql(s *gql.Schema, q string, t testing.TB) {
+	result := s.Execute(&gql.Params{
 		Ctx:           context.Background(),
-		Schema:        *s,
 		OperationName: "asd",
 		Query:         q,
 		Variables:     map[string]interface{}{},
@@ -75,24 +73,26 @@ func benchGraphql(s *schema.Schema, q string, t testing.TB) {
 	}
 }
 
-func ListWithNItem(n int) *schema.Schema {
-	color := &schema.Object{
+func ListWithNItem(n int) *gql.Schema {
+	color := &gql.Object{
 		Name:   "Color",
-		Fields: schema.Fields{},
+		Fields: gql.Fields{
+			
+		},
 	}
-	query := &schema.Object{
+	query := &gql.Object{
 		Name: "Query",
-		Fields: schema.Fields{
-			&schema.Field{
+		Fields: gql.Fields{
+			&gql.Field{
 				Name: "colors",
-				Type: schema.NewList(color),
+				Type: gql.NewList(color),
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return generateXListItems(n), nil
 				},
 			},
 		},
 	}
-	schema := schema.Schema{
+	schema := gql.Schema{
 		Query: query,
 	}
 
