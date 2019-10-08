@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/rigglo/gql/utils/parser"
+	"github.com/rigglo/gql/language/parser"
 )
 
 func TestParse(t *testing.T) {

@@ -48,8 +48,8 @@ type Variable struct {
 }
 
 type Argument struct {
-	Name string
-	Value
+	Name  string
+	Value Value
 }
 
 type Directive struct {

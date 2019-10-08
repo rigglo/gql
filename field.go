@@ -5,19 +5,13 @@ import (
 	"fmt"
 )
 
-type Argument struct {
-	Name              string
-	Description       string
-	Depricated        bool
-	DepricationReason string
-	Type              Type
-}
-
+// Directive ..
 type Directive struct {
 	Name      string
 	Arguments []*Argument
 }
 
+// Field ...
 type Field struct {
 	Name              string
 	Description       string
@@ -28,10 +22,13 @@ type Field struct {
 	Resolver          ResolverFunc
 }
 
+// ResolverFunc ..
 type ResolverFunc func(context.Context, map[string]interface{}, interface{}) (interface{}, error)
 
+// Fields ...
 type Fields []*Field
 
+// Get returns the field with the given name (if exists)
 func (fs Fields) Get(name string) (*Field, error) {
 	for f := range fs {
 		if fs[f].Name == name {
@@ -39,4 +36,11 @@ func (fs Fields) Get(name string) (*Field, error) {
 		}
 	}
 	return nil, fmt.Errorf("there's no field named '%s'", name)
+}
+
+func (f *Field) Validate(ctx *ValidationContext) error {
+	if err := f.Type.Validate(ctx); err != nil {
+		return err
+	}
+	return nil
 }

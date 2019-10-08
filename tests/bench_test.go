@@ -1,9 +1,10 @@
-package gql_test
+package tests
 
 import (
 	"context"
 	"fmt"
 	"github.com/rigglo/gql"
+	"github.com/rigglo/gql/schema"
 	"testing"
 )
 
@@ -47,7 +48,7 @@ func banchN(n int) func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			query := `
-				query {
+				query asd {
 					colors {
 						hex
 						r
@@ -61,31 +62,37 @@ func banchN(n int) func(b *testing.B) {
 	}
 }
 
-func benchGraphql(s *gql.Schema, q string, t testing.TB) {
-	result, _ := s.Resolve(context.Background(), q)
+func benchGraphql(s *schema.Schema, q string, t testing.TB) {
+	result := gql.Execute(&gql.Params{
+		Ctx:           context.Background(),
+		Schema:        *s,
+		OperationName: "asd",
+		Query:         q,
+		Variables:     map[string]interface{}{},
+	})
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
 }
 
-func ListWithNItem(n int) *gql.Schema {
-	color := &gql.Object{
+func ListWithNItem(n int) *schema.Schema {
+	color := &schema.Object{
 		Name:   "Color",
-		Fields: gql.Fields{},
+		Fields: schema.Fields{},
 	}
-	query := &gql.Object{
+	query := &schema.Object{
 		Name: "Query",
-		Fields: gql.Fields{
-			&gql.Field{
+		Fields: schema.Fields{
+			&schema.Field{
 				Name: "colors",
-				Type: gql.NewList(color),
+				Type: schema.NewList(color),
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
-					return nil, nil
+					return generateXListItems(n), nil
 				},
 			},
 		},
 	}
-	schema := gql.Schema{
+	schema := schema.Schema{
 		Query: query,
 	}
 
