@@ -14,14 +14,12 @@ func main() {
 		if err != nil {
 			http.Error(w, "couldn't read body", http.StatusInternalServerError)
 		}
-		params := gql.Params{
-			Schema: *StarWarsSchema,
-		}
+		params := gql.Params{}
 		err = json.Unmarshal(bs, &params)
 		if err != nil {
 			http.Error(w, "couldn't read body", http.StatusInternalServerError)
 		}
-		result := gql.Execute(&params)
+		result := StarWarsSchema.Execute(&params)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	})

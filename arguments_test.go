@@ -134,9 +134,8 @@ query GetMovies {
 		},
 	}
 
-	res := gql.Execute(&gql.Params{
+	res := schema.Execute(&gql.Params{
 		Ctx:           context.Background(),
-		Schema:        schema,
 		OperationName: "GetMovies",
 		Query:         query,
 		Variables:     map[string]interface{}{},
