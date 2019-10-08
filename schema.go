@@ -1,4 +1,4 @@
-package schema
+package gql
 
 // Schema ...
 type Schema struct {

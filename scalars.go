@@ -1,4 +1,4 @@
-package schema
+package gql
 
 import (
 	"encoding/json"
@@ -30,6 +30,13 @@ func (s *Scalar) Unwrap() Type {
 // Kind ...
 func (s *Scalar) Kind() TypeDefinition {
 	return ScalarTypeDefinition
+}
+
+func (s *Scalar) Validate() error {
+	if strings.HasPrefix(s.Name, "__") {
+		return fmt.Errorf("invalid name (%s) for Scalar", s.Name)
+	}
+	return nil
 }
 
 var (

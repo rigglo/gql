@@ -1,4 +1,4 @@
-package schema
+package gql
 
 // Argument ...
 type Argument struct {
@@ -9,4 +9,3 @@ type Argument struct {
 	DepricationReason string
 	Type              Type
 }
-

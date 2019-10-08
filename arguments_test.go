@@ -1,58 +1,58 @@
-package tests
+package gql_test
 
 import (
 	"context"
 	"encoding/json"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rigglo/gql"
-	"github.com/rigglo/gql/schema"
 	"log"
 	"testing"
 )
 
 type (
 	Movie struct {
-		ID       string
-		Title    string
-		Category int
+		ID       string `gql:"id"`
+		Title    string `gql:"title"`
+		Category int    `gql:"category"`
 	}
 )
 
 var (
-	CategoryEnum = &schema.Enum{
+	CategoryEnum = &gql.Enum{
 		Name: "Categories",
-		Values: schema.EnumValues{
-			&schema.EnumValue{
+		Values: gql.EnumValues{
+			&gql.EnumValue{
 				Value: 3,
 				Name:  "SCIFI",
 			},
-			&schema.EnumValue{
+			&gql.EnumValue{
 				Value: 4,
 				Name:  "ACTION",
 			},
 		},
 	}
 
-	MovieType = &schema.Object{
+	MovieType = &gql.Object{
 		Name:        "Movie",
 		Description: "This is a record of a Movie",
-		Fields: []*schema.Field{
-			&schema.Field{
+		Fields: []*gql.Field{
+			&gql.Field{
 				Name:        "id",
 				Description: "this is the id of a move",
-				Type:        schema.ID,
+				Type:        gql.ID,
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return parent.(*Movie).ID, nil
 				},
 			},
-			&schema.Field{
+			&gql.Field{
 				Name:        "title",
 				Description: "title of a move",
-				Type:        schema.String,
+				Type:        gql.String,
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return parent.(*Movie).Title, nil
 				},
 			},
-			&schema.Field{
+			&gql.Field{
 				Name:        "category",
 				Description: "category of a move",
 				Type:        CategoryEnum,
@@ -63,11 +63,41 @@ var (
 		},
 	}
 
-	MoviesQuery = &schema.Field{
+	MoviesQuery = &gql.Field{
 		Name:        "movies",
 		Description: "This is a record of a Movie",
-		Type:        schema.NewList(MovieType),
+		Type:        gql.NewList(MovieType),
+		Arguments: []*gql.Argument{
+			&gql.Argument{
+				Name: "movie",
+				Type: &gql.InputObject{
+					Name: "movieInput",
+					Fields: []*gql.InputObjectField{
+						&gql.InputObjectField{
+							Name: "title",
+							Type: gql.String,
+						},
+						&gql.InputObjectField{
+							Name: "category",
+							Type: CategoryEnum,
+						},
+					},
+				},
+			},
+		},
 		Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+			//log.Printf("%+v", args)
+			spew.Dump(args)
+			if name, ok := args["ids"]; ok {
+				log.Println(name)
+				return []*Movie{
+					&Movie{
+						ID:       "asd123",
+						Title:    "Interstellar",
+						Category: 3,
+					},
+				}, nil
+			}
 			return []*Movie{
 				&Movie{
 					ID:       "91902d98-f1a0-473a-9ff1-74b7b59b0ffa",
@@ -84,33 +114,21 @@ var (
 	}
 )
 
-func TestFieldResolvers(t *testing.T) {
+func TestFieldResolver(t *testing.T) {
 	query := `
-fragment IdAndTitle on Movie {
-	id
-	title
-}
-
 query GetMovies {
-	movies {
+	movies(movie: {title: "raining man", category: ACTION}) {
+		id
 		title
-	}
-	movies {
 		category
-	}
-}
-
-query GetMoviesWithFragments {
-	movies {
-		...IdAndTitle
 	}
 }
 	`
 
-	schema := schema.Schema{
-		Query: &schema.Object{
+	schema := gql.Schema{
+		Query: &gql.Object{
 			Name: "Query",
-			Fields: schema.Fields{
+			Fields: gql.Fields{
 				MoviesQuery,
 			},
 		},

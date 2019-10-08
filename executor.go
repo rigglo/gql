@@ -7,7 +7,7 @@ import (
 	"github.com/rigglo/gql/language/ast"
 	"github.com/rigglo/gql/language/parser"
 	"github.com/rigglo/gql/pkg/ordered"
-	"github.com/rigglo/gql/schema"
+	"github.com/rigglo/gql/pkg/vm"
 	"log"
 	"reflect"
 )
@@ -22,13 +22,13 @@ type execCtx struct {
 	Context       context.Context
 	doc           *ast.Document
 	operationName string
-	types         map[string]schema.Type
+	types         map[string]Type
 	vars          map[string]interface{}
 }
 
 type executor struct {
-	schema *schema.Schema
-	types  map[string]schema.Type
+	schema *Schema
+	types  map[string]Type
 }
 
 func (e *executor) ExecuteQuery(ctx *execCtx, query *ast.Operation, initVal interface{}) *Result {
@@ -39,7 +39,7 @@ func (e *executor) ExecuteQuery(ctx *execCtx, query *ast.Operation, initVal inte
 	}
 }
 
-func (e *executor) ExecuteSelectionSet(ctx *execCtx, o *schema.Object, set []ast.Selection, val interface{}) (*ordered.Map, []error) {
+func (e *executor) ExecuteSelectionSet(ctx *execCtx, o *Object, set []ast.Selection, val interface{}) (*ordered.Map, []error) {
 	ofg := e.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
 	res := ordered.NewMap()
 	errs := []error{}
@@ -57,27 +57,33 @@ func (e *executor) ExecuteSelectionSet(ctx *execCtx, o *schema.Object, set []ast
 		res.Append(key, fVal)
 	}
 
-	return res, nil
+	return res, errs
 }
 
-func (e *executor) ExecuteField(ctx *execCtx, o *schema.Object, val interface{}, fields ast.Fields, ftype schema.Type) (interface{}, []error) {
+func (e *executor) ExecuteField(ctx *execCtx, o *Object, val interface{}, fields ast.Fields, ftype Type) (interface{}, []error) {
 	field := fields[0]
 	errs := []error{}
 	fieldName := field.Name
 	args, cErrs := e.CoerceArgumentValues(ctx, o, field)
+	if cErrs != nil {
+		errs = append(errs, cErrs...)
+	}
 	errs = append(errs, cErrs...)
 	resVal, err := e.ResolveFieldValue(o, val, fieldName, args)
-	errs = append(errs, err)
-	fT, err := o.Fields.Get(fieldName)
-	errs = append(errs, err)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	fT, _ := o.Fields.Get(fieldName)
 	cVal, cErrs := e.CompleteValue(ctx, fT.Type, fields, resVal)
-	errs = append(errs, cErrs...)
+	if cErrs != nil {
+		errs = append(errs, cErrs...)
+	}
 	return cVal, errs
 }
 
-func (e *executor) CoerceArgumentValues(ctx *execCtx, o *schema.Object, field *ast.Field) (map[string]interface{}, []error) {
-	vals := map[string]interface{}{}
-	/* fieldDef, _ := o.Fields.Get(field.Name)
+func (e *executor) CoerceArgumentValues(ctx *execCtx, o *Object, field *ast.Field) (map[string]interface{}, []error) {
+	coercedVals := map[string]interface{}{}
+	fieldDef, _ := o.Fields.Get(field.Name)
 	argVals := field.Arguments
 	argDefs := fieldDef.Arguments
 	for _, argDef := range argDefs {
@@ -85,27 +91,114 @@ func (e *executor) CoerceArgumentValues(ctx *execCtx, o *schema.Object, field *a
 		argType := argDef.Type
 		defaultVal := argDef.DefaultValue
 		hasVal := false
-		for _, arg := range field.Arguments {
+		var value interface{}
+		var argVal ast.Value
+		for _, arg := range argVals {
 			if arg.Name == argName {
 				hasVal = true
+				argVal = arg.Value
 				break
 			}
 		}
-
-	} */
-	return vals, nil
+		if argVal.Kind() == ast.VariableValueKind {
+			varName := argVal.GetValue().(string)
+			value, hasVal = ctx.vars[varName]
+		} else {
+			value = argVal.GetValue()
+		}
+		if !hasVal {
+			coercedVals[argName] = defaultVal
+		} else if argType.Kind() == NonNullTypeDefinition && (!hasVal || argVal.Kind() == ast.NullValueKind) {
+			return nil, []error{fmt.Errorf("null value on Non-Null type")}
+		} else if hasVal {
+			if value == nil {
+				coercedVals[argName] = value
+			} else if argVal.Kind() == ast.VariableValueKind {
+				coercedVals[argName] = value
+			} else {
+				value, err := coerceValue(value, argDef.Type)
+				if err != nil {
+					return nil, []error{err}
+				}
+				coercedVals[argName] = value
+			}
+		}
+	}
+	return coercedVals, nil
 }
 
-func (e *executor) ResolveFieldValue(o *schema.Object, val interface{}, fieldName string, args map[string]interface{}) (interface{}, error) {
+func coerceValue(val interface{}, t Type) (interface{}, error) {
+	log.Printf("val: %T, Type: %v", val, t)
+	switch {
+	case t.Kind() == NonNullTypeDefinition:
+		res, err := coerceValue(val, t.Unwrap())
+		return res, err
+	case t.Kind() == ScalarTypeDefinition:
+		s := t.(*Scalar)
+		if reflect.ValueOf(val).Kind() == reflect.String {
+			return s.InputCoercion(val.(string))
+		} else if v, ok := val.(ast.Value); ok {
+			return s.InputCoercion(v.GetValue().(string))
+		}
+		return nil, fmt.Errorf("invalid value on a Scalar type")
+	case t.Kind() == EnumTypeDefinition:
+		e := t.(*Enum)
+		if reflect.ValueOf(val).Kind() == reflect.String {
+			return e.InputCoercion(val.(string))
+		} else if v, ok := val.(ast.Value); ok {
+			return e.InputCoercion(v.GetValue().(string))
+		}
+		return nil, fmt.Errorf("invalid value on an Emum type")
+	case t.Kind() == ListTypeDefinition:
+		vals := []interface{}{}
+		if reflect.TypeOf(val).Kind() == reflect.Slice {
+			for i := 0; i < reflect.ValueOf(val).Len(); i++ {
+				cVal, err := coerceValue(reflect.ValueOf(val).Index(i).Interface().(ast.Value).GetValue(), t.Unwrap())
+				if err != nil {
+					return nil, err
+				}
+				vals = append(vals, cVal)
+			}
+			return vals, nil
+		} else if val == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("value is not coercible to List")
+	case t.Kind() == InputObjectTypeDefinition:
+		vals := map[string]interface{}{}
+		o := t.(*InputObject)
+		if reflect.TypeOf(val).Kind() == reflect.Slice {
+			for i := 0; i < reflect.ValueOf(val).Len(); i++ {
+				field, ok := reflect.ValueOf(val).Index(i).Interface().(*ast.ObjectFieldValue)
+				if !ok {
+					return nil, fmt.Errorf("value is not valid for InputObject type")
+				}
+				fieldVal, err := coerceValue(field.GetValue(), o.Fields.Get(field.Name).Type)
+				if err != nil {
+					return nil, err
+				}
+				vals[field.Name] = fieldVal
+			}
+			return vals, nil
+		} else if val == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("value is not coercible to InputObject")
+	}
+	return nil, nil
+}
+
+func (e *executor) ResolveFieldValue(o *Object, val interface{}, fieldName string, args map[string]interface{}) (interface{}, error) {
 	field, _ := o.Fields.Get(fieldName)
-	// TODO: run resolver in VM
-	return field.Resolver(context.Background(), args, val)
+	return vm.Run(func() (interface{}, error) {
+		return field.Resolver(context.Background(), args, val)
+	})
 }
 
-func (e *executor) CompleteValue(ctx *execCtx, fT schema.Type, fields ast.Fields, cVal interface{}) (interface{}, []error) {
+func (e *executor) CompleteValue(ctx *execCtx, fT Type, fields ast.Fields, cVal interface{}) (interface{}, []error) {
 	errs := []error{}
 	switch {
-	case fT.Kind() == schema.NonNullTypeDefinition:
+	case fT.Kind() == NonNullTypeDefinition:
 		innerType := fT.Unwrap()
 		cRes, cErrs := e.CompleteValue(ctx, innerType, fields, cVal)
 		errs = append(errs, cErrs...)
@@ -115,7 +208,7 @@ func (e *executor) CompleteValue(ctx *execCtx, fT schema.Type, fields ast.Fields
 		return cRes, errs
 	case cVal == nil:
 		return nil, errs
-	case fT.Kind() == schema.ListTypeDefinition:
+	case fT.Kind() == ListTypeDefinition:
 		out := []interface{}{}
 		if reflect.TypeOf(cVal).Kind() == reflect.Slice {
 			for i := 0; i < reflect.ValueOf(cVal).Len(); i++ {
@@ -125,24 +218,22 @@ func (e *executor) CompleteValue(ctx *execCtx, fT schema.Type, fields ast.Fields
 			}
 		}
 		return out, errs
-	case fT.Kind() == schema.ScalarTypeDefinition:
-		cRes, err := fT.(*schema.Scalar).OutputCoercion(cVal)
+	case fT.Kind() == ScalarTypeDefinition:
+		cRes, err := fT.(*Scalar).OutputCoercion(cVal)
 		if err != nil {
 			errs = append(errs, err)
 			return nil, errs
 		}
 		return cRes, errs
-	case fT.Kind() == schema.EnumTypeDefinition:
-		log.Println(cVal)
-		cRes, err := fT.(*schema.Enum).OutputCoercion(cVal)
-		log.Println(string(cRes))
+	case fT.Kind() == EnumTypeDefinition:
+		cRes, err := fT.(*Enum).OutputCoercion(cVal)
 		if err != nil {
 			errs = append(errs, err)
 			return nil, errs
 		}
 		return cRes, errs
-	case fT.Kind() == schema.ObjectTypeDefinition: // TODO: check Interface and Union too
-		out, errs := e.ExecuteSelectionSet(ctx, fT.(*schema.Object), e.MergeSelectionSets(ctx, fields), cVal)
+	case fT.Kind() == ObjectTypeDefinition: // TODO: check Interface and Union too
+		out, errs := e.ExecuteSelectionSet(ctx, fT.(*Object), e.MergeSelectionSets(ctx, fields), cVal)
 		return out, errs
 	}
 	return nil, []error{fmt.Errorf("Schema.CompleteValue - END - you should not get here.. ")}
@@ -156,7 +247,7 @@ func (e *executor) MergeSelectionSets(ctx *execCtx, fields ast.Fields) []ast.Sel
 	return set
 }
 
-func (e *executor) CollectFields(ctx *execCtx, o *schema.Object, set []ast.Selection, vf map[string]*ast.FragmentSpread) *internal.OrderedFieldGroups {
+func (e *executor) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, vf map[string]*ast.FragmentSpread) *internal.OrderedFieldGroups {
 	groupedFields := internal.NewOrderedFieldGroups()
 	for s := range set {
 		// TODO: Check skip and include directives
@@ -216,7 +307,7 @@ func (e *executor) CollectFields(ctx *execCtx, o *schema.Object, set []ast.Selec
 	return groupedFields
 }
 
-func (e *executor) DoesFragmentTypeApply(o *schema.Object, fragmentType schema.Type) bool {
+func (e *executor) DoesFragmentTypeApply(o *Object, fragmentType Type) bool {
 	return true
 }
 
@@ -234,7 +325,7 @@ func (e *executor) Execute(ctx context.Context, query string, operationName stri
 		operationName: operationName,
 		query:         query,
 		vars:          vars,
-		types:         map[string]schema.Type{},
+		types:         map[string]Type{},
 	}
 
 	/*

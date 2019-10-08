@@ -1,4 +1,4 @@
-package schema
+package gql
 
 import (
 	"fmt"
@@ -42,4 +42,8 @@ func (e *Enum) OutputCoercion(v interface{}) ([]byte, error) {
 		}
 	}
 	return nil, fmt.Errorf("invalid value for %s enum: %v", e.Name, v)
+}
+
+func (e *Enum) Validate() error {
+	return nil
 }

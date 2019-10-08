@@ -1,4 +1,8 @@
-package schema
+package gql
+
+import (
+	"fmt"
+)
 
 /*
 TypeDefinition:
@@ -36,6 +40,7 @@ const (
 type Type interface {
 	Unwrap() Type
 	Kind() TypeDefinition
+	Validate() error
 }
 
 // NewNonNull ...
@@ -60,6 +65,14 @@ func (nn *NonNull) Kind() TypeDefinition {
 	return NonNullTypeDefinition
 }
 
+// Validate ...
+func (nn *NonNull) Validate() error {
+	if nn.Type != nil {
+		return nn.Type.Validate()
+	}
+	return fmt.Errorf("invalid type definition")
+}
+
 // NewList ..
 func NewList(t Type) Type {
 	return &List{
@@ -80,6 +93,14 @@ func (l *List) Unwrap() Type {
 // Kind ...
 func (l *List) Kind() TypeDefinition {
 	return ListTypeDefinition
+}
+
+// Validate ...
+func (l *List) Validate() error {
+	if l.Type != nil {
+		return l.Type.Validate()
+	}
+	return fmt.Errorf("invalid type definition")
 }
 
 func isInputType(t Type) bool {
@@ -103,5 +124,8 @@ func isOutputType(t Type) bool {
 }
 
 func getFinalType(t Type) Type {
+	if t.Kind() == ListTypeDefinition || t.Kind() == NonNullTypeDefinition {
+		return getFinalType(t.Unwrap())
+	}
 	return t
 }
