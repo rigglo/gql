@@ -39,6 +39,14 @@ func (e *executor) ExecuteQuery(ctx *execCtx, query *ast.Operation, initVal inte
 	}
 }
 
+func (e *executor) ExecuteMutation(ctx *execCtx, mut *ast.Operation, initVal interface{}) *Result {
+	data, err := e.ExecuteSelectionSet(ctx, e.schema.Mutation, mut.SelectionSet, initVal)
+	return &Result{
+		Data:   data,
+		Errors: err,
+	}
+}
+
 func (e *executor) ExecuteSelectionSet(ctx *execCtx, o *Object, set []ast.Selection, val interface{}) (*ordered.Map, []error) {
 	ofg := e.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
 	res := ordered.NewMap()
@@ -346,8 +354,7 @@ func (e *executor) Execute(ctx context.Context, query string, operationName stri
 	case ast.Query:
 		return e.ExecuteQuery(eCtx, op, nil)
 	case ast.Mutation:
-		// TODO: implement ExecuteMutation
-		break
+		return e.ExecuteMutation(eCtx, op, nil)
 	case ast.Subscription:
 		// TODO: implement ExecuteSubscription
 		break
