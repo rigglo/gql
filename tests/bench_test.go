@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/rigglo/gql"
-	"github.com/rigglo/gql/schema"
 	"testing"
 )
 
@@ -62,10 +61,9 @@ func banchN(n int) func(b *testing.B) {
 	}
 }
 
-func benchGraphql(s *schema.Schema, q string, t testing.TB) {
-	result := gql.Execute(&gql.Params{
+func benchGraphql(s *gql.Schema, q string, t testing.TB) {
+	result := s.Execute(&gql.Params{
 		Ctx:           context.Background(),
-		Schema:        *s,
 		OperationName: "asd",
 		Query:         q,
 		Variables:     map[string]interface{}{},
@@ -75,24 +73,53 @@ func benchGraphql(s *schema.Schema, q string, t testing.TB) {
 	}
 }
 
-func ListWithNItem(n int) *schema.Schema {
-	color := &schema.Object{
-		Name:   "Color",
-		Fields: schema.Fields{},
+func ListWithNItem(n int) *gql.Schema {
+	color := &gql.Object{
+		Name: "Color",
+		Fields: gql.Fields{
+			&gql.Field{
+				Name: "hex",
+				Type: gql.String,
+				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+					return parent.(color).Hex, nil
+				},
+			},
+			&gql.Field{
+				Name: "r",
+				Type: gql.String,
+				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+					return parent.(color).R, nil
+				},
+			},
+			&gql.Field{
+				Name: "g",
+				Type: gql.String,
+				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+					return parent.(color).G, nil
+				},
+			},
+			&gql.Field{
+				Name: "b",
+				Type: gql.String,
+				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+					return parent.(color).B, nil
+				},
+			},
+		},
 	}
-	query := &schema.Object{
+	query := &gql.Object{
 		Name: "Query",
-		Fields: schema.Fields{
-			&schema.Field{
+		Fields: gql.Fields{
+			&gql.Field{
 				Name: "colors",
-				Type: schema.NewList(color),
+				Type: gql.NewList(color),
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return generateXListItems(n), nil
 				},
 			},
 		},
 	}
-	schema := schema.Schema{
+	schema := gql.Schema{
 		Query: query,
 	}
 

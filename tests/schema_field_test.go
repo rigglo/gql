@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/rigglo/gql"
-	"github.com/rigglo/gql/schema"
 	"log"
 	"testing"
 )
@@ -18,41 +17,41 @@ type (
 )
 
 var (
-	CategoryEnum = &schema.Enum{
+	CategoryEnum = &gql.Enum{
 		Name: "Categories",
-		Values: schema.EnumValues{
-			&schema.EnumValue{
+		Values: gql.EnumValues{
+			&gql.EnumValue{
 				Value: 3,
 				Name:  "SCIFI",
 			},
-			&schema.EnumValue{
+			&gql.EnumValue{
 				Value: 4,
 				Name:  "ACTION",
 			},
 		},
 	}
 
-	MovieType = &schema.Object{
+	MovieType = &gql.Object{
 		Name:        "Movie",
 		Description: "This is a record of a Movie",
-		Fields: []*schema.Field{
-			&schema.Field{
+		Fields: []*gql.Field{
+			&gql.Field{
 				Name:        "id",
 				Description: "this is the id of a move",
-				Type:        schema.ID,
+				Type:        gql.ID,
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return parent.(*Movie).ID, nil
 				},
 			},
-			&schema.Field{
+			&gql.Field{
 				Name:        "title",
 				Description: "title of a move",
-				Type:        schema.String,
+				Type:        gql.String,
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return parent.(*Movie).Title, nil
 				},
 			},
-			&schema.Field{
+			&gql.Field{
 				Name:        "category",
 				Description: "category of a move",
 				Type:        CategoryEnum,
@@ -63,10 +62,10 @@ var (
 		},
 	}
 
-	MoviesQuery = &schema.Field{
+	MoviesQuery = &gql.Field{
 		Name:        "movies",
 		Description: "This is a record of a Movie",
-		Type:        schema.NewList(MovieType),
+		Type:        gql.NewList(MovieType),
 		Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 			return []*Movie{
 				&Movie{
@@ -107,18 +106,17 @@ query GetMoviesWithFragments {
 }
 	`
 
-	schema := schema.Schema{
-		Query: &schema.Object{
+	schema := &gql.Schema{
+		Query: &gql.Object{
 			Name: "Query",
-			Fields: schema.Fields{
+			Fields: gql.Fields{
 				MoviesQuery,
 			},
 		},
 	}
 
-	res := gql.Execute(&gql.Params{
+	res := schema.Execute(&gql.Params{
 		Ctx:           context.Background(),
-		Schema:        schema,
 		OperationName: "GetMovies",
 		Query:         query,
 		Variables:     map[string]interface{}{},

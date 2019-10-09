@@ -1,23 +1,12 @@
-package validator
+package gql
 
 import (
-	"context"
 	"fmt"
 	"github.com/rigglo/gql/language/ast"
-	"github.com/rigglo/gql/schema"
 )
 
-type execCtx struct {
-	query         string
-	Context       context.Context
-	doc           *ast.Document
-	operationName string
-	types         map[string]schema.Type
-	vars          map[string]interface{}
-}
-
 type Validator struct {
-	schema *schema.Schema
+	schema *Schema
 }
 
 func (v *Validator) ValidateRequest(ctx *execCtx) []error {
@@ -39,10 +28,13 @@ func (v *Validator) ValidateOperations(ctx *execCtx) []error {
 		}
 
 		if ctx.doc.Operations[i].OperationType == ast.Subscription {
-			ofg := v.CollectFields(ctx, s.Subsciption, ctx.doc.Operations[i].SelectionSet, map[string]*ast.FragmentSpread{})
-			if ofg.Len() != 1 {
-				errs = append(errs, fmt.Errorf("subscription operation must have exactly one entry"))
-			}
+			// FIXME: provide CollectFields function
+			/*
+				ofg := v.CollectFields(ctx, s.Subsciption, ctx.doc.Operations[i].SelectionSet, map[string]*ast.FragmentSpread{})
+				if ofg.Len() != 1 {
+					errs = append(errs, fmt.Errorf("subscription operation must have exactly one entry"))
+				}
+			*/
 		}
 
 		switch ctx.doc.Operations[i].OperationType {
@@ -65,7 +57,7 @@ func (v *Validator) ValidateOperations(ctx *execCtx) []error {
 	return errs
 }
 
-func (v *Validator) ValidateSelectionSet(ctx *execCtx, o *schema.Object, set []ast.Selection) []error {
+func (v *Validator) ValidateSelectionSet(ctx *execCtx, o *Object, set []ast.Selection) []error {
 	for _, selection := range set {
 		switch selection.Kind() {
 		case ast.FieldSelectionKind:
@@ -82,29 +74,31 @@ func (v *Validator) ValidateSelectionSet(ctx *execCtx, o *schema.Object, set []a
 	return v.ValidateSelectionSetMerges(ctx, o, set)
 }
 
-func (v *Validator) ValidateLeafFieldSelections(ctx *execCtx, f *schema.Field) {
+func (v *Validator) ValidateLeafFieldSelections(ctx *execCtx, f *Field) {
 
 }
 
-func (v *Validator) ValidateSelectionSetMerges(ctx *execCtx, o *schema.Object, set []ast.Selection) []error {
+func (v *Validator) ValidateSelectionSetMerges(ctx *execCtx, o *Object, set []ast.Selection) []error {
 
 	return nil
 }
 
-func (v *Validator) ValidateFieldsInSetCanMerge(ctx *execCtx, o *schema.Object, set []ast.Selection) []error {
-	ofg := v.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
-	for fieldName, fieldsForName := range ofg.Fields {
-		fieldA := fieldsForName[0]
-		for i := 1; i < len(fieldsForName); i++ {
-			if !v.ValidateSameResponseShape(ctx, o, fieldA, fieldsForName[i]) {
-				return []error{fmt.Errorf("fields '%s' can NOT be merged", fieldName)}
+func (v *Validator) ValidateFieldsInSetCanMerge(ctx *execCtx, o *Object, set []ast.Selection) []error {
+	/*
+		ofg := v.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
+		for fieldName, fieldsForName := range ofg.Fields {
+			fieldA := fieldsForName[0]
+			for i := 1; i < len(fieldsForName); i++ {
+				if !v.ValidateSameResponseShape(ctx, o, fieldA, fieldsForName[i]) {
+					return []error{fmt.Errorf("fields '%s' can NOT be merged", fieldName)}
+				}
 			}
 		}
-	}
+	*/
 	return nil
 }
 
-func (v *Validator) ValidateSameResponseShape(ctx *execCtx, o *schema.Object, fieldA *ast.Field, fieldB *ast.Field) bool {
+func (v *Validator) ValidateSameResponseShape(ctx *execCtx, o *Object, fieldA *ast.Field, fieldB *ast.Field) bool {
 	fieldDefA, err := o.Fields.Get(fieldA.Name)
 	if err != nil {
 		return false
@@ -119,7 +113,7 @@ func (v *Validator) ValidateSameResponseShape(ctx *execCtx, o *schema.Object, fi
 		return res
 	}
 
-	if typeA.Kind() == schema.ScalarTypeDefinition || typeB.Kind() == schema.ScalarTypeDefinition || typeA.Kind() == schema.EnumTypeDefinition || typeB.Kind() == schema.EnumTypeDefinition {
+	if typeA.Kind() == ScalarTypeDefinition || typeB.Kind() == ScalarTypeDefinition || typeA.Kind() == EnumTypeDefinition || typeB.Kind() == EnumTypeDefinition {
 		if typeA == typeB {
 			return true
 		}
@@ -133,17 +127,17 @@ func (v *Validator) ValidateSameResponseShape(ctx *execCtx, o *schema.Object, fi
 	return true
 }
 
-func validateNonNullAndList(typeA schema.Type, typeB schema.Type) (schema.Type, schema.Type, bool, bool) {
-	if typeA.Kind() == schema.NonNullTypeDefinition || typeB.Kind() == schema.NonNullTypeDefinition {
-		if typeA.Kind() != schema.NonNullTypeDefinition || typeB.Kind() != schema.NonNullTypeDefinition {
+func validateNonNullAndList(typeA Type, typeB Type) (Type, Type, bool, bool) {
+	if typeA.Kind() == NonNullTypeDefinition || typeB.Kind() == NonNullTypeDefinition {
+		if typeA.Kind() != NonNullTypeDefinition || typeB.Kind() != NonNullTypeDefinition {
 			return typeA, typeB, false, true
 		}
 		typeA = typeA.Unwrap()
 		typeB = typeB.Unwrap()
 
 	}
-	if typeA.Kind() == schema.ListTypeDefinition || typeB.Kind() == schema.ListTypeDefinition {
-		if typeA.Kind() != schema.ListTypeDefinition || typeB.Kind() != schema.ListTypeDefinition {
+	if typeA.Kind() == ListTypeDefinition || typeB.Kind() == ListTypeDefinition {
+		if typeA.Kind() != ListTypeDefinition || typeB.Kind() != ListTypeDefinition {
 			return typeA, typeB, false, true
 		}
 		typeA = typeA.Unwrap()
@@ -153,8 +147,8 @@ func validateNonNullAndList(typeA schema.Type, typeB schema.Type) (schema.Type, 
 	return typeA, typeB, false, false
 }
 
-func isCompositeType(t schema.Type) bool {
-	if t.Kind() == schema.UnionTypeDefinition || t.Kind() == schema.InterfaceTypeDefinition || t.Kind() == schema.ObjectTypeDefinition {
+func isCompositeType(t Type) bool {
+	if t.Kind() == UnionTypeDefinition || t.Kind() == InterfaceTypeDefinition || t.Kind() == ObjectTypeDefinition {
 		return true
 	}
 	return false

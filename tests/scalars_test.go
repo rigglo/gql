@@ -3,11 +3,11 @@ package tests
 import (
 	"testing"
 
-	"github.com/rigglo/gql/schema"
+	"github.com/rigglo/gql"
 )
 
 func TestStringScalar_InputCoercion(t *testing.T) {
-	s := schema.ID
+	s := gql.ID
 	o, err := s.InputCoercion(`"3"`)
 	if err != nil {
 		t.Fatal(err)
@@ -16,7 +16,7 @@ func TestStringScalar_InputCoercion(t *testing.T) {
 }
 
 func TestStringScalar_OutputCoercion(t *testing.T) {
-	s := schema.ID
+	s := gql.ID
 	o, err := s.OutputCoercion(42)
 	if err != nil {
 		t.Fatal(err)
