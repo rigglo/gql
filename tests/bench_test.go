@@ -75,9 +75,36 @@ func benchGraphql(s *gql.Schema, q string, t testing.TB) {
 
 func ListWithNItem(n int) *gql.Schema {
 	color := &gql.Object{
-		Name:   "Color",
+		Name: "Color",
 		Fields: gql.Fields{
-			
+			&gql.Field{
+				Name: "hex",
+				Type: gql.String,
+				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+					return parent.(color).Hex, nil
+				},
+			},
+			&gql.Field{
+				Name: "r",
+				Type: gql.String,
+				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+					return parent.(color).R, nil
+				},
+			},
+			&gql.Field{
+				Name: "g",
+				Type: gql.String,
+				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+					return parent.(color).G, nil
+				},
+			},
+			&gql.Field{
+				Name: "b",
+				Type: gql.String,
+				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+					return parent.(color).B, nil
+				},
+			},
 		},
 	}
 	query := &gql.Object{
