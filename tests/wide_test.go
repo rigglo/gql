@@ -154,11 +154,14 @@ func nFieldsyItemsQueryBenchmark(x int, y int) func(b *testing.B) {
 
 		b.ResetTimer()
 
-		b.RunParallel(func(pb *testing.PB) {
+		/*b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				benchGraphql(schema, query, b)
 			}
-		})
+		})*/
+		for i := 0; i < b.N; i++ {
+			benchGraphql(schema, query, b)
+		}
 	}
 }
 
