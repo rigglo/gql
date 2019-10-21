@@ -10,7 +10,7 @@ type Object struct {
 	Name        string
 	Description string
 	Implements  []*Interface
-	Fields      Fields
+	Fields      *Fields
 	fieldNames  map[string]int
 }
 
@@ -29,11 +29,11 @@ func (o *Object) Validate(ctx *ValidationContext) error {
 	if strings.HasPrefix(o.Name, "__") {
 		return fmt.Errorf("invalid name (%s) for Object", o.Name)
 	}
-	if len(o.Fields) == 0 {
+	if o.Fields.Len() == 0 {
 		return fmt.Errorf("object (%s) must have at least one field", o.Name)
 	}
 	o.fieldNames = map[string]int{}
-	for i, f := range o.Fields {
+	for i, f := range o.Fields.Slice() {
 		if _, ok := o.fieldNames[f.Name]; ok {
 			return fmt.Errorf("field names must be unique, there are more than one fields named '%s'", f.Name)
 		}
@@ -47,6 +47,6 @@ func (o *Object) Validate(ctx *ValidationContext) error {
 }
 
 // GetFields implements the HasFields interface
-func (o *Object) GetFields() Fields {
+func (o *Object) GetFields() *Fields {
 	return o.Fields
 }
