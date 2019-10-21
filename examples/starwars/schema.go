@@ -115,7 +115,7 @@ func init() {
 	characterInterface := &gql.Interface{
 		Name:        "Character",
 		Description: "A character in the Star Wars Trilogy",
-		Fields: gql.Fields{
+		Fields: gql.NewFields(
 			&gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
@@ -128,7 +128,7 @@ func init() {
 				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
 			},
-		},
+		),
 		ResolveType: func(ctx context.Context, value interface{}) *gql.Object {
 			if c, ok := value.(StarWarsChar); ok {
 				id, _ := strconv.Atoi(c.ID)
@@ -140,7 +140,7 @@ func init() {
 			return droidType
 		},
 	}
-	characterInterface.Fields = append(characterInterface.Fields, &gql.Field{
+	characterInterface.Fields.Add(&gql.Field{
 		Name: "friends",
 		Type: gql.NewList(characterInterface),
 	})
@@ -150,7 +150,7 @@ func init() {
 		Implements: []*gql.Interface{
 			characterInterface,
 		},
-		Fields: gql.Fields{
+		Fields: gql.NewFields(
 			&gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
@@ -201,12 +201,12 @@ func init() {
 					return nil, nil
 				},
 			},
-		},
+		),
 	}
 
 	droidType = &gql.Object{
 		Name: "Droid",
-		Fields: gql.Fields{
+		Fields: gql.NewFields(
 			&gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
@@ -264,12 +264,12 @@ func init() {
 					return nil, nil
 				},
 			},
-		},
+		),
 	}
 
 	queryType := &gql.Object{
 		Name: "Query",
-		Fields: gql.Fields{
+		Fields: gql.NewFields(
 			&gql.Field{
 				Name: "hero",
 				Type: characterInterface,
@@ -300,7 +300,7 @@ func init() {
 					return GetHuman(id), nil
 				},
 			},
-		},
+		),
 	}
 
 	StarWarsSchema = &gql.Schema{

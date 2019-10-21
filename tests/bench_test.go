@@ -3,8 +3,9 @@ package tests
 import (
 	"context"
 	"fmt"
-	"github.com/rigglo/gql"
 	"testing"
+
+	"github.com/rigglo/gql"
 )
 
 type color struct {
@@ -33,8 +34,20 @@ func init() {
 	}
 }
 
+func BenchmarkListQuery_1(b *testing.B) {
+	banchN(1)(b)
+}
+
+func BenchmarkListQuery_100(b *testing.B) {
+	banchN(100)(b)
+}
+
 func BenchmarkListQuery_1K(b *testing.B) {
 	banchN(1000)(b)
+}
+
+func BenchmarkListQuery_10K(b *testing.B) {
+	banchN(10000)(b)
 }
 
 func BenchmarkListQuery_100K(b *testing.B) {
@@ -44,29 +57,34 @@ func BenchmarkListQuery_100K(b *testing.B) {
 func banchN(n int) func(b *testing.B) {
 	return func(b *testing.B) {
 		schema := ListWithNItem(n)
-		for i := 0; i < b.N; i++ {
-
-			query := `
-				query asd {
-					colors {
-						hex
-						r
-						g
-						b
-					}
+		query := `
+		{
+			colors {
+				hex
+				r
+				g
+				b
+			}
+		}
+	`
+		/*
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					benchGraphql(schema, query, b)
 				}
-			`
+			})
+		*/
+		for i := 0; i < b.N; i++ {
 			benchGraphql(schema, query, b)
 		}
+
 	}
 }
 
 func benchGraphql(s *gql.Schema, q string, t testing.TB) {
 	result := s.Execute(&gql.Params{
-		Ctx:           context.Background(),
-		OperationName: "asd",
-		Query:         q,
-		Variables:     map[string]interface{}{},
+		Ctx:   context.Background(),
+		Query: q,
 	})
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
@@ -76,7 +94,7 @@ func benchGraphql(s *gql.Schema, q string, t testing.TB) {
 func ListWithNItem(n int) *gql.Schema {
 	color := &gql.Object{
 		Name: "Color",
-		Fields: gql.Fields{
+		Fields: gql.NewFields(
 			&gql.Field{
 				Name: "hex",
 				Type: gql.String,
@@ -105,11 +123,11 @@ func ListWithNItem(n int) *gql.Schema {
 					return parent.(color).B, nil
 				},
 			},
-		},
+		),
 	}
 	query := &gql.Object{
 		Name: "Query",
-		Fields: gql.Fields{
+		Fields: gql.NewFields(
 			&gql.Field{
 				Name: "colors",
 				Type: gql.NewList(color),
@@ -117,7 +135,7 @@ func ListWithNItem(n int) *gql.Schema {
 					return generateXListItems(n), nil
 				},
 			},
-		},
+		),
 	}
 	schema := gql.Schema{
 		Query: query,

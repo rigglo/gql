@@ -10,7 +10,7 @@ import (
 type Interface struct {
 	Name        string
 	Description string
-	Fields      Fields
+	Fields      *Fields
 	ResolveType TypeResolver
 }
 
@@ -32,11 +32,12 @@ func (i *Interface) Validate(ctx *ValidationContext) error {
 	if strings.HasPrefix(i.Name, "__") {
 		return fmt.Errorf("invalid name (%s) for Object", i.Name)
 	}
-	if len(i.Fields) == 0 {
+
+	if i.Fields.Len() == 0 {
 		return fmt.Errorf("object (%s) must have at least one field", i.Name)
 	}
 	fieldNames := map[string]int{}
-	for n, f := range i.Fields {
+	for n, f := range i.Fields.Slice() {
 		if _, ok := fieldNames[f.Name]; ok {
 			return fmt.Errorf("field names must be unique, there are more than one fields named '%s'", f.Name)
 		}
@@ -50,6 +51,6 @@ func (i *Interface) Validate(ctx *ValidationContext) error {
 }
 
 // GetFields implemets the HasFields interface
-func (i *Interface) GetFields() Fields {
+func (i *Interface) GetFields() *Fields {
 	return i.Fields
 }

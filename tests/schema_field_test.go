@@ -34,7 +34,7 @@ var (
 	MovieType = &gql.Object{
 		Name:        "Movie",
 		Description: "This is a record of a Movie",
-		Fields: []*gql.Field{
+		Fields: gql.NewFields(
 			&gql.Field{
 				Name:        "id",
 				Description: "this is the id of a move",
@@ -59,7 +59,7 @@ var (
 					return parent.(*Movie).Category, nil
 				},
 			},
-		},
+		),
 	}
 
 	MoviesQuery = &gql.Field{
@@ -109,9 +109,9 @@ query GetMoviesWithFragments {
 	schema := &gql.Schema{
 		Query: &gql.Object{
 			Name: "Query",
-			Fields: gql.Fields{
+			Fields: gql.NewFields(
 				MoviesQuery,
-			},
+			),
 		},
 	}
 
