@@ -5,16 +5,30 @@ import (
 	"github.com/rigglo/gql/language/ast"
 )
 
-type Validator struct {
-	schema *Schema
+func newValidator(s *Schema) *validator {
+	return &validator{
+		schema: s,
+		e: &executor{
+			schema: s,
+		},
+	}
 }
 
-func (v *Validator) ValidateRequest(ctx *execCtx) []error {
+type validator struct {
+	schema *Schema
+	e      *executor
+}
+
+func (v *validator) Validate(ctx *gqlCtx) (*executor, []error) {
+	return v.e, v.ValidateRequest(ctx)
+}
+
+func (v *validator) ValidateRequest(ctx *gqlCtx) []error {
 	errs := v.ValidateOperations(ctx)
 	return errs
 }
 
-func (v *Validator) ValidateOperations(ctx *execCtx) []error {
+func (v *validator) ValidateOperations(ctx *gqlCtx) []error {
 	errs := []error{}
 	anonymous := []*ast.Operation{}
 	operations := map[string]*ast.Operation{}
@@ -29,12 +43,10 @@ func (v *Validator) ValidateOperations(ctx *execCtx) []error {
 
 		if ctx.doc.Operations[i].OperationType == ast.Subscription {
 			// FIXME: provide CollectFields function
-			/*
-				ofg := v.CollectFields(ctx, s.Subsciption, ctx.doc.Operations[i].SelectionSet, map[string]*ast.FragmentSpread{})
-				if ofg.Len() != 1 {
-					errs = append(errs, fmt.Errorf("subscription operation must have exactly one entry"))
-				}
-			*/
+			ofg := v.e.CollectFields(ctx, v.schema.Subsciption, ctx.doc.Operations[i].SelectionSet, map[string]*ast.FragmentSpread{})
+			if ofg.Len() != 1 {
+				errs = append(errs, fmt.Errorf("subscription operation must have exactly one entry"))
+			}
 		}
 
 		switch ctx.doc.Operations[i].OperationType {
@@ -57,7 +69,7 @@ func (v *Validator) ValidateOperations(ctx *execCtx) []error {
 	return errs
 }
 
-func (v *Validator) ValidateSelectionSet(ctx *execCtx, o *Object, set []ast.Selection) []error {
+func (v *validator) ValidateSelectionSet(ctx *gqlCtx, o *Object, set []ast.Selection) []error {
 	for _, selection := range set {
 		switch selection.Kind() {
 		case ast.FieldSelectionKind:
@@ -66,39 +78,60 @@ func (v *Validator) ValidateSelectionSet(ctx *execCtx, o *Object, set []ast.Sele
 			if err != nil {
 				return []error{fmt.Errorf("field '%s' is not defined on type '%s'", astField.Name, fieldType.Name)}
 			}
-			// TODO: ValidateArguments
-			// TODO: ValidateDirectives
-			v.ValidateLeafFieldSelections(ctx, fieldType)
+			errs := v.ValidateField(ctx, fieldType, astField)
+			if len(errs) > 0 {
+				return errs
+			}
 		}
 	}
 	return v.ValidateSelectionSetMerges(ctx, o, set)
 }
 
-func (v *Validator) ValidateLeafFieldSelections(ctx *execCtx, f *Field) {
+func (v *validator) ValidateField(ctx *gqlCtx, f *Field, fAst *ast.Field) []error {
+	// TODO: ValidateArguments
+	// TODO: ValidateDirectives
+	if ft := getFinalType(f.Type); ft.Kind() == ObjectTypeDefinition {
+		// TODO: validate selectionSets on Interfaces and Unions
+		errs := v.ValidateLeafFieldSelections(ctx, f)
+		if len(errs) > 0 {
+			return errs
+		}
 
+		errs = v.ValidateSelectionSet(ctx, ft.(*Object), fAst.SelectionSet)
+		if len(errs) > 0 {
+			return errs
+		}
+		errs = v.ValidateSelectionSetMerges(ctx, ft.(*Object), fAst.SelectionSet)
+		if len(errs) > 0 {
+			return errs
+		}
+	}
+	return nil
 }
 
-func (v *Validator) ValidateSelectionSetMerges(ctx *execCtx, o *Object, set []ast.Selection) []error {
+func (v *validator) ValidateLeafFieldSelections(ctx *gqlCtx, f *Field) []error {
+	return nil
+}
+
+func (v *validator) ValidateSelectionSetMerges(ctx *gqlCtx, o *Object, set []ast.Selection) []error {
 
 	return nil
 }
 
-func (v *Validator) ValidateFieldsInSetCanMerge(ctx *execCtx, o *Object, set []ast.Selection) []error {
-	/*
-		ofg := v.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
-		for fieldName, fieldsForName := range ofg.Fields {
-			fieldA := fieldsForName[0]
-			for i := 1; i < len(fieldsForName); i++ {
-				if !v.ValidateSameResponseShape(ctx, o, fieldA, fieldsForName[i]) {
-					return []error{fmt.Errorf("fields '%s' can NOT be merged", fieldName)}
-				}
+func (v *validator) ValidateFieldsInSetCanMerge(ctx *gqlCtx, o *Object, set []ast.Selection) []error {
+	ofg := v.e.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
+	for fieldName, fieldsForName := range ofg.Fields {
+		fieldA := fieldsForName[0]
+		for i := 1; i < len(fieldsForName); i++ {
+			if !v.ValidateSameResponseShape(ctx, o, fieldA, fieldsForName[i]) {
+				return []error{fmt.Errorf("fields '%s' can NOT be merged", fieldName)}
 			}
 		}
-	*/
+	}
 	return nil
 }
 
-func (v *Validator) ValidateSameResponseShape(ctx *execCtx, o *Object, fieldA *ast.Field, fieldB *ast.Field) bool {
+func (v *validator) ValidateSameResponseShape(ctx *gqlCtx, o *Object, fieldA *ast.Field, fieldB *ast.Field) bool {
 	fieldDefA, err := o.Fields.Get(fieldA.Name)
 	if err != nil {
 		return false
@@ -155,7 +188,7 @@ func isCompositeType(t Type) bool {
 }
 
 /*
-func (v *Validator) mergeSets(ctx *execCtx, o *Object, fieldA *ast.Field, fieldB *ast.Field) []ast.Selection {
+func (v *validator) mergeSets(ctx *gqlCtx, o *Object, fieldA *ast.Field, fieldB *ast.Field) []ast.Selection {
 	setA := s.CollectFields(ctx, o, fieldA.SelectionSet, map[string]*ast.FragmentSpread{})
 	for _, sA := range setA {
 		ofg.A
