@@ -67,24 +67,24 @@ var (
 		Name:        "movies",
 		Description: "This is a record of a Movie",
 		Type:        gql.NewList(MovieType),
-		Arguments: []*gql.Argument{
+		Arguments: gql.NewArguments(
 			&gql.Argument{
 				Name: "movie",
 				Type: &gql.InputObject{
 					Name: "movieInput",
-					Fields: []*gql.InputObjectField{
-						&gql.InputObjectField{
+					Fields: gql.NewInputFields(
+						&gql.InputField{
 							Name: "title",
 							Type: gql.String,
 						},
-						&gql.InputObjectField{
+						&gql.InputField{
 							Name: "category",
 							Type: CategoryEnum,
 						},
-					},
+					),
 				},
 			},
-		},
+		),
 		Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 			//log.Printf("%+v", args)
 			spew.Dump(args)

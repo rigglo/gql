@@ -42,7 +42,6 @@ func (v *validator) ValidateOperations(ctx *gqlCtx) []error {
 		}
 
 		if ctx.doc.Operations[i].OperationType == ast.Subscription {
-			// FIXME: provide CollectFields function
 			ofg := v.e.CollectFields(ctx, v.schema.Subsciption, ctx.doc.Operations[i].SelectionSet, map[string]*ast.FragmentSpread{})
 			if ofg.Len() != 1 {
 				errs = append(errs, fmt.Errorf("subscription operation must have exactly one entry"))
@@ -112,6 +111,12 @@ func (v *validator) ValidateField(ctx *gqlCtx, f *Field, fAst *ast.Field) []erro
 }
 
 func (v *validator) ValidateArguments(ctx *gqlCtx, args *Arguments, argsAst []*ast.Argument) []error {
+	if args == nil {
+		if len(argsAst) > 0 {
+			return []error{fmt.Errorf("there are no arguments defined in schema but exists in request")}
+		}
+		return nil
+	}
 	argNames := map[string]bool{}
 	for _, argAst := range argsAst {
 		if arg, ok := args.Get(argAst.Name); ok {

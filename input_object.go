@@ -14,26 +14,26 @@ type InputObject struct {
 
 // InputFields ...
 type InputFields struct {
-	fields []*InputObjectField
-	cache  map[string]*InputObjectField
+	fields []*InputField
+	cache  map[string]*InputField
 	mu     sync.Mutex
 }
 
-func NewInputFields(fs ...*InputObjectField) *InputFields {
+func NewInputFields(fs ...*InputField) *InputFields {
 	return &InputFields{
 		fields: fs,
-		cache:  make(map[string]*InputObjectField),
+		cache:  make(map[string]*InputField),
 		mu:     sync.Mutex{},
 	}
 }
 
 // Add a new field to fields
-func (fs *InputFields) Add(f *InputObjectField) {
+func (fs *InputFields) Add(f *InputField) {
 	fs.fields = append(fs.fields, f)
 	fs.cache[f.Name] = f
 }
 
-func (fs *InputFields) Slice() []*InputObjectField {
+func (fs *InputFields) Slice() []*InputField {
 	return fs.fields
 }
 
@@ -42,7 +42,7 @@ func (fs *InputFields) Len() int {
 }
 
 func (fs *InputFields) buildCache() {
-	fs.cache = make(map[string]*InputObjectField)
+	fs.cache = make(map[string]*InputField)
 	fs.mu.Lock()
 	for _, f := range fs.fields {
 		fs.cache[f.Name] = f
@@ -51,7 +51,7 @@ func (fs *InputFields) buildCache() {
 }
 
 // Get returns the field with the given name (if exists)
-func (fs *InputFields) Get(name string) (*InputObjectField, error) {
+func (fs *InputFields) Get(name string) (*InputField, error) {
 	if fs.cache == nil || len(fs.cache) != len(fs.fields) {
 		fs.buildCache()
 	}
@@ -61,11 +61,12 @@ func (fs *InputFields) Get(name string) (*InputObjectField, error) {
 	return nil, fmt.Errorf("there's no field named '%s'", name)
 }
 
-// InputObjectField describes a field of an InputObject
-type InputObjectField struct {
-	Name        string
-	Type        Type
-	Description string
+// InputField describes a field of an InputObject
+type InputField struct {
+	Name         string
+	Type         Type
+	Description  string
+	DefaultValue interface{}
 }
 
 // Unwrap is defined to implement the Type interface
