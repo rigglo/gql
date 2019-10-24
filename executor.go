@@ -88,19 +88,19 @@ func (e *executor) ExecuteField(ctx *gqlCtx, o *Object, val interface{}, fields 
 }
 
 func (e *executor) CoerceArgumentValues(ctx *gqlCtx, o *Object, field *ast.Field) (map[string]interface{}, []error) {
-	coercedVals := map[string]interface{}{}
 	fieldDef, _ := o.Fields.Get(field.Name)
-	argVals := field.Arguments
-	argDefs := fieldDef.Arguments
-	for _, argDef := range argDefs.Slice() {
-		argName := argDef.Name
-		argType := argDef.Type
+	coercedVals := map[string]interface{}{}
+	if fieldDef.Arguments == nil {
+		return coercedVals, nil
+	}
+
+	for _, argDef := range fieldDef.Arguments.Slice() {
 		defaultVal := argDef.DefaultValue
 		hasVal := false
 		var value interface{}
 		var argVal ast.Value
-		for _, arg := range argVals {
-			if arg.Name == argName {
+		for _, arg := range field.Arguments {
+			if arg.Name == argDef.Name {
 				hasVal = true
 				argVal = arg.Value
 				break
@@ -113,20 +113,20 @@ func (e *executor) CoerceArgumentValues(ctx *gqlCtx, o *Object, field *ast.Field
 			value = argVal.GetValue()
 		}
 		if !hasVal {
-			coercedVals[argName] = defaultVal
-		} else if argType.Kind() == NonNullTypeDefinition && (!hasVal || argVal.Kind() == ast.NullValueKind) {
+			coercedVals[argDef.Name] = defaultVal
+		} else if argDef.Type.Kind() == NonNullTypeDefinition && (!hasVal || argVal.Kind() == ast.NullValueKind) {
 			return nil, []error{fmt.Errorf("null value on Non-Null type")}
 		} else if hasVal {
 			if value == nil {
-				coercedVals[argName] = value
+				coercedVals[argDef.Name] = value
 			} else if argVal.Kind() == ast.VariableValueKind {
-				coercedVals[argName] = value
+				coercedVals[argDef.Name] = value
 			} else {
 				value, err := coerceValue(value, argDef.Type)
 				if err != nil {
 					return nil, []error{err}
 				}
-				coercedVals[argName] = value
+				coercedVals[argDef.Name] = value
 			}
 		}
 	}
