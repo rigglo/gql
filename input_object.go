@@ -1,23 +1,64 @@
 package gql
 
+import (
+	"fmt"
+	"sync"
+)
+
 // InputObject ...
 type InputObject struct {
 	Name        string
 	Description string
-	Fields      InputFields
+	Fields      *InputFields
 }
 
-// InputFields contains InputObjectFields
-type InputFields []*InputObjectField
+// InputFields ...
+type InputFields struct {
+	fields []*InputObjectField
+	cache  map[string]*InputObjectField
+	mu     sync.Mutex
+}
 
-// Get returns the InputObjectField with the given name
-func (i InputFields) Get(name string) *InputObjectField {
-	for _, f := range i {
-		if f.Name == name {
-			return f
-		}
+func NewInputFields(fs ...*InputObjectField) *InputFields {
+	return &InputFields{
+		fields: fs,
+		cache:  make(map[string]*InputObjectField),
+		mu:     sync.Mutex{},
 	}
-	return nil
+}
+
+// Add a new field to fields
+func (fs *InputFields) Add(f *InputObjectField) {
+	fs.fields = append(fs.fields, f)
+	fs.cache[f.Name] = f
+}
+
+func (fs *InputFields) Slice() []*InputObjectField {
+	return fs.fields
+}
+
+func (fs *InputFields) Len() int {
+	return len(fs.fields)
+}
+
+func (fs *InputFields) buildCache() {
+	fs.cache = make(map[string]*InputObjectField)
+	fs.mu.Lock()
+	for _, f := range fs.fields {
+		fs.cache[f.Name] = f
+	}
+	fs.mu.Unlock()
+}
+
+// Get returns the field with the given name (if exists)
+func (fs *InputFields) Get(name string) (*InputObjectField, error) {
+	if fs.cache == nil || len(fs.cache) != len(fs.fields) {
+		fs.buildCache()
+	}
+	if f, ok := fs.cache[name]; ok {
+		return f, nil
+	}
+	return nil, fmt.Errorf("there's no field named '%s'", name)
 }
 
 // InputObjectField describes a field of an InputObject

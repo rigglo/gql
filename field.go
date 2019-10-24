@@ -19,7 +19,7 @@ type Field struct {
 	Depricated        bool
 	DepricationReason string
 	Type              Type
-	Arguments         []*Argument
+	Arguments         *Arguments
 	Resolver          ResolverFunc
 }
 

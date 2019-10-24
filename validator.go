@@ -88,7 +88,9 @@ func (v *validator) ValidateSelectionSet(ctx *gqlCtx, o *Object, set []ast.Selec
 }
 
 func (v *validator) ValidateField(ctx *gqlCtx, f *Field, fAst *ast.Field) []error {
-	// TODO: ValidateArguments
+	if errs := v.ValidateArguments(ctx, f.Arguments, fAst.Arguments); len(errs) > 0 {
+		return errs
+	}
 	// TODO: ValidateDirectives
 	if ft := getFinalType(f.Type); ft.Kind() == ObjectTypeDefinition {
 		// TODO: validate selectionSets on Interfaces and Unions
@@ -109,12 +111,95 @@ func (v *validator) ValidateField(ctx *gqlCtx, f *Field, fAst *ast.Field) []erro
 	return nil
 }
 
+func (v *validator) ValidateArguments(ctx *gqlCtx, args *Arguments, argsAst []*ast.Argument) []error {
+	argNames := map[string]bool{}
+	for _, argAst := range argsAst {
+		if arg, ok := args.Get(argAst.Name); ok {
+			if _, ok := argNames[argAst.Name]; ok {
+				return []error{fmt.Errorf("argument '%s' is defined multiple times", argAst.Name)}
+			}
+			argNames[argAst.Name] = true
+
+			if err := v.ValidateValue(argAst.Value, arg.Type, false); err != nil {
+				return []error{err}
+			}
+		} else {
+			return []error{fmt.Errorf("field '%s' does not esits", argAst.Name)}
+		}
+	}
+
+	for _, arg := range args.Slice() {
+		if _, ok := argNames[arg.Name]; !ok && arg.Type.Kind() == NonNullTypeDefinition {
+			return []error{fmt.Errorf("required field '%s' is missing", arg.Name)}
+		}
+	}
+	return nil
+}
+
+func (v *validator) ValidateValue(val ast.Value, t Type, nnParent bool) error {
+	switch {
+	case t.Kind() == NonNullTypeDefinition && val.Kind() != ast.NullValueKind:
+		return v.ValidateValue(val.GetValue().(ast.Value), t.Unwrap(), true)
+	case t.Kind() == ScalarTypeDefinition:
+		s := t.(*Scalar)
+		if val.Kind() == ast.NullValueKind && !nnParent {
+			return nil
+		} else if val.Kind() == ast.FloatValueKind || val.Kind() == ast.FloatValueKind || val.Kind() == ast.BooleanValueKind || val.Kind() == ast.StringValueKind {
+			if _, err := s.InputCoercion(val.GetValue().(string)); err != nil {
+				return err
+			}
+			return nil
+		}
+		return fmt.Errorf("value is not valid")
+	case t.Kind() == EnumTypeDefinition:
+		e := t.(*Enum)
+		if _, err := e.InputCoercion(val.GetValue().(string)); err != nil {
+			return err
+		}
+		return nil
+	case t.Kind() == ListTypeDefinition && val.Kind() == ast.ListValueKind:
+		for _, sv := range val.GetValue().([]ast.Value) {
+			if err := v.ValidateValue(sv, t.Unwrap(), false); err != nil {
+				return err
+			}
+		}
+		return nil
+	case t.Kind() == InputObjectTypeDefinition && val.Kind() == ast.ObjectValueKind:
+		obj := t.(*InputObject)
+		fields := map[string]bool{}
+		for _, fval := range val.GetValue().([]*ast.ObjectFieldValue) {
+			if _, ok := fields[fval.Name]; ok {
+				return fmt.Errorf("InputField uniqueness failed")
+			}
+			fields[fval.Name] = true
+
+			inpField, err := obj.Fields.Get(fval.Name)
+			if err != nil {
+				return err
+			}
+			if err = v.ValidateValue(fval.Value, inpField.Type, false); err != nil {
+				return err
+			}
+		}
+
+		for _, f := range obj.Fields.Slice() {
+			if _, ok := fields[f.Name]; !ok && f.Type.Kind() == NonNullTypeDefinition {
+				return fmt.Errorf("required field is missing")
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("failed")
+	}
+}
+
 func (v *validator) ValidateLeafFieldSelections(ctx *gqlCtx, f *Field) []error {
+	// TODO: implement ValidateLeafFieldSelections
 	return nil
 }
 
 func (v *validator) ValidateSelectionSetMerges(ctx *gqlCtx, o *Object, set []ast.Selection) []error {
-
+	// TODO: implement ValidateSelectionSetMerges
 	return nil
 }
 
@@ -186,12 +271,3 @@ func isCompositeType(t Type) bool {
 	}
 	return false
 }
-
-/*
-func (v *validator) mergeSets(ctx *gqlCtx, o *Object, fieldA *ast.Field, fieldB *ast.Field) []ast.Selection {
-	setA := s.CollectFields(ctx, o, fieldA.SelectionSet, map[string]*ast.FragmentSpread{})
-	for _, sA := range setA {
-		ofg.A
-	}
-}
-*/

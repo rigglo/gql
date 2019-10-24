@@ -92,7 +92,7 @@ func (e *executor) CoerceArgumentValues(ctx *gqlCtx, o *Object, field *ast.Field
 	fieldDef, _ := o.Fields.Get(field.Name)
 	argVals := field.Arguments
 	argDefs := fieldDef.Arguments
-	for _, argDef := range argDefs {
+	for _, argDef := range argDefs.Slice() {
 		argName := argDef.Name
 		argType := argDef.Type
 		defaultVal := argDef.DefaultValue
@@ -178,7 +178,8 @@ func coerceValue(val interface{}, t Type) (interface{}, error) {
 				if !ok {
 					return nil, fmt.Errorf("value is not valid for InputObject type")
 				}
-				fieldVal, err := coerceValue(field.GetValue(), o.Fields.Get(field.Name).Type)
+				ft, _ := o.Fields.Get(field.Name)
+				fieldVal, err := coerceValue(field.GetValue(), ft.Type)
 				if err != nil {
 					return nil, err
 				}
