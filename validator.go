@@ -75,7 +75,7 @@ func (v *validator) ValidateSelectionSet(ctx *gqlCtx, o *Object, set []ast.Selec
 			astField := selection.(*ast.Field)
 			fieldType, err := o.Fields.Get(astField.Name)
 			if err != nil {
-				return []error{fmt.Errorf("field '%s' is not defined on type '%s'", astField.Name, fieldType.Name)}
+				return []error{fmt.Errorf("field '%s' is not defined on type '%s'", astField.Name, o.Name)}
 			}
 			errs := v.ValidateField(ctx, fieldType, astField)
 			if len(errs) > 0 {
@@ -144,12 +144,12 @@ func (v *validator) ValidateArguments(ctx *gqlCtx, args *Arguments, argsAst []*a
 func (v *validator) ValidateValue(val ast.Value, t Type, nnParent bool) error {
 	switch {
 	case t.Kind() == NonNullTypeDefinition && val.Kind() != ast.NullValueKind:
-		return v.ValidateValue(val.GetValue().(ast.Value), t.Unwrap(), true)
+		return v.ValidateValue(val, t.Unwrap(), true)
 	case t.Kind() == ScalarTypeDefinition:
 		s := t.(*Scalar)
 		if val.Kind() == ast.NullValueKind && !nnParent {
 			return nil
-		} else if val.Kind() == ast.FloatValueKind || val.Kind() == ast.FloatValueKind || val.Kind() == ast.BooleanValueKind || val.Kind() == ast.StringValueKind {
+		} else if val.Kind() == ast.IntValueKind || val.Kind() == ast.FloatValueKind || val.Kind() == ast.BooleanValueKind || val.Kind() == ast.StringValueKind {
 			if _, err := s.InputCoercion(val.GetValue().(string)); err != nil {
 				return err
 			}

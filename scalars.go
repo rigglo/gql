@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -88,7 +89,7 @@ var (
 					return t, nil
 				}
 			}
-			return nil, fmt.Errorf("value '%s' couldn't be coerced as input for String", s)
+			return nil, fmt.Errorf("value '%s' couldn't be coerced as input for ID", s)
 		},
 		OutputCoercion: func(v interface{}) ([]byte, error) {
 			r := reflect.ValueOf(v)
@@ -102,7 +103,7 @@ var (
 			case r.Kind() == reflect.Int || r.Kind() == reflect.Int16 || r.Kind() == reflect.Int32:
 				return []byte(fmt.Sprintf(`"%v"`, r.Int())), nil
 			}
-			return nil, fmt.Errorf("value '%v' couldn't be coerced as output for String", v)
+			return nil, fmt.Errorf("value '%v' couldn't be coerced as output for ID", v)
 		},
 	}
 	// Int is a built-in type in GraphQL
@@ -110,13 +111,11 @@ var (
 		Name:        "Int",
 		Description: "This is the built-in String scalar",
 		InputCoercion: func(s string) (interface{}, error) {
-			if strings.HasPrefix(s, "\"") && strings.HasSuffix(s, "\"") {
-				t := s[1 : len(s)-1]
-				if utf8.ValidString(t) {
-					return t, nil
-				}
+			n, err := strconv.ParseInt(s, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("value '%s' couldn't be coerced as input for Int", s)
 			}
-			return nil, fmt.Errorf("value '%s' couldn't be coerced as input for String", s)
+			return int(n), nil
 		},
 		OutputCoercion: func(v interface{}) ([]byte, error) {
 			r := reflect.ValueOf(v)
