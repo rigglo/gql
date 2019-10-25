@@ -48,3 +48,8 @@ type Params struct {
 	OperationName string                 `json:"operationName"`
 	Variables     map[string]interface{} `json:"variables"`
 }
+
+// ValidationContext ...
+type ValidationContext struct {
+	types map[string]Type
+}
