@@ -273,12 +273,12 @@ func init() {
 			&gql.Field{
 				Name: "hero",
 				Type: characterInterface,
-				Arguments: []*gql.Argument{
+				Arguments: gql.NewArguments(
 					&gql.Argument{
 						Name: "episode",
 						Type: episodeEnum,
 					},
-				},
+				),
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					return GetHero(args["episode"]), nil
 				},
@@ -286,12 +286,12 @@ func init() {
 			&gql.Field{
 				Name: "human",
 				Type: humanType,
-				Arguments: []*gql.Argument{
+				Arguments: gql.NewArguments(
 					&gql.Argument{
 						Name: "id",
 						Type: gql.NewNonNull(gql.String),
 					},
-				},
+				),
 				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
 					id, err := strconv.Atoi(args["id"].(string))
 					if err != nil {

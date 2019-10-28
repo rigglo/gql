@@ -371,7 +371,7 @@ func parseArguments(tokens chan lexer.Token) (args []*ast.Argument, err error) {
 		if token.Kind == lexer.NameToken {
 			arg.Name = token.Value
 		} else {
-			return nil, fmt.Errorf("unexpected token")
+			return nil, fmt.Errorf("unexpected token args: %+v", token.Value)
 		}
 
 		token = <-tokens
@@ -380,7 +380,8 @@ func parseArguments(tokens chan lexer.Token) (args []*ast.Argument, err error) {
 		}
 
 		token = <-tokens
-		token, val, err := parseValue(token, tokens)
+		var val ast.Value
+		token, val, err = parseValue(token, tokens)
 		if err != nil {
 			return nil, err
 		}

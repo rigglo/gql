@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/rigglo/gql/internal"
 	"github.com/rigglo/gql/language/ast"
-	"github.com/rigglo/gql/language/parser"
 	"github.com/rigglo/gql/pkg/ordered"
 	"github.com/rigglo/gql/pkg/vm"
 	"reflect"
@@ -16,7 +15,7 @@ type Result struct {
 	Errors []error     `json:"errors"`
 }
 
-type execCtx struct {
+type gqlCtx struct {
 	query         string
 	Context       context.Context
 	doc           *ast.Document
@@ -30,7 +29,7 @@ type executor struct {
 	types  map[string]Type
 }
 
-func (e *executor) ExecuteQuery(ctx *execCtx, query *ast.Operation, initVal interface{}) *Result {
+func (e *executor) ExecuteQuery(ctx *gqlCtx, query *ast.Operation, initVal interface{}) *Result {
 	data, err := e.ExecuteSelectionSet(ctx, e.schema.Query, query.SelectionSet, initVal)
 	return &Result{
 		Data:   data,
@@ -38,7 +37,7 @@ func (e *executor) ExecuteQuery(ctx *execCtx, query *ast.Operation, initVal inte
 	}
 }
 
-func (e *executor) ExecuteMutation(ctx *execCtx, mut *ast.Operation, initVal interface{}) *Result {
+func (e *executor) ExecuteMutation(ctx *gqlCtx, mut *ast.Operation, initVal interface{}) *Result {
 	data, err := e.ExecuteSelectionSet(ctx, e.schema.Mutation, mut.SelectionSet, initVal)
 	return &Result{
 		Data:   data,
@@ -46,8 +45,8 @@ func (e *executor) ExecuteMutation(ctx *execCtx, mut *ast.Operation, initVal int
 	}
 }
 
-func (e *executor) ExecuteSelectionSet(ctx *execCtx, o *Object, set []ast.Selection, val interface{}) (*ordered.Map, []error) {
-	ofg := e.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
+func (e *executor) ExecuteSelectionSet(ctx *gqlCtx, o *Object, set []ast.Selection, val interface{}) (*ordered.Map, []error) {
+	ofg := e.CollectFields(ctx, o.Name, o.Implements, o.Fields, set, map[string]*ast.FragmentSpread{})
 	res := ordered.NewMap()
 	errs := []error{}
 	iter := ofg.Iter()
@@ -67,7 +66,7 @@ func (e *executor) ExecuteSelectionSet(ctx *execCtx, o *Object, set []ast.Select
 	return res, errs
 }
 
-func (e *executor) ExecuteField(ctx *execCtx, o *Object, val interface{}, fields ast.Fields, ftype Type) (interface{}, []error) {
+func (e *executor) ExecuteField(ctx *gqlCtx, o *Object, val interface{}, fields ast.Fields, ftype Type) (interface{}, []error) {
 	field := fields[0]
 	errs := []error{}
 	fieldName := field.Name
@@ -88,20 +87,20 @@ func (e *executor) ExecuteField(ctx *execCtx, o *Object, val interface{}, fields
 	return cVal, errs
 }
 
-func (e *executor) CoerceArgumentValues(ctx *execCtx, o *Object, field *ast.Field) (map[string]interface{}, []error) {
-	coercedVals := map[string]interface{}{}
+func (e *executor) CoerceArgumentValues(ctx *gqlCtx, o *Object, field *ast.Field) (map[string]interface{}, []error) {
 	fieldDef, _ := o.Fields.Get(field.Name)
-	argVals := field.Arguments
-	argDefs := fieldDef.Arguments
-	for _, argDef := range argDefs {
-		argName := argDef.Name
-		argType := argDef.Type
+	coercedVals := map[string]interface{}{}
+	if fieldDef.Arguments == nil {
+		return coercedVals, nil
+	}
+
+	for _, argDef := range fieldDef.Arguments.Slice() {
 		defaultVal := argDef.DefaultValue
 		hasVal := false
 		var value interface{}
 		var argVal ast.Value
-		for _, arg := range argVals {
-			if arg.Name == argName {
+		for _, arg := range field.Arguments {
+			if arg.Name == argDef.Name {
 				hasVal = true
 				argVal = arg.Value
 				break
@@ -114,20 +113,20 @@ func (e *executor) CoerceArgumentValues(ctx *execCtx, o *Object, field *ast.Fiel
 			value = argVal.GetValue()
 		}
 		if !hasVal {
-			coercedVals[argName] = defaultVal
-		} else if argType.Kind() == NonNullTypeDefinition && (!hasVal || argVal.Kind() == ast.NullValueKind) {
+			coercedVals[argDef.Name] = defaultVal
+		} else if argDef.Type.Kind() == NonNullTypeDefinition && (!hasVal || argVal.Kind() == ast.NullValueKind) {
 			return nil, []error{fmt.Errorf("null value on Non-Null type")}
 		} else if hasVal {
 			if value == nil {
-				coercedVals[argName] = value
+				coercedVals[argDef.Name] = value
 			} else if argVal.Kind() == ast.VariableValueKind {
-				coercedVals[argName] = value
+				coercedVals[argDef.Name] = value
 			} else {
 				value, err := coerceValue(value, argDef.Type)
 				if err != nil {
 					return nil, []error{err}
 				}
-				coercedVals[argName] = value
+				coercedVals[argDef.Name] = value
 			}
 		}
 	}
@@ -179,7 +178,8 @@ func coerceValue(val interface{}, t Type) (interface{}, error) {
 				if !ok {
 					return nil, fmt.Errorf("value is not valid for InputObject type")
 				}
-				fieldVal, err := coerceValue(field.GetValue(), o.Fields.Get(field.Name).Type)
+				ft, _ := o.Fields.Get(field.Name)
+				fieldVal, err := coerceValue(field.GetValue(), ft.Type)
 				if err != nil {
 					return nil, err
 				}
@@ -194,14 +194,14 @@ func coerceValue(val interface{}, t Type) (interface{}, error) {
 	return nil, nil
 }
 
-func (e *executor) ResolveFieldValue(ctx *execCtx, o *Object, val interface{}, fieldName string, args map[string]interface{}) (interface{}, error) {
+func (e *executor) ResolveFieldValue(ctx *gqlCtx, o *Object, val interface{}, fieldName string, args map[string]interface{}) (interface{}, error) {
 	field, _ := o.Fields.Get(fieldName)
 	return vm.Run(func() (interface{}, error) {
 		return field.Resolver(ctx.Context, args, val)
 	})
 }
 
-func (e *executor) CompleteValue(ctx *execCtx, fT Type, fields ast.Fields, cVal interface{}) (interface{}, []error) {
+func (e *executor) CompleteValue(ctx *gqlCtx, fT Type, fields ast.Fields, cVal interface{}) (interface{}, []error) {
 	errs := []error{}
 	switch {
 	case fT.Kind() == NonNullTypeDefinition:
@@ -249,7 +249,7 @@ func (e *executor) CompleteValue(ctx *execCtx, fT Type, fields ast.Fields, cVal 
 	return nil, []error{fmt.Errorf("Schema.CompleteValue - END - you should not get here.. ")}
 }
 
-func (e *executor) MergeSelectionSets(ctx *execCtx, fields ast.Fields) []ast.Selection {
+func (e *executor) MergeSelectionSets(ctx *gqlCtx, fields ast.Fields) []ast.Selection {
 	set := []ast.Selection{}
 	for _, f := range fields {
 		set = append(set, f.SelectionSet...)
@@ -257,12 +257,12 @@ func (e *executor) MergeSelectionSets(ctx *execCtx, fields ast.Fields) []ast.Sel
 	return set
 }
 
-func (e *executor) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, vf map[string]*ast.FragmentSpread) *internal.OrderedFieldGroups {
+func (e *executor) CollectFields(ctx *gqlCtx, oName string, implements []*Interface, fs *Fields, set []ast.Selection, vf map[string]*ast.FragmentSpread) *internal.OrderedFieldGroups {
 	groupedFields := internal.NewOrderedFieldGroups()
 	for s := range set {
 		// TODO: Check skip and include directives
 		if f, ok := set[s].(*ast.Field); ok {
-			if _, err := o.Fields.Get(f.Name); err != nil {
+			if _, err := fs.Get(f.Name); err != nil {
 				continue
 			} else {
 				groupedFields.Append(f.Alias, f)
@@ -275,13 +275,7 @@ func (e *executor) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, v
 
 			fragment, ok := ctx.doc.Fragments[f.Name]
 			if ok {
-				/*fragmentType, ok := e.types[fragment.TypeCondition]
-				if !ok {
-					// RAISE FIELD ERROR
-					continue
-				}
-				*/
-				if !e.DoesFragmentTypeApply(o, fragment.TypeCondition) {
+				if !e.DoesFragmentTypeApply(oName, implements, fragment.TypeCondition) {
 					// RAISE FIELD ERROR
 					continue
 				}
@@ -289,7 +283,7 @@ func (e *executor) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, v
 				// RAISE FIELD ERROR
 				continue
 			}
-			res := e.CollectFields(ctx, o, fragment.SelectionSet, vf)
+			res := e.CollectFields(ctx, oName, implements, fs, fragment.SelectionSet, vf)
 			rIter := res.Iter()
 			for rIter.Next() {
 				alias, rfs := rIter.Value()
@@ -298,12 +292,12 @@ func (e *executor) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, v
 				}
 			}
 		} else if f, ok := set[s].(*ast.InlineFragment); ok {
-			if !e.DoesFragmentTypeApply(o, f.TypeCondition) {
+			if !e.DoesFragmentTypeApply(oName, implements, f.TypeCondition) {
 				// RAISE FIELD ERROR
 				continue
 			}
 
-			res := e.CollectFields(ctx, o, f.SelectionSet, vf)
+			res := e.CollectFields(ctx, oName, implements, fs, f.SelectionSet, vf)
 			rIter := res.Iter()
 			for rIter.Next() {
 				alias, rfs := rIter.Value()
@@ -316,12 +310,11 @@ func (e *executor) CollectFields(ctx *execCtx, o *Object, set []ast.Selection, v
 	return groupedFields
 }
 
-func (e *executor) DoesFragmentTypeApply(o *Object, fragmentType string) bool {
-	// FIXME: check if this correct
-	if o.Name == fragmentType {
+func (e *executor) DoesFragmentTypeApply(oName string, implements []*Interface, fragmentType string) bool {
+	if oName == fragmentType {
 		return true
 	}
-	for _, i := range o.Implements {
+	for _, i := range implements {
 		if i.Name == fragmentType {
 			return true
 		}
@@ -329,31 +322,8 @@ func (e *executor) DoesFragmentTypeApply(o *Object, fragmentType string) bool {
 	return false
 }
 
-func (e *executor) Execute(ctx context.Context, query string, operationName string, vars map[string]interface{}) *Result {
-	_, doc, err := parser.Parse(query)
-	if err != nil {
-		return &Result{
-			Errors: []error{err},
-		}
-	}
-
-	eCtx := &execCtx{
-		Context:       ctx,
-		doc:           doc,
-		operationName: operationName,
-		query:         query,
-		vars:          vars,
-		types:         map[string]Type{},
-	}
-
-	/*
-		if errs := e.ValidateRequest(eCtx); len(errs) > 0 {
-			return &Result{
-				Errors: append(errs, fmt.Errorf("validation error")),
-			}
-		}*/
-
-	op, err := e.GetOperation(doc, operationName)
+func (e *executor) Execute(eCtx *gqlCtx) *Result {
+	op, err := e.GetOperation(eCtx.doc, eCtx.operationName)
 	if err != nil {
 		return &Result{
 			Errors: []error{err},
