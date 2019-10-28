@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-// Argument ...
+// Argument is an argument 
 type Argument struct {
 	Name              string
 	DefaultValue      interface{}
@@ -14,12 +14,14 @@ type Argument struct {
 	Type              Type
 }
 
+// Arguments contains multiple Arguments
 type Arguments struct {
 	args  []*Argument
 	cache map[string]*Argument
 	mu    sync.Mutex
 }
 
+// NewArguments returns a new Arguments that containse the given arguments
 func NewArguments(args ...*Argument) *Arguments {
 	return &Arguments{
 		args:  args,
@@ -34,14 +36,17 @@ func (as *Arguments) Add(a *Argument) {
 	as.cache[a.Name] = a
 }
 
+// Slice returns a slice of arguments
 func (as *Arguments) Slice() []*Argument {
 	return as.args
 }
 
+// Map returns the map of arguments
 func (as *Arguments) Map() map[string]*Argument {
 	return as.cache
 }
 
+// Len returns the count of arguments in Arguments
 func (as *Arguments) Len() int {
 	return len(as.args)
 }

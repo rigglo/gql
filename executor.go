@@ -46,7 +46,7 @@ func (e *executor) ExecuteMutation(ctx *gqlCtx, mut *ast.Operation, initVal inte
 }
 
 func (e *executor) ExecuteSelectionSet(ctx *gqlCtx, o *Object, set []ast.Selection, val interface{}) (*ordered.Map, []error) {
-	ofg := e.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
+	ofg := e.CollectFields(ctx, o.Name, o.Implements, o.Fields, set, map[string]*ast.FragmentSpread{})
 	res := ordered.NewMap()
 	errs := []error{}
 	iter := ofg.Iter()
@@ -257,12 +257,12 @@ func (e *executor) MergeSelectionSets(ctx *gqlCtx, fields ast.Fields) []ast.Sele
 	return set
 }
 
-func (e *executor) CollectFields(ctx *gqlCtx, o *Object, set []ast.Selection, vf map[string]*ast.FragmentSpread) *internal.OrderedFieldGroups {
+func (e *executor) CollectFields(ctx *gqlCtx, oName string, implements []*Interface, fs *Fields, set []ast.Selection, vf map[string]*ast.FragmentSpread) *internal.OrderedFieldGroups {
 	groupedFields := internal.NewOrderedFieldGroups()
 	for s := range set {
 		// TODO: Check skip and include directives
 		if f, ok := set[s].(*ast.Field); ok {
-			if _, err := o.Fields.Get(f.Name); err != nil {
+			if _, err := fs.Get(f.Name); err != nil {
 				continue
 			} else {
 				groupedFields.Append(f.Alias, f)
@@ -275,13 +275,7 @@ func (e *executor) CollectFields(ctx *gqlCtx, o *Object, set []ast.Selection, vf
 
 			fragment, ok := ctx.doc.Fragments[f.Name]
 			if ok {
-				/*fragmentType, ok := e.types[fragment.TypeCondition]
-				if !ok {
-					// RAISE FIELD ERROR
-					continue
-				}
-				*/
-				if !e.DoesFragmentTypeApply(o, fragment.TypeCondition) {
+				if !e.DoesFragmentTypeApply(oName, implements, fragment.TypeCondition) {
 					// RAISE FIELD ERROR
 					continue
 				}
@@ -289,7 +283,7 @@ func (e *executor) CollectFields(ctx *gqlCtx, o *Object, set []ast.Selection, vf
 				// RAISE FIELD ERROR
 				continue
 			}
-			res := e.CollectFields(ctx, o, fragment.SelectionSet, vf)
+			res := e.CollectFields(ctx, oName, implements, fs, fragment.SelectionSet, vf)
 			rIter := res.Iter()
 			for rIter.Next() {
 				alias, rfs := rIter.Value()
@@ -298,12 +292,12 @@ func (e *executor) CollectFields(ctx *gqlCtx, o *Object, set []ast.Selection, vf
 				}
 			}
 		} else if f, ok := set[s].(*ast.InlineFragment); ok {
-			if !e.DoesFragmentTypeApply(o, f.TypeCondition) {
+			if !e.DoesFragmentTypeApply(oName, implements, f.TypeCondition) {
 				// RAISE FIELD ERROR
 				continue
 			}
 
-			res := e.CollectFields(ctx, o, f.SelectionSet, vf)
+			res := e.CollectFields(ctx, oName, implements, fs, f.SelectionSet, vf)
 			rIter := res.Iter()
 			for rIter.Next() {
 				alias, rfs := rIter.Value()
@@ -316,12 +310,11 @@ func (e *executor) CollectFields(ctx *gqlCtx, o *Object, set []ast.Selection, vf
 	return groupedFields
 }
 
-func (e *executor) DoesFragmentTypeApply(o *Object, fragmentType string) bool {
-	// FIXME: check if this correct
-	if o.Name == fragmentType {
+func (e *executor) DoesFragmentTypeApply(oName string, implements []*Interface, fragmentType string) bool {
+	if oName == fragmentType {
 		return true
 	}
-	for _, i := range o.Implements {
+	for _, i := range implements {
 		if i.Name == fragmentType {
 			return true
 		}

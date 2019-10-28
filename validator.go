@@ -42,7 +42,7 @@ func (v *validator) ValidateOperations(ctx *gqlCtx) []error {
 		}
 
 		if ctx.doc.Operations[i].OperationType == ast.Subscription {
-			ofg := v.e.CollectFields(ctx, v.schema.Subsciption, ctx.doc.Operations[i].SelectionSet, map[string]*ast.FragmentSpread{})
+			ofg := v.e.CollectFields(ctx, v.schema.Subsciption.Name, v.schema.Subsciption.Implements, v.schema.Subsciption.Fields, ctx.doc.Operations[i].SelectionSet, map[string]*ast.FragmentSpread{})
 			if ofg.Len() != 1 {
 				errs = append(errs, fmt.Errorf("subscription operation must have exactly one entry"))
 			}
@@ -50,13 +50,13 @@ func (v *validator) ValidateOperations(ctx *gqlCtx) []error {
 
 		switch ctx.doc.Operations[i].OperationType {
 		case ast.Query:
-			vErrs := v.ValidateSelectionSet(ctx, v.schema.Query, ctx.doc.Operations[i].SelectionSet)
+			vErrs := v.ValidateSelectionSet(ctx, v.schema.Query.Name, v.schema.Query.Fields, ctx.doc.Operations[i].SelectionSet)
 			errs = append(errs, vErrs...)
 		case ast.Mutation:
-			vErrs := v.ValidateSelectionSet(ctx, v.schema.Mutation, ctx.doc.Operations[i].SelectionSet)
+			vErrs := v.ValidateSelectionSet(ctx, v.schema.Mutation.Name, v.schema.Mutation.Fields, ctx.doc.Operations[i].SelectionSet)
 			errs = append(errs, vErrs...)
 		case ast.Subscription:
-			vErrs := v.ValidateSelectionSet(ctx, v.schema.Mutation, ctx.doc.Operations[i].SelectionSet)
+			vErrs := v.ValidateSelectionSet(ctx, v.schema.Subsciption.Name, v.schema.Subsciption.Fields, ctx.doc.Operations[i].SelectionSet)
 			errs = append(errs, vErrs...)
 		}
 
@@ -68,14 +68,14 @@ func (v *validator) ValidateOperations(ctx *gqlCtx) []error {
 	return errs
 }
 
-func (v *validator) ValidateSelectionSet(ctx *gqlCtx, o *Object, set []ast.Selection) []error {
+func (v *validator) ValidateSelectionSet(ctx *gqlCtx, name string, fs *Fields, set []ast.Selection) []error {
 	for _, selection := range set {
 		switch selection.Kind() {
 		case ast.FieldSelectionKind:
 			astField := selection.(*ast.Field)
-			fieldType, err := o.Fields.Get(astField.Name)
+			fieldType, err := fs.Get(astField.Name)
 			if err != nil {
-				return []error{fmt.Errorf("field '%s' is not defined on type '%s'", astField.Name, o.Name)}
+				return []error{fmt.Errorf("field '%s' is not defined on type '%s'", astField.Name, name)}
 			}
 			errs := v.ValidateField(ctx, fieldType, astField)
 			if len(errs) > 0 {
@@ -83,30 +83,60 @@ func (v *validator) ValidateSelectionSet(ctx *gqlCtx, o *Object, set []ast.Selec
 			}
 		}
 	}
-	return v.ValidateSelectionSetMerges(ctx, o, set)
+	return nil
 }
 
 func (v *validator) ValidateField(ctx *gqlCtx, f *Field, fAst *ast.Field) []error {
 	if errs := v.ValidateArguments(ctx, f.Arguments, fAst.Arguments); len(errs) > 0 {
 		return errs
 	}
-	// TODO: ValidateDirectives
-	if ft := getFinalType(f.Type); ft.Kind() == ObjectTypeDefinition {
-		// TODO: validate selectionSets on Interfaces and Unions
-		errs := v.ValidateLeafFieldSelections(ctx, f)
-		if len(errs) > 0 {
-			return errs
+	return v.validateField(ctx, f.Type, f, fAst)
+}
+
+func (v *validator) validateField(ctx *gqlCtx, t Type, f *Field, fAst *ast.Field) []error {
+	switch t.Kind() {
+	case ScalarTypeDefinition:
+		if len(fAst.SelectionSet) > 0 {
+			return []error{fmt.Errorf("selection set on Scalar type is not allowed")}
+		}
+		return nil
+	case EnumTypeDefinition:
+		if len(fAst.SelectionSet) > 0 {
+			return []error{fmt.Errorf("selection set on Enum type is not allowed")}
+		}
+		return nil
+	case ListTypeDefinition:
+		return v.validateField(ctx, t.Unwrap(), f, fAst)
+	case ObjectTypeDefinition:
+		if len(fAst.SelectionSet) == 0 {
+			return []error{fmt.Errorf("Object must have at least one selection")}
 		}
 
-		errs = v.ValidateSelectionSet(ctx, ft.(*Object), fAst.SelectionSet)
+		errs := v.ValidateSelectionSet(ctx, t.(*Object).Name, t.(*Object).GetFields(), fAst.SelectionSet)
 		if len(errs) > 0 {
 			return errs
 		}
-		errs = v.ValidateSelectionSetMerges(ctx, ft.(*Object), fAst.SelectionSet)
+		errs = v.ValidateFieldsInSetCanMerge(ctx, t.(*Object).Name, t.(*Object).GetFields(), fAst.SelectionSet)
 		if len(errs) > 0 {
 			return errs
 		}
+		return nil
+	case InterfaceTypeDefinition:
+		if len(fAst.SelectionSet) == 0 {
+			return []error{fmt.Errorf("Interface must have at least one selection")}
+		}
+
+		errs := v.ValidateSelectionSet(ctx, t.(*Interface).Name, t.(*Interface).GetFields(), fAst.SelectionSet)
+		if len(errs) > 0 {
+			return errs
+		}
+		errs = v.ValidateFieldsInSetCanMerge(ctx, t.(*Interface).Name, t.(*Interface).GetFields(), fAst.SelectionSet)
+		if len(errs) > 0 {
+			return errs
+		}
+		return nil
 	}
+	// TODO: validate unions
 	return nil
 }
 
@@ -198,22 +228,12 @@ func (v *validator) ValidateValue(val ast.Value, t Type, nnParent bool) error {
 	}
 }
 
-func (v *validator) ValidateLeafFieldSelections(ctx *gqlCtx, f *Field) []error {
-	// TODO: implement ValidateLeafFieldSelections
-	return nil
-}
-
-func (v *validator) ValidateSelectionSetMerges(ctx *gqlCtx, o *Object, set []ast.Selection) []error {
-	// TODO: implement ValidateSelectionSetMerges
-	return nil
-}
-
-func (v *validator) ValidateFieldsInSetCanMerge(ctx *gqlCtx, o *Object, set []ast.Selection) []error {
-	ofg := v.e.CollectFields(ctx, o, set, map[string]*ast.FragmentSpread{})
+func (v *validator) ValidateFieldsInSetCanMerge(ctx *gqlCtx, oName string, fs *Fields, set []ast.Selection) []error {
+	ofg := v.e.CollectFields(ctx, oName, nil, fs, set, map[string]*ast.FragmentSpread{})
 	for fieldName, fieldsForName := range ofg.Fields {
 		fieldA := fieldsForName[0]
 		for i := 1; i < len(fieldsForName); i++ {
-			if !v.ValidateSameResponseShape(ctx, o, fieldA, fieldsForName[i]) {
+			if !v.ValidateSameResponseShape(ctx, fs, fieldA, fieldsForName[i]) {
 				return []error{fmt.Errorf("fields '%s' can NOT be merged", fieldName)}
 			}
 		}
@@ -221,12 +241,12 @@ func (v *validator) ValidateFieldsInSetCanMerge(ctx *gqlCtx, o *Object, set []as
 	return nil
 }
 
-func (v *validator) ValidateSameResponseShape(ctx *gqlCtx, o *Object, fieldA *ast.Field, fieldB *ast.Field) bool {
-	fieldDefA, err := o.Fields.Get(fieldA.Name)
+func (v *validator) ValidateSameResponseShape(ctx *gqlCtx, fs *Fields, fieldA *ast.Field, fieldB *ast.Field) bool {
+	fieldDefA, err := fs.Get(fieldA.Name)
 	if err != nil {
 		return false
 	}
-	fieldDefB, err := o.Fields.Get(fieldB.Name)
+	fieldDefB, err := fs.Get(fieldB.Name)
 	if err != nil {
 		return false
 	}
