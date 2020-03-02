@@ -33,7 +33,7 @@ func (s *Scalar) GetDirectives() []schema.Directive {
 	return s.Directives
 }
 
-func (s *Scalar) CoerceResult(i interface{}) ([]byte, error) {
+func (s *Scalar) CoerceResult(i interface{}) (interface{}, error) {
 	return s.CoerceResultFunc(i)
 }
 
@@ -44,8 +44,8 @@ func (s *Scalar) CoerceInput(bs []byte) (interface{}, error) {
 var String *Scalar = &Scalar{
 	Name:        "String",
 	Description: "This is the built-in 'String' scalar type",
-	CoerceResultFunc: func(i interface{}) ([]byte, error) {
-		return []byte(fmt.Sprintf("\"%v\"", i)), nil
+	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		return fmt.Sprintf("%v", i), nil
 	},
 	CoerceInputFunc: func(bs []byte) (interface{}, error) {
 		return nil, nil

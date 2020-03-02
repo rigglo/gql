@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/rigglo/gql/schema"
@@ -13,10 +14,20 @@ func main() {
 	res := BlockBusters.Exec(context.Background(), schema.ExecuteParams{
 		OperationName: "",
 		Query: `query {
-			top_movie
+			top_movie {
+				id
+			}
+			foo
 		}`,
 	})
-	fmt.Printf("%+v", res)
+	bs, _ := json.Marshal(res)
+	fmt.Printf("%s\n", string(bs))
+	//fmt.Printf("%+v", res)
+}
+
+type Movie struct {
+	ID    string `gql:"id"`
+	Title string `gql:"title"`
 }
 
 var (
@@ -30,10 +41,21 @@ var (
 		Fields: gql.Fields{
 			&gql.Field{
 				Name:        "top_movie",
+				Type:        MovieType,
+				Description: "",
+				Resolver: func(ctx context.Context) (interface{}, error) {
+					return Movie{
+						ID:    "22424234",
+						Title: "Interstellar",
+					}, nil
+				},
+			},
+			&gql.Field{
+				Name:        "foo",
 				Type:        gql.String,
 				Description: "",
 				Resolver: func(ctx context.Context) (interface{}, error) {
-					return "Interstellar", nil
+					return "bar", nil
 				},
 			},
 		},
@@ -47,11 +69,17 @@ var (
 				Name:        "id",
 				Type:        gql.String,
 				Description: "id of the movie",
+				Resolver: func(ctx context.Context) (interface{}, error) {
+					return "some id", nil
+				},
 			},
 			&gql.Field{
 				Name:        "title",
 				Type:        gql.String,
 				Description: "title of the movie",
+				Resolver: func(ctx context.Context) (interface{}, error) {
+					return "title......", nil
+				},
 			},
 			&gql.Field{
 				Name: "name",

@@ -13,7 +13,8 @@ const (
 	UnionKind
 	EnumKind
 	InputObjectKind
-	WrappingKind
+	NonNullKind
+	ListKind
 )
 
 type Type interface {
@@ -25,11 +26,11 @@ type Type interface {
 type ScalarType interface {
 	Type
 	GetDirectives() []Directive
-	CoerceResult(interface{}) ([]byte, error)
+	CoerceResult(interface{}) (interface{}, error)
 	CoerceInput([]byte) (interface{}, error)
 }
 
-type CoerceResultFunc func(interface{}) ([]byte, error)
+type CoerceResultFunc func(interface{}) (interface{}, error)
 type CoerceInputFunc func([]byte) (interface{}, error)
 
 type ObjectType interface {

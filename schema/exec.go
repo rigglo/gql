@@ -2,7 +2,6 @@ package schema
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 
 	"github.com/rigglo/gql/language/ast"
@@ -13,12 +12,8 @@ import (
 type Result struct {
 	ctx    context.Context
 	Data   map[string]interface{} `json:"data"`
-	Errors []*Error               `json:"errors"`
+	Errors []*Error               `json:"errors,omitempty"`
 	errMu  sync.Mutex
-}
-
-func (r *Result) MarshalJSON() ([]byte, error) {
-	return json.MarshalIndent(r, "", "\t")
 }
 
 func (r *Result) addErr(err *Error) {
@@ -160,5 +155,17 @@ func resolveFieldValue(ctx *eCtx, ot ObjectType, ov interface{}, fn string, args
 
 func completeValue(ctx *eCtx, ft Type, fs ast.Fields, result interface{}) interface{} {
 	// TODO: complete value
+	switch ft.GetKind() {
+	case ScalarKind:
+		res, err := ft.(ScalarType).CoerceResult(result)
+		if err != nil {
+			ctx.res.addErr(&Error{Message: err.Error()})
+		}
+		return res
+	case ObjectKind:
+		ot := ft.(ObjectType)
+		subSel := fs[0].SelectionSet
+		return executeSelectionSet(ctx, subSel, ot, result)
+	}
 	return result
 }
