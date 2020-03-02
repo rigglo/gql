@@ -77,21 +77,22 @@ func resolveOperation(ctx *eCtx) *Result {
 
 func executeQuery(ctx *eCtx, op *ast.Operation) *Result {
 	schema := ctx.Get(keySchema).(Schema)
-	rmap := executeSelectionSet(ctx, op.SelectionSet, schema.GetRootQuery().(ObjectType), nil)
+	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery().(ObjectType), nil)
 	ctx.res.Data = rmap
 	return ctx.res
 }
+
 func executeMutation(ctx *eCtx) *Result {
 	return nil
 }
 
-func executeSelectionSet(ctx *eCtx, ss []ast.Selection, ot ObjectType, ov interface{}) map[string]interface{} {
+func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot ObjectType, ov interface{}) map[string]interface{} {
 	gfields := collectFields(ctx, ss, nil)
 	resMap := map[string]interface{}{}
 	for rkey, fields := range gfields {
 		fieldName := fields[0].Name
 		fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
-		rval := executeField(ctx, ot, ov, fieldType, fields)
+		rval := executeField(ctx, append(path, fields[0].Alias), ot, ov, fieldType, fields)
 		resMap[rkey] = rval
 	}
 	return resMap
@@ -131,12 +132,12 @@ func getFieldOfFields(fn string, fs []Field) Field {
 	return nil
 }
 
-func executeField(ctx *eCtx, ot ObjectType, ov interface{}, ft Type, fs ast.Fields) interface{} {
+func executeField(ctx *eCtx, path []interface{}, ot ObjectType, ov interface{}, ft Type, fs ast.Fields) interface{} {
 	f := fs[0]
 	fn := f.Name
 	args := coerceArgumentValues(ctx, ot, f)
-	resVal := resolveFieldValue(ctx, ot, ov, fn, args)
-	return completeValue(ctx, getFieldOfFields(fn, ot.GetFields()).GetType(), fs, resVal)
+	resVal := resolveFieldValue(ctx, path, f, ot, ov, fn, args)
+	return completeValue(ctx, path, getFieldOfFields(fn, ot.GetFields()).GetType(), fs, resVal)
 }
 
 func coerceArgumentValues(ctx *eCtx, ot ObjectType, f *ast.Field) map[string]interface{} {
@@ -144,16 +145,25 @@ func coerceArgumentValues(ctx *eCtx, ot ObjectType, f *ast.Field) map[string]int
 	return nil
 }
 
-func resolveFieldValue(ctx *eCtx, ot ObjectType, ov interface{}, fn string, args map[string]interface{}) interface{} {
+func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot ObjectType, ov interface{}, fn string, args map[string]interface{}) interface{} {
 	f := getFieldOfFields(fn, ot.GetFields())
 	v, err := f.Resolve(ctx, ov, args)
 	if err != nil {
-		ctx.res.addErr(&Error{Message: err.Error()})
+		ctx.res.addErr(&Error{
+			Message: err.Error(),
+			Path:    path,
+			Locations: []*ErrorLocation{
+				&ErrorLocation{
+					Column: fast.Location.Column,
+					Line:   fast.Location.Line,
+				},
+			},
+		})
 	}
 	return v
 }
 
-func completeValue(ctx *eCtx, ft Type, fs ast.Fields, result interface{}) interface{} {
+func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) interface{} {
 	// TODO: complete value
 	switch ft.GetKind() {
 	case ScalarKind:
@@ -165,7 +175,7 @@ func completeValue(ctx *eCtx, ft Type, fs ast.Fields, result interface{}) interf
 	case ObjectKind:
 		ot := ft.(ObjectType)
 		subSel := fs[0].SelectionSet
-		return executeSelectionSet(ctx, subSel, ot, result)
+		return executeSelectionSet(ctx, path, subSel, ot, result)
 	}
 	return result
 }

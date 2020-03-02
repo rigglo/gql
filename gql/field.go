@@ -7,7 +7,7 @@ import (
 )
 
 type Fields []schema.Field
-type Resolver func(context.Context) (interface{}, error)
+type Resolver func(context.Context, interface{}, map[string]interface{}) (interface{}, error)
 
 type Field struct {
 	Description string
@@ -39,7 +39,7 @@ func (f *Field) GetDirectives() []schema.Directive {
 }
 
 func (f *Field) Resolve(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-	return f.Resolver(ctx)
+	return f.Resolver(ctx, parent, args)
 }
 
 var _ schema.Field = &Field{}

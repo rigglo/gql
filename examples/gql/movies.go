@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/rigglo/gql/schema"
@@ -13,9 +14,11 @@ import (
 func main() {
 	res := BlockBusters.Exec(context.Background(), schema.ExecuteParams{
 		OperationName: "",
-		Query: `query {
+		Query: `
+		query {
 			top_movie {
 				id
+				title
 			}
 			foo
 		}`,
@@ -43,7 +46,7 @@ var (
 				Name:        "top_movie",
 				Type:        MovieType,
 				Description: "",
-				Resolver: func(ctx context.Context) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					return Movie{
 						ID:    "22424234",
 						Title: "Interstellar",
@@ -54,7 +57,7 @@ var (
 				Name:        "foo",
 				Type:        gql.String,
 				Description: "",
-				Resolver: func(ctx context.Context) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					return "bar", nil
 				},
 			},
@@ -69,16 +72,16 @@ var (
 				Name:        "id",
 				Type:        gql.String,
 				Description: "id of the movie",
-				Resolver: func(ctx context.Context) (interface{}, error) {
-					return "some id", nil
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					return parent.(Movie).ID, errors.New("asd")
 				},
 			},
 			&gql.Field{
 				Name:        "title",
 				Type:        gql.String,
 				Description: "title of the movie",
-				Resolver: func(ctx context.Context) (interface{}, error) {
-					return "title......", nil
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					return parent.(Movie).Title, nil
 				},
 			},
 			&gql.Field{

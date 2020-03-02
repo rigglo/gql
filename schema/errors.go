@@ -10,7 +10,7 @@ type Error struct {
 	Message    string                 `json:"message"`
 	Locations  []*ErrorLocation       `json:"locations"`
 	Path       []interface{}          `json:"path"`
-	Extensions map[string]interface{} `json:"extensions"`
+	Extensions map[string]interface{} `json:"extensions,omitempty"`
 }
 
 func (e *Error) Error() string {
