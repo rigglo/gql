@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/rigglo/gql/schema"
@@ -29,8 +28,8 @@ func main() {
 }
 
 type Movie struct {
-	ID    string `gql:"id"`
-	Title string `gql:"title"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
 var (
@@ -72,17 +71,11 @@ var (
 				Name:        "id",
 				Type:        gql.String,
 				Description: "id of the movie",
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(Movie).ID, errors.New("asd")
-				},
 			},
 			&gql.Field{
 				Name:        "title",
 				Type:        gql.String,
 				Description: "title of the movie",
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(Movie).Title, nil
-				},
 			},
 			&gql.Field{
 				Name: "name",
