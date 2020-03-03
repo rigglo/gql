@@ -2,10 +2,10 @@ package schema
 
 import (
 	"context"
+	"reflect"
 	"sync"
 
 	"github.com/rigglo/gql/language/ast"
-
 	"github.com/rigglo/gql/language/parser"
 )
 
@@ -176,6 +176,14 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		ot := ft.(ObjectType)
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
+	case ListKind:
+		lt := ft.(List)
+		v := reflect.ValueOf(result)
+		res := make([]interface{}, v.Len())
+		for i := 0; i < v.Len(); i++ {
+			res = append(res, completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface()))
+		}
+		return res
 	}
 	return result
 }
