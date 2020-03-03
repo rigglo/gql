@@ -45,9 +45,12 @@ var String *Scalar = &Scalar{
 	Name:        "String",
 	Description: "This is the built-in 'String' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		if i == nil {
+			return nil, nil
+		}
 		return fmt.Sprintf("%v", i), nil
 	},
 	CoerceInputFunc: func(bs []byte) (interface{}, error) {
-		return nil, nil
+		return string(bs), nil
 	},
 }

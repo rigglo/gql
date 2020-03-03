@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/rigglo/gql/schema"
 
@@ -15,12 +16,15 @@ func main() {
 		OperationName: "",
 		Query: `
 		query {
-			top_movie {
+			top_movies {
 				id
 				title
 			}
-			foo
+			foo(asd: $bar)
 		}`,
+		Variables: map[string]interface{}{
+			"bar": "foobar",
+		},
 	})
 	bs, _ := json.Marshal(res)
 	fmt.Printf("%s\n", string(bs))
@@ -42,13 +46,19 @@ var (
 		Description: "Just the blockbusters root query",
 		Fields: gql.Fields{
 			&gql.Field{
-				Name:        "top_movie",
-				Type:        MovieType,
+				Name:        "top_movies",
+				Type:        gql.NewList(MovieType),
 				Description: "",
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return Movie{
-						ID:    "22424234",
-						Title: "Interstellar",
+					return []Movie{
+						Movie{
+							ID:    "22424234",
+							Title: "Interstellar",
+						},
+						Movie{
+							ID:    "34363453",
+							Title: "Titanic",
+						},
 					}, nil
 				},
 			},
@@ -56,8 +66,15 @@ var (
 				Name:        "foo",
 				Type:        gql.String,
 				Description: "",
+				Arguments: gql.Arguments{
+					&gql.Argument{
+						Name: "asd",
+						Type: gql.String,
+					},
+				},
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return "bar", nil
+					log.Println(args)
+					return args["asd"], nil
 				},
 			},
 		},

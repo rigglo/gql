@@ -2,6 +2,8 @@ package schema
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 
@@ -132,17 +134,98 @@ func getFieldOfFields(fn string, fs []Field) Field {
 	return nil
 }
 
+func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {
+	for _, a := range as {
+		if a.Name == an {
+			return a, true
+		}
+	}
+	return nil, false
+}
+
 func executeField(ctx *eCtx, path []interface{}, ot ObjectType, ov interface{}, ft Type, fs ast.Fields) interface{} {
 	f := fs[0]
 	fn := f.Name
-	args := coerceArgumentValues(ctx, ot, f)
+	args := coerceArgumentValues(ctx, path, ot, f)
 	resVal := resolveFieldValue(ctx, path, f, ot, ov, fn, args)
 	return completeValue(ctx, path, getFieldOfFields(fn, ot.GetFields()).GetType(), fs, resVal)
 }
 
-func coerceArgumentValues(ctx *eCtx, ot ObjectType, f *ast.Field) map[string]interface{} {
+func coerceArgumentValues(ctx *eCtx, path []interface{}, ot ObjectType, f *ast.Field) map[string]interface{} {
 	// TODO: coerce argument values
-	return nil
+	vars := ctx.Get(keyVariables).(map[string]interface{})
+	coercedVals := map[string]interface{}{}
+	fieldName := f.Name
+	argDefs := getFieldOfFields(fieldName, ot.GetFields()).GetArguments()
+	for _, argDef := range argDefs {
+		argName := argDef.GetName()
+		argType := argDef.GetType()
+		defaultValue := argDef.GetDefaultValue()
+		argVal, hasValue := getArgOfArgs(argName, f.Arguments)
+		var value interface{}
+		if argVal != nil {
+			if argVal.Value.Kind() == ast.VariableValueKind {
+				varName := argVal.Value.(*ast.VariableValue).Name
+				value, hasValue = vars[varName]
+			} else {
+				value = argVal.Value.GetValue()
+			}
+		}
+		if !hasValue && argDef.IsDefaultValueSet() {
+			coercedVals[argName] = defaultValue
+		} else if argType.GetKind() == NonNullKind && (!hasValue || value == nil) {
+			ctx.res.addErr(&Error{
+				Message: fmt.Sprintf("Argument '%s' is a Non-Null field, but got null value", argName),
+				Path:    path,
+				Locations: []*ErrorLocation{
+					&ErrorLocation{
+						Column: argVal.Location.Column,
+						Line:   argVal.Location.Line,
+					},
+				},
+			})
+		} else if hasValue {
+			if value == nil {
+				coercedVals[argName] = value
+			} else if argVal.Value.Kind() == ast.VariableValueKind {
+				coercedVals[argName] = value
+			} else {
+				coercedVal, err := coerceValue(value, argType)
+				if err != nil {
+					ctx.res.addErr(&Error{
+						Message: err.Error(),
+						Path:    path,
+						Locations: []*ErrorLocation{
+							&ErrorLocation{
+								Column: argVal.Location.Column,
+								Line:   argVal.Location.Line,
+							},
+						},
+					})
+				} else {
+					coercedVals[argName] = coercedVal
+				}
+			}
+		}
+
+	}
+	return coercedVals
+}
+
+func coerceValue(val interface{}, t Type) (interface{}, error) {
+	switch {
+	case t.GetKind() == NonNullKind:
+		return coerceValue(val, t.(NonNull).Unwrap())
+	case t.GetKind() == ScalarKind:
+		s := t.(ScalarType)
+		if reflect.ValueOf(val).Kind() == reflect.String {
+			return s.CoerceInput([]byte(val.(string)))
+		} else if v, ok := val.(ast.Value); ok {
+			return s.CoerceInput([]byte(v.GetValue().(string)))
+		}
+		return nil, fmt.Errorf("invalid value on a Scalar type")
+	}
+	return nil, errors.New("invalid value to coerce")
 }
 
 func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot ObjectType, ov interface{}, fn string, args map[string]interface{}) interface{} {
@@ -181,7 +264,7 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		v := reflect.ValueOf(result)
 		res := make([]interface{}, v.Len())
 		for i := 0; i < v.Len(); i++ {
-			res = append(res, completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface()))
+			res[i] = completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
 		}
 		return res
 	}
