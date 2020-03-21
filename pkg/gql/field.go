@@ -8,6 +8,11 @@ import (
 )
 
 type Fields []schema.Field
+
+func (fs Fields) Add(f *Field) {
+	fs = append(fs, f)
+}
+
 type Resolver func(context.Context, interface{}, map[string]interface{}) (interface{}, error)
 
 type Field struct {
