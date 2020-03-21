@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/rigglo/gql/pkg/schema"
-
 	"github.com/rigglo/gql/pkg/gql"
 )
 
 func main() {
-	res := BlockBusters.Exec(context.Background(), schema.ExecuteParams{
+	res := BlockBusters.Exec(context.Background(), gql.Params{
 		OperationName: "",
 		Query: `
 		query {
