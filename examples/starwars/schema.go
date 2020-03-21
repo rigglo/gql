@@ -244,7 +244,7 @@ func init() {
 			},
 			&gql.Field{
 				Name: "appearsIn",
-				Type: gql.NewList(gql.String),
+				Type: gql.NewList(episodeEnum),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if droid, ok := parent.(StarWarsChar); ok {
 						return droid.AppearsIn, nil

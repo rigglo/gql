@@ -268,25 +268,21 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		}
 		return res
 	} else if ft.GetKind() == ScalarKind {
-		// Step 4.1 - coerce
+		// Step 4.1 - coerce scalar value
 		res, err := ft.(ScalarType).CoerceResult(result)
 		if err != nil {
 			ctx.res.addErr(&Error{Message: err.Error(), Path: path})
 		}
 		return res
 	} else if ft.GetKind() == EnumKind {
-		// Step 4.2 -
-		s, ok := result.(string)
-		if !ok {
-			ctx.res.addErr(&Error{Message: "invalid result", Path: path})
-			return nil
+		// Step 4.2 - coerce Enum value
+		for name, ev := range ft.(EnumType).GetValues() {
+			if ev.GetValue() == result {
+				return name
+			}
 		}
-		_, ok = ft.(EnumType).GetValues()[s]
-		if !ok {
-			ctx.res.addErr(&Error{Message: "invalid result", Path: path})
-			return nil
-		}
-		return s
+		ctx.res.addErr(&Error{Message: "invalid result", Path: path})
+		return nil
 	} else if ft.GetKind() == ObjectKind {
 		ot := ft.(ObjectType)
 		subSel := fs[0].SelectionSet
