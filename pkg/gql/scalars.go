@@ -2,6 +2,7 @@ package gql
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rigglo/gql/pkg/schema"
 )
@@ -51,7 +52,7 @@ var String *Scalar = &Scalar{
 		return fmt.Sprintf("%v", i), nil
 	},
 	CoerceInputFunc: func(bs []byte) (interface{}, error) {
-		return string(bs), nil
+		return strings.TrimPrefix(strings.TrimSuffix(string(bs), "\""), "\""), nil
 	},
 }
 

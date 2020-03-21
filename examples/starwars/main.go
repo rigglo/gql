@@ -20,11 +20,11 @@ func main() {
 		if err != nil {
 			http.Error(w, "couldn't read body", http.StatusInternalServerError)
 		}
-		result := StarWarsSchema.Execute(&params)
+		result := StarWarsSchema.Exec(r.Context(), params)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	})
 	fmt.Println("Now server is running on port 8080")
 	fmt.Println("Test with Get      : curl -g 'http://localhost:8080/graphql?query={hero{name}}'")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":9999", nil)
 }
