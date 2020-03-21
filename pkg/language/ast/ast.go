@@ -1,5 +1,10 @@
 package ast
 
+type Location struct {
+	Column int
+	Line   int
+}
+
 type Document struct {
 	Operations []*Operation
 	Fragments  map[string]*Fragment
@@ -17,6 +22,7 @@ type Fragment struct {
 	TypeCondition string
 	Directives    []*Directive
 	SelectionSet  []Selection
+	Location      Location
 }
 
 type OperationType int
@@ -33,6 +39,7 @@ type Operation struct {
 	Variables     []*Variable
 	Directives    []*Directive
 	SelectionSet  []Selection
+	Location      Location
 }
 
 func NewOperation(ot OperationType) *Operation {
@@ -45,16 +52,19 @@ type Variable struct {
 	Name         string
 	Type         Type
 	DefaultValue Value
+	Location     Location
 }
 
 type Argument struct {
-	Name  string
-	Value Value
+	Name     string
+	Value    Value
+	Location Location
 }
 
 type Directive struct {
 	Name      string
 	Arguments []*Argument
+	Location  Location
 }
 
 type TypeKind int
@@ -71,7 +81,8 @@ type Type interface {
 }
 
 type NamedType struct {
-	Name string
+	Name     string
+	Location Location
 }
 
 func (t *NamedType) Kind() TypeKind {
@@ -84,6 +95,7 @@ func (t *NamedType) GetValue() interface{} {
 
 type ListType struct {
 	Type
+	Location Location
 }
 
 func (t *ListType) Kind() TypeKind {
@@ -96,6 +108,7 @@ func (t *ListType) GetValue() interface{} {
 
 type NonNullType struct {
 	Type
+	Location Location
 }
 
 func (t *NonNullType) Kind() TypeKind {
@@ -129,6 +142,7 @@ type Field struct {
 	Arguments    []*Argument
 	Directives   []*Directive
 	SelectionSet []Selection
+	Location     Location
 }
 
 func (f *Field) Kind() SelectionKind {
@@ -142,6 +156,7 @@ func (f *Field) GetDirectives() []*Directive {
 type FragmentSpread struct {
 	Name       string
 	Directives []*Directive
+	Location   Location
 }
 
 func (fs *FragmentSpread) Kind() SelectionKind {
@@ -156,6 +171,7 @@ type InlineFragment struct {
 	TypeCondition string
 	Directives    []*Directive
 	SelectionSet  []Selection
+	Location      Location
 }
 
 func (inf *InlineFragment) Kind() SelectionKind {
@@ -189,7 +205,8 @@ type Value interface {
 }
 
 type VariableValue struct {
-	Name string
+	Name     string
+	Location Location
 }
 
 func (v *VariableValue) GetValue() interface{} {
@@ -201,7 +218,8 @@ func (v *VariableValue) Kind() ValueKind {
 }
 
 type IntValue struct {
-	Value string
+	Value    string
+	Location Location
 }
 
 func (v *IntValue) GetValue() interface{} {
@@ -213,7 +231,8 @@ func (v *IntValue) Kind() ValueKind {
 }
 
 type FloatValue struct {
-	Value string
+	Value    string
+	Location Location
 }
 
 func (v *FloatValue) GetValue() interface{} {
@@ -225,7 +244,8 @@ func (v *FloatValue) Kind() ValueKind {
 }
 
 type StringValue struct {
-	Value string
+	Value    string
+	Location Location
 }
 
 func (v *StringValue) GetValue() interface{} {
@@ -237,7 +257,8 @@ func (v *StringValue) Kind() ValueKind {
 }
 
 type BooleanValue struct {
-	Value string
+	Value    string
+	Location Location
 }
 
 func (v *BooleanValue) GetValue() interface{} {
@@ -249,7 +270,8 @@ func (v *BooleanValue) Kind() ValueKind {
 }
 
 type NullValue struct {
-	Value string
+	Value    string
+	Location Location
 }
 
 func (v *NullValue) GetValue() interface{} {
@@ -261,7 +283,8 @@ func (v *NullValue) Kind() ValueKind {
 }
 
 type EnumValue struct {
-	Value string
+	Value    string
+	Location Location
 }
 
 func (v *EnumValue) GetValue() interface{} {
@@ -273,7 +296,8 @@ func (v *EnumValue) Kind() ValueKind {
 }
 
 type ListValue struct {
-	Values []Value
+	Values   []Value
+	Location Location
 }
 
 func (v *ListValue) GetValue() interface{} {
@@ -285,7 +309,8 @@ func (v *ListValue) Kind() ValueKind {
 }
 
 type ObjectValue struct {
-	Fields []*ObjectFieldValue
+	Fields   []*ObjectFieldValue
+	Location Location
 }
 
 func (v *ObjectValue) GetValue() interface{} {
@@ -297,8 +322,9 @@ func (v *ObjectValue) Kind() ValueKind {
 }
 
 type ObjectFieldValue struct {
-	Name  string
-	Value Value
+	Name     string
+	Value    Value
+	Location Location
 }
 
 func (v *ObjectFieldValue) GetValue() interface{} {

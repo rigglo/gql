@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/rigglo/gql"
 	"strconv"
+
+	"github.com/rigglo/gql/pkg/gql"
 )
 
 var (
@@ -94,18 +95,15 @@ func init() {
 	episodeEnum := &gql.Enum{
 		Name: "Episode",
 		Values: gql.EnumValues{
-			&gql.EnumValue{
-				Name:        "NEWHOPE",
+			"NEWHOPE": &gql.EnumValue{
 				Value:       4,
 				Description: "Released in 1977",
 			},
-			&gql.EnumValue{
-				Name:        "EMPIRE",
+			"EMPIRE": &gql.EnumValue{
 				Value:       5,
 				Description: "Released in 1980",
 			},
-			&gql.EnumValue{
-				Name:        "JEDI",
+			"JEDI": &gql.EnumValue{
 				Value:       6,
 				Description: "Released in 1983",
 			},
@@ -115,7 +113,7 @@ func init() {
 	characterInterface := &gql.Interface{
 		Name:        "Character",
 		Description: "A character in the Star Wars Trilogy",
-		Fields: gql.NewFields(
+		Fields: gql.Fields{
 			&gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
@@ -128,8 +126,8 @@ func init() {
 				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
 			},
-		),
-		ResolveType: func(ctx context.Context, value interface{}) *gql.Object {
+		},
+		TypeResolver: func(ctx context.Context, value interface{}) gql.ObjectType {
 			if c, ok := value.(StarWarsChar); ok {
 				id, _ := strconv.Atoi(c.ID)
 				human := GetHuman(id)
@@ -147,14 +145,14 @@ func init() {
 
 	humanType = &gql.Object{
 		Name: "Human",
-		Implements: []*gql.Interface{
+		Implements: gql.Interfaces{
 			characterInterface,
 		},
-		Fields: gql.NewFields(
+		Fields: gql.Fields{
 			&gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if human, ok := parent.(StarWarsChar); ok {
 						return human.ID, nil
 					}
@@ -164,7 +162,7 @@ func init() {
 			&gql.Field{
 				Name: "name",
 				Type: gql.String,
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if human, ok := parent.(StarWarsChar); ok {
 						return human.Name, nil
 					}
@@ -174,7 +172,7 @@ func init() {
 			&gql.Field{
 				Name: "friends",
 				Type: gql.NewList(characterInterface),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if human, ok := parent.(StarWarsChar); ok {
 						return human.Friends, nil
 					}
@@ -184,7 +182,7 @@ func init() {
 			&gql.Field{
 				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if human, ok := parent.(StarWarsChar); ok {
 						return human.AppearsIn, nil
 					}
@@ -194,23 +192,23 @@ func init() {
 			&gql.Field{
 				Name: "homePlanet",
 				Type: gql.String,
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if human, ok := parent.(StarWarsChar); ok {
 						return human.HomePlanet, nil
 					}
 					return nil, nil
 				},
 			},
-		),
+		},
 	}
 
 	droidType = &gql.Object{
 		Name: "Droid",
-		Fields: gql.NewFields(
+		Fields: gql.Fields{
 			&gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if droid, ok := parent.(StarWarsChar); ok {
 						return droid.ID, nil
 					}
@@ -220,7 +218,7 @@ func init() {
 			&gql.Field{
 				Name: "name",
 				Type: gql.NewNonNull(gql.String),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if droid, ok := parent.(StarWarsChar); ok {
 						return droid.Name, nil
 					}
@@ -230,7 +228,7 @@ func init() {
 			&gql.Field{
 				Name: "friends",
 				Type: gql.NewNonNull(gql.String),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if droid, ok := parent.(StarWarsChar); ok {
 						friends := []map[string]interface{}{}
 						for _, friend := range droid.Friends {
@@ -246,8 +244,8 @@ func init() {
 			},
 			&gql.Field{
 				Name: "appearsIn",
-				Type: gql.NewNonNull(gql.String),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Type: gql.NewList(episodeEnum),
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if droid, ok := parent.(StarWarsChar); ok {
 						return droid.AppearsIn, nil
 					}
@@ -257,42 +255,42 @@ func init() {
 			&gql.Field{
 				Name: "primaryFunction",
 				Type: gql.NewNonNull(gql.String),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if droid, ok := parent.(StarWarsChar); ok {
 						return droid.PrimaryFunction, nil
 					}
 					return nil, nil
 				},
 			},
-		),
+		},
 	}
 
 	queryType := &gql.Object{
 		Name: "Query",
-		Fields: gql.NewFields(
+		Fields: gql.Fields{
 			&gql.Field{
 				Name: "hero",
 				Type: characterInterface,
-				Arguments: gql.NewArguments(
+				Arguments: gql.Arguments{
 					&gql.Argument{
 						Name: "episode",
 						Type: episodeEnum,
 					},
-				),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				},
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					return GetHero(args["episode"]), nil
 				},
 			},
 			&gql.Field{
 				Name: "human",
 				Type: humanType,
-				Arguments: gql.NewArguments(
+				Arguments: gql.Arguments{
 					&gql.Argument{
 						Name: "id",
 						Type: gql.NewNonNull(gql.String),
 					},
-				),
-				Resolver: func(ctx context.Context, args map[string]interface{}, parent interface{}) (interface{}, error) {
+				},
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					id, err := strconv.Atoi(args["id"].(string))
 					if err != nil {
 						return nil, err
@@ -300,7 +298,7 @@ func init() {
 					return GetHuman(id), nil
 				},
 			},
-		),
+		},
 	}
 
 	StarWarsSchema = &gql.Schema{

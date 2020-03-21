@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rigglo/gql/language/ast"
-	"github.com/rigglo/gql/language/lexer"
+	"github.com/rigglo/gql/pkg/language/ast"
+	"github.com/rigglo/gql/pkg/language/lexer"
 )
 
 // Parse parses a gql query
@@ -178,6 +178,8 @@ func parseVariables(tokens chan lexer.Token) (lexer.Token, []*ast.Variable, erro
 		}
 
 		v := new(ast.Variable)
+		v.Location.Column = token.Col
+		v.Location.Line = token.Line - 1
 		if token.Kind == lexer.PunctuatorToken && token.Value == "$" {
 			token = <-tokens
 			if token.Kind == lexer.NameToken {
@@ -226,11 +228,15 @@ func parseType(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Typ
 	case token.Kind == lexer.NameToken:
 		nt := new(ast.NamedType)
 		nt.Name = token.Value
+		nt.Location.Column = token.Col
+		nt.Location.Line = token.Line - 1
 
 		token = <-tokens
 		if token.Kind == lexer.PunctuatorToken && token.Value == "!" {
 			nnt := new(ast.NonNullType)
 			nnt.Type = nt
+			nnt.Location.Column = token.Col
+			nnt.Location.Line = token.Line - 1
 			return <-tokens, nnt, nil
 		}
 		return token, nt, nil
@@ -240,6 +246,10 @@ func parseType(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Typ
 			t   ast.Type
 			err error
 		)
+		loc := ast.Location{
+			Column: token.Col,
+			Line:   token.Line,
+		}
 		token, t, err = parseType(token, tokens)
 		if err != nil {
 			return token, nil, err
@@ -252,7 +262,8 @@ func parseType(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Typ
 		}
 
 		lt := &ast.ListType{
-			Type: t,
+			Type:     t,
+			Location: loc,
 		}
 
 		if token.Kind == lexer.PunctuatorToken && token.Value == "!" {
@@ -304,6 +315,8 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 	var err error
 	f := new(ast.Field)
 	f.Alias = token.Value
+	f.Location.Column = token.Col
+	f.Location.Line = token.Line - 1
 	defer func() {
 		if f.Name == "" {
 			f.Name = f.Alias
@@ -398,6 +411,8 @@ func parseValue(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Va
 	switch {
 	case token.Kind == lexer.PunctuatorToken && token.Value == "$":
 		v := new(ast.VariableValue)
+		v.Location.Column = token.Col
+		v.Location.Line = token.Line - 1
 		token = <-tokens
 		if token.Kind != lexer.NameToken {
 			return token, nil, fmt.Errorf("invalid token")
@@ -407,26 +422,38 @@ func parseValue(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Va
 	case token.Kind == lexer.IntValueToken:
 		v := new(ast.IntValue)
 		v.Value = token.Value
+		v.Location.Column = token.Col
+		v.Location.Line = token.Line - 1
 		return <-tokens, v, nil
 	case token.Kind == lexer.FloatValueToken:
 		v := new(ast.FloatValue)
 		v.Value = token.Value
+		v.Location.Column = token.Col
+		v.Location.Line = token.Line - 1
 		return <-tokens, v, nil
 	case token.Kind == lexer.StringValueToken:
 		v := new(ast.StringValue)
 		v.Value = token.Value
+		v.Location.Column = token.Col
+		v.Location.Line = token.Line - 1
 		return <-tokens, v, nil
 	case token.Kind == lexer.NameToken && (token.Value == "false" || token.Value == "true"):
 		v := new(ast.BooleanValue)
 		v.Value = token.Value
+		v.Location.Column = token.Col
+		v.Location.Line = token.Line - 1
 		return <-tokens, v, nil
 	case token.Kind == lexer.NameToken && token.Value == "null":
 		v := new(ast.NullValue)
 		v.Value = token.Value
+		v.Location.Column = token.Col
+		v.Location.Line = token.Line - 1
 		return <-tokens, v, nil
 	case token.Kind == lexer.NameToken:
 		v := new(ast.EnumValue)
 		v.Value = token.Value
+		v.Location.Column = token.Col
+		v.Location.Line = token.Line - 1
 		return <-tokens, v, nil
 	case token.Kind == lexer.PunctuatorToken && token.Value == "[":
 		return parseListValue(tokens)
@@ -462,6 +489,9 @@ func parseObjectValue(tokens chan lexer.Token) (lexer.Token, *ast.ObjectValue, e
 	o := new(ast.ObjectValue)
 	for {
 		field := new(ast.ObjectFieldValue)
+		field.Location.Column = token.Col
+		field.Location.Line = token.Line - 1
+
 		if token.Kind == lexer.NameToken {
 			field.Name = token.Value
 		} else {
@@ -522,18 +552,25 @@ func parseFragments(tokens chan lexer.Token) (token lexer.Token, sel ast.Selecti
 		return token, inf, nil
 	} else if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
 		sSet := []ast.Selection{}
+		loc := ast.Location{
+			Line:   token.Line,
+			Column: token.Col,
+		}
 		token, sSet, err = parseSelectionSet(tokens)
 		if err != nil {
 			return token, nil, err
 		}
 		inf := &ast.InlineFragment{
 			SelectionSet: sSet,
+			Location:     loc,
 		}
 
 		return token, inf, nil
 	} else if token.Kind == lexer.NameToken && token.Value != "on" {
 		fs := new(ast.FragmentSpread)
 		fs.Name = token.Value
+		fs.Location.Column = token.Col
+		fs.Location.Line = token.Line - 1
 		token = <-tokens
 
 		if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
@@ -557,6 +594,8 @@ func parseDirectives(tokens chan lexer.Token) (lexer.Token, []*ast.Directive, er
 		if token.Kind == lexer.NameToken {
 			d := new(ast.Directive)
 			d.Name = token.Value
+			d.Location.Column = token.Col
+			d.Location.Line = token.Line - 1
 			token = <-tokens
 
 			if token.Kind == lexer.PunctuatorToken && token.Value == "(" {
