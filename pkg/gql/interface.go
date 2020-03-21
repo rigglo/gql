@@ -1,7 +1,7 @@
 package gql
 
 import (
-	"github.com/rigglo/gql/schema"
+	"github.com/rigglo/gql/pkg/schema"
 )
 
 type Interface struct {

@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/rigglo/gql"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/google/uuid"
+	"github.com/rigglo/gql/gql"
 )
 
 type (

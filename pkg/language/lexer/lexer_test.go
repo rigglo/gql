@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rigglo/gql/language/lexer"
+	"github.com/rigglo/gql/pkg/language/lexer"
 )
 
 func TestLexer(t *testing.T) {

@@ -3,7 +3,7 @@ package gql
 import (
 	"context"
 
-	"github.com/rigglo/gql/schema"
+	"github.com/rigglo/gql/pkg/schema"
 )
 
 type Schema struct {

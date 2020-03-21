@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/rigglo/gql"
 	"strconv"
+
+	"github.com/rigglo/gql/pkg/gql"
 )
 
 var (

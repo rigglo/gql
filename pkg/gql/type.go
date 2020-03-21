@@ -1,6 +1,6 @@
 package gql
 
-import "github.com/rigglo/gql/schema"
+import "github.com/rigglo/gql/pkg/schema"
 
 type Type interface {
 	GetName() string

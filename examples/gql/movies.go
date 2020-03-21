@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/rigglo/gql/schema"
+	"github.com/rigglo/gql/pkg/schema"
 
-	"github.com/rigglo/gql/gql"
+	"github.com/rigglo/gql/pkg/gql"
 )
 
 func main() {

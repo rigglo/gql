@@ -3,7 +3,7 @@ package gql
 import (
 	"fmt"
 
-	"github.com/rigglo/gql/schema"
+	"github.com/rigglo/gql/pkg/schema"
 )
 
 type CoerceResultFunc schema.CoerceResultFunc

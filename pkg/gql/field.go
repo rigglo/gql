@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/rigglo/gql/schema"
+	"github.com/rigglo/gql/pkg/schema"
 )
 
 type Fields []schema.Field

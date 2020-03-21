@@ -8,6 +8,13 @@ import (
 
 type gqlCtxKey string
 
+type GqlContext interface {
+	context.Context
+	Get(key string) interface{}
+	Set(key string, v interface{})
+	Delete(key string)
+}
+
 const (
 	keyRawQuery      string = "gql_rawQuery"
 	keyOperationName string = "gql_operation_name"
@@ -63,6 +70,12 @@ func (c *eCtx) Set(key string, v interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.store[key] = v
+}
+
+func (c *eCtx) Delete(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.store, key)
 }
 
 var _ context.Context = &eCtx{}

@@ -3,7 +3,7 @@ package gql
 import (
 	"reflect"
 
-	"github.com/rigglo/gql/schema"
+	"github.com/rigglo/gql/pkg/schema"
 )
 
 type Arguments []schema.Argument

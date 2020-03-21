@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/rigglo/gql/language/ast"
-	"github.com/rigglo/gql/language/parser"
+	"github.com/rigglo/gql/pkg/language/ast"
+	"github.com/rigglo/gql/pkg/language/parser"
 )
 
 type Result struct {
@@ -152,7 +152,6 @@ func executeField(ctx *eCtx, path []interface{}, ot ObjectType, ov interface{}, 
 }
 
 func coerceArgumentValues(ctx *eCtx, path []interface{}, ot ObjectType, f *ast.Field) map[string]interface{} {
-	// TODO: coerce argument values
 	vars := ctx.Get(keyVariables).(map[string]interface{})
 	coercedVals := map[string]interface{}{}
 	fieldName := f.Name

@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rigglo/gql"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/rigglo/gql/pkg/gql"
 )
 
 func main() {

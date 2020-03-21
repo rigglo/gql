@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rigglo/gql/language/ast"
-	"github.com/rigglo/gql/language/lexer"
+	"github.com/rigglo/gql/pkg/language/ast"
+	"github.com/rigglo/gql/pkg/language/lexer"
 )
 
 // Parse parses a gql query
