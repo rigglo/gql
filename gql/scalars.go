@@ -54,3 +54,36 @@ var String *Scalar = &Scalar{
 		return string(bs), nil
 	},
 }
+
+var Int *Scalar = &Scalar{
+	Name:        "Int",
+	Description: "This is the built-in 'Int' scalar type",
+	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		return i, nil
+	},
+	CoerceInputFunc: func(bs []byte) (interface{}, error) {
+		return string(bs), nil
+	},
+}
+
+var Float *Scalar = &Scalar{
+	Name:        "Float",
+	Description: "This is the built-in 'Float' scalar type",
+	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		return i, nil
+	},
+	CoerceInputFunc: func(bs []byte) (interface{}, error) {
+		return string(bs), nil
+	},
+}
+
+var Boolean *Scalar = &Scalar{
+	Name:        "Boolean",
+	Description: "This is the built-in 'Boolean' scalar type",
+	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		return i, nil
+	},
+	CoerceInputFunc: func(bs []byte) (interface{}, error) {
+		return string(bs), nil
+	},
+}
