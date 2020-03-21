@@ -259,6 +259,8 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		ot := ft.(ObjectType)
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
+	case NonNullKind:
+		return completeValue(ctx, path, ft.(NonNull).Unwrap(), fs, result)
 	case ListKind:
 		lt := ft.(List)
 		v := reflect.ValueOf(result)
