@@ -231,6 +231,7 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot Object
 	f := getFieldOfFields(fn, ot.GetFields())
 	v, err := f.Resolve(ctx, ov, args)
 	if err != nil {
+		// TODO: add option to return custom error
 		ctx.res.addErr(&Error{
 			Message: err.Error(),
 			Path:    path,
@@ -246,21 +247,19 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot Object
 }
 
 func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) interface{} {
-	// TODO: complete value
-	switch ft.GetKind() {
-	case ScalarKind:
-		res, err := ft.(ScalarType).CoerceResult(result)
-		if err != nil {
-			ctx.res.addErr(&Error{Message: err.Error()})
+	// TODO: reorganize ..
+	if ft.GetKind() == NonNullKind {
+		// Step 1 - NonNull kinds
+		if result == nil {
+			ctx.res.addErr(&Error{Message: "null value on a NonNull field", Path: path})
+			return nil
 		}
-		return res
-	case ObjectKind:
-		ot := ft.(ObjectType)
-		subSel := fs[0].SelectionSet
-		return executeSelectionSet(ctx, path, subSel, ot, result)
-	case NonNullKind:
 		return completeValue(ctx, path, ft.(NonNull).Unwrap(), fs, result)
-	case ListKind:
+	} else if result == nil {
+		// Step 2 - Return null if nil
+		return nil
+	} else if ft.GetKind() == ListKind {
+		// Step 3 - go through the list and complete each value, then return result
 		lt := ft.(List)
 		v := reflect.ValueOf(result)
 		res := make([]interface{}, v.Len())
@@ -268,6 +267,34 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 			res[i] = completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
 		}
 		return res
+	} else if ft.GetKind() == ScalarKind {
+		// Step 4.1 - coerce
+		res, err := ft.(ScalarType).CoerceResult(result)
+		if err != nil {
+			ctx.res.addErr(&Error{Message: err.Error(), Path: path})
+		}
+		return res
+	} else if ft.GetKind() == EnumKind {
+		// Step 4.2 -
+		s, ok := result.(string)
+		if !ok {
+			ctx.res.addErr(&Error{Message: "invalid result", Path: path})
+			return nil
+		}
+		_, ok = ft.(EnumType).GetValues()[s]
+		if !ok {
+			ctx.res.addErr(&Error{Message: "invalid result", Path: path})
+			return nil
+		}
+		return s
+	} else if ft.GetKind() == ObjectKind {
+		ot := ft.(ObjectType)
+		subSel := fs[0].SelectionSet
+		return executeSelectionSet(ctx, path, subSel, ot, result)
+	} else if ft.GetKind() == InterfaceKind {
+		ot := ft.(InterfaceType).Resolve(ctx, result)
+		subSel := fs[0].SelectionSet
+		return executeSelectionSet(ctx, path, subSel, ot, result)
 	}
-	return result
+	return nil
 }

@@ -127,7 +127,7 @@ func init() {
 				Type: gql.NewList(episodeEnum),
 			},
 		},
-		TypeResolver: func(ctx context.Context, value interface{}) gql.Type {
+		TypeResolver: func(ctx context.Context, value interface{}) gql.ObjectType {
 			if c, ok := value.(StarWarsChar); ok {
 				id, _ := strconv.Atoi(c.ID)
 				human := GetHuman(id)
@@ -244,7 +244,7 @@ func init() {
 			},
 			&gql.Field{
 				Name: "appearsIn",
-				Type: gql.NewNonNull(gql.String),
+				Type: gql.NewList(gql.String),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if droid, ok := parent.(StarWarsChar); ok {
 						return droid.AppearsIn, nil

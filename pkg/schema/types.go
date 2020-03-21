@@ -44,7 +44,7 @@ type InterfaceType interface {
 	Type
 	GetDirectives() []Directive
 	GetFields() []Field
-	Resolve(context.Context, interface{}) Type
+	Resolve(context.Context, interface{}) ObjectType
 }
 
 type UnionType interface {

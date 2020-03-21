@@ -29,6 +29,8 @@ func (e *Enum) GetValues() map[string]schema.EnumValue {
 	return e.Values
 }
 
+// TODO: enum values has to be a list, return
+
 var _ schema.EnumType = &Enum{}
 
 type EnumValues map[string]schema.EnumValue

@@ -16,7 +16,9 @@ type Interface struct {
 	TypeResolver TypeResolver
 }
 
-type TypeResolver func(context.Context, interface{}) Type
+type ObjectType schema.ObjectType
+
+type TypeResolver func(context.Context, interface{}) ObjectType
 
 func (i *Interface) GetDescription() string {
 	return i.Description
@@ -38,7 +40,7 @@ func (i *Interface) GetFields() []schema.Field {
 	return i.Fields
 }
 
-func (i *Interface) Resolve(ctx context.Context, v interface{}) schema.Type {
+func (i *Interface) Resolve(ctx context.Context, v interface{}) schema.ObjectType {
 	return i.TypeResolver(ctx, v)
 }
 

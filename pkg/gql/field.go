@@ -2,7 +2,9 @@ package gql
 
 import (
 	"context"
+	"log"
 	"reflect"
+	"strings"
 
 	"github.com/rigglo/gql/pkg/schema"
 )
@@ -61,8 +63,10 @@ func defaultResolver(fname string) Resolver {
 			// Get the field, returns https://golang.org/pkg/reflect/#StructField
 			field := t.Field(i)
 			// Get the field tag value
+			// TODO: check 'gql' tag first and if that does not exist, check 'json'
 			tag := field.Tag.Get("json")
-			if tag == fname {
+			if strings.Split(tag, ",")[0] == fname {
+				log.Printf("got appearsIn: %v", v.FieldByName(field.Name).Interface())
 				return v.FieldByName(field.Name).Interface(), nil
 			}
 		}
