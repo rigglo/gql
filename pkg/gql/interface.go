@@ -1,15 +1,22 @@
 package gql
 
 import (
+	"context"
+
 	"github.com/rigglo/gql/pkg/schema"
 )
 
+type Interfaces []schema.InterfaceType
+
 type Interface struct {
-	Description string
-	Name        string
-	Directives  Directives
-	Fields      Fields
+	Description  string
+	Name         string
+	Directives   Directives
+	Fields       Fields
+	TypeResolver TypeResolver
 }
+
+type TypeResolver func(context.Context, interface{}) Type
 
 func (i *Interface) GetDescription() string {
 	return i.Description
@@ -30,3 +37,9 @@ func (i *Interface) GetDirectives() []schema.Directive {
 func (i *Interface) GetFields() []schema.Field {
 	return i.Fields
 }
+
+func (i *Interface) Resolve(ctx context.Context, v interface{}) schema.Type {
+	return i.TypeResolver(ctx, v)
+}
+
+var _ schema.InterfaceType = &Interface{}

@@ -55,8 +55,8 @@ func (d *directive) Arguments() []Argument {
 	return nil
 }
 
-var DirectiveDeprecated Directive = &directive{
-	name: "deprecated",
+func (d *directive) GetLocations() []DirectiveLocation {
+	return nil
 }
 
 var DirectiveSkip Directive = &directive{

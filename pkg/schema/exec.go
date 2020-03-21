@@ -178,8 +178,8 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, ot ObjectType, f *ast.F
 				Path:    path,
 				Locations: []*ErrorLocation{
 					&ErrorLocation{
-						Column: argVal.Location.Column,
-						Line:   argVal.Location.Line,
+						Column: f.Location.Column,
+						Line:   f.Location.Line,
 					},
 				},
 			})

@@ -35,7 +35,7 @@ type CoerceInputFunc func([]byte) (interface{}, error)
 
 type ObjectType interface {
 	Type
-	GetImplements() []InterfaceType
+	GetInterfaces() []InterfaceType
 	GetDirectives() []Directive
 	GetFields() []Field
 }
@@ -44,6 +44,7 @@ type InterfaceType interface {
 	Type
 	GetDirectives() []Directive
 	GetFields() []Field
+	Resolve(context.Context, interface{}) Type
 }
 
 type UnionType interface {
@@ -55,7 +56,7 @@ type UnionType interface {
 type EnumType interface {
 	Type
 	GetDirectives() []Directive
-	GetValues() []EnumValue
+	GetValues() map[string]EnumValue
 }
 
 type EnumValue interface {

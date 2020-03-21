@@ -13,6 +13,8 @@ type Schema struct {
 	Directives   Directives
 }
 
+type Params schema.ExecuteParams
+
 func (s *Schema) GetRootQuery() schema.Operation {
 	return s.Query
 }
@@ -29,6 +31,6 @@ func (s *Schema) GetDirectives() []schema.Directive {
 	return s.Directives
 }
 
-func (s *Schema) Exec(ctx context.Context, p schema.ExecuteParams) *schema.Result {
-	return schema.Execute(ctx, s, p)
+func (s *Schema) Exec(ctx context.Context, p Params) *schema.Result {
+	return schema.Execute(ctx, s, schema.ExecuteParams(p))
 }

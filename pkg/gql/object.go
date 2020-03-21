@@ -5,7 +5,7 @@ import "github.com/rigglo/gql/pkg/schema"
 type Object struct {
 	Description string
 	Name        string
-	Implements  []interface{}
+	Implements  Interfaces
 	Directives  Directives
 	Fields      Fields
 }
@@ -22,8 +22,8 @@ func (o *Object) GetKind() schema.TypeKind {
 	return schema.ObjectKind
 }
 
-func (o *Object) GetImplements() []schema.InterfaceType {
-	return nil
+func (o *Object) GetInterfaces() []schema.InterfaceType {
+	return o.Implements
 }
 
 func (o *Object) GetDirectives() []schema.Directive {
