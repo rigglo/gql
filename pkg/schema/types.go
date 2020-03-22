@@ -106,3 +106,27 @@ type List interface {
 	Type
 	Unwrap() Type
 }
+
+type WrappingType interface {
+	Unwrap() Type
+}
+
+func IsInputType(t Type) bool {
+	if t.GetKind() == ListKind || t.GetKind() == NonNullKind {
+		return IsInputType(t.(WrappingType).Unwrap())
+	}
+	if t.GetKind() == ScalarKind || t.GetKind() == EnumKind || t.GetKind() == InputObjectKind {
+		return true
+	}
+	return false
+}
+
+func IsOutputType(t Type) bool {
+	if t.GetKind() == ListKind || t.GetKind() == NonNullKind {
+		return IsOutputType(t.(WrappingType).Unwrap())
+	}
+	if t.GetKind() == ScalarKind || t.GetKind() == ObjectKind || t.GetKind() == InterfaceKind || t.GetKind() == UnionKind || t.GetKind() == EnumKind {
+		return true
+	}
+	return false
+}
