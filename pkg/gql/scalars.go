@@ -67,6 +67,31 @@ var String *Scalar = &Scalar{
 	},
 }
 
+var ID *Scalar = &Scalar{
+	Name:        "ID",
+	Description: "This is the built-in 'ID' scalar type",
+	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		if i == nil {
+			return nil, nil
+		}
+		switch i.(type) {
+		case string:
+			return i.(string), nil
+		default:
+			return fmt.Sprintf("%v", i), nil
+		}
+	},
+	CoerceInputFunc: func(bs []byte) (interface{}, error) {
+		if !strings.HasPrefix(string(bs), "\"") || !strings.HasSuffix(string(bs), "\"") {
+			if n, err := strconv.ParseInt(string(bs), 10, 32); err == nil {
+				return int(n), nil
+			}
+			return nil, errors.New("Invalid input, could not coerce value")
+		}
+		return strings.TrimPrefix(strings.TrimSuffix(string(bs), "\""), "\""), nil
+	},
+}
+
 var Int *Scalar = &Scalar{
 	Name:        "Int",
 	Description: "This is the built-in 'Int' scalar type",
