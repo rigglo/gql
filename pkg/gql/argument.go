@@ -42,15 +42,7 @@ type InputObject struct {
 	Fields      InputFields
 }
 
-type InputField struct {
-	Description  string
-	Name         string
-	Type         Type
-	DefaultValue interface{}
-	Directives   Directives
-}
-
-type InputFields []schema.InputField
+var _ schema.InputObjectType = &InputObject{}
 
 func (o *InputObject) GetDescription() string {
 	return o.Description
@@ -71,6 +63,16 @@ func (o *InputObject) GetDirectives() []schema.Directive {
 func (o *InputObject) GetFields() []schema.InputField {
 	return o.Fields
 }
+
+type InputField struct {
+	Description  string
+	Name         string
+	Type         Type
+	DefaultValue interface{}
+	Directives   Directives
+}
+
+type InputFields []schema.InputField
 
 func (o *InputField) GetDescription() string {
 	return o.Description
@@ -96,7 +98,4 @@ func (o *InputField) GetDirectives() []schema.Directive {
 	return o.Directives
 }
 
-var (
-	_ schema.InputObjectType = &InputObject{}
-	_ schema.InputField      = &InputField{}
-)
+var _ schema.InputField = &InputField{}
