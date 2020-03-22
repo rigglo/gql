@@ -215,6 +215,19 @@ func coerceValue(val interface{}, t Type) (interface{}, error) {
 	switch {
 	case t.GetKind() == NonNullKind:
 		return coerceValue(val, t.(NonNull).Unwrap())
+	case t.GetKind() == ListKind:
+		wt := t.(List).Unwrap()
+		lv := val.(ast.ListValue)
+		res := make([]interface{}, len(lv.Values))
+		for i := 0; i < len(res); i++ {
+			r, err := coerceValue(lv.Values[i].GetValue(), wt)
+			if err != nil {
+				// TODO: add location info with custom error
+				return nil, err
+			}
+			res[i] = r
+		}
+		return res, nil
 	case t.GetKind() == ScalarKind:
 		s := t.(ScalarType)
 		if reflect.ValueOf(val).Kind() == reflect.String {
