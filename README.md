@@ -2,6 +2,7 @@
 
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/rigglo/gql/Go)
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/rigglo/gql)
+[![Coverage Status](https://coveralls.io/repos/github/rigglo/gql/badge.svg?branch=master)](https://coveralls.io/github/rigglo/gql?branch=master)
 
 **Note: As the project is still in WIP, there can be breaking changes which may break previous versions. As soon as the package reaches v1.0.0, this will change.**
 
