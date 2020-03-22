@@ -7,11 +7,11 @@
 
 This project aims to fulfill some of the most common feature requests that other Go graphql packages lack, or not perfect in.
 
-For example
+Features that will be implemented in this package
 
-- Custom directives
-- Custom scalars
-- Access to the requested fields in a resolver
-- Introspection based on auth, user defined rules
-- Schema stitching
-- Custom validation for input and arguments
+- [ ] Custom directives
+- [ ] Custom scalars
+- [ ] Access to the requested fields in a resolver
+- [ ] Introspection based on auth, user defined rules
+- [ ] Schema stitching
+- [ ] Custom validation for input and arguments
