@@ -52,9 +52,17 @@ var String *Scalar = &Scalar{
 		if i == nil {
 			return nil, nil
 		}
-		return fmt.Sprintf("%v", i), nil
+		switch i.(type) {
+		case string:
+			return i.(string), nil
+		default:
+			return fmt.Sprintf("%v", i), nil
+		}
 	},
 	CoerceInputFunc: func(bs []byte) (interface{}, error) {
+		if !strings.HasPrefix(string(bs), "\"") || !strings.HasSuffix(string(bs), "\"") {
+			return nil, errors.New("Invalid input, could not coerce value")
+		}
 		return strings.TrimPrefix(strings.TrimSuffix(string(bs), "\""), "\""), nil
 	},
 }
