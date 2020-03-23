@@ -68,7 +68,7 @@ type EnumValue interface {
 type InputObjectType interface {
 	Type
 	GetDirectives() []Directive
-	GetFields() []InputField
+	GetFields() map[string]InputField
 }
 
 type InputField interface {

@@ -18,13 +18,15 @@ func main() {
 				id
 				title
 			}
-			foo(asd: $bar)
+			foo(asd: {asd: "bar"}, bar: "foo")
 		}`,
 		Variables: map[string]interface{}{
-			"bar": "foobar",
+			"fromvar": map[string]interface{}{
+				"asd": "barvar",
+			},
 		},
 	})
-	bs, _ := json.Marshal(res)
+	bs, _ := json.MarshalIndent(res, "", "  ")
 	fmt.Printf("%s\n", string(bs))
 	//fmt.Printf("%+v", res)
 }
@@ -37,6 +39,15 @@ type Movie struct {
 var (
 	BlockBusters = &gql.Schema{
 		Query: Query,
+	}
+
+	FooInput = &gql.InputObject{
+		Name: "FooInput",
+		Fields: gql.InputFields{
+			"asd": &gql.InputField{
+				Type: gql.String,
+			},
+		},
 	}
 
 	Query = &gql.Object{
@@ -67,12 +78,16 @@ var (
 				Arguments: gql.Arguments{
 					&gql.Argument{
 						Name: "asd",
+						Type: FooInput,
+					},
+					&gql.Argument{
+						Name: "bar",
 						Type: gql.String,
 					},
 				},
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					log.Println(args)
-					return args["asd"], nil
+					return args["asd"].(map[string]interface{})["asd"], nil
 				},
 			},
 		},
@@ -86,6 +101,12 @@ var (
 				Name:        "id",
 				Type:        gql.String,
 				Description: "id of the movie",
+				Arguments: gql.Arguments{
+					&gql.Argument{
+						Name: "foo",
+						Type: gql.String,
+					},
+				},
 			},
 			&gql.Field{
 				Name:        "title",

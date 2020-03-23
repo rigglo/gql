@@ -487,6 +487,7 @@ func parseObjectValue(tokens chan lexer.Token) (lexer.Token, *ast.ObjectValue, e
 	token := <-tokens
 	var err error
 	o := new(ast.ObjectValue)
+	o.Fields = map[string]*ast.ObjectFieldValue{}
 	for {
 		field := new(ast.ObjectFieldValue)
 		field.Location.Column = token.Col
@@ -510,7 +511,7 @@ func parseObjectValue(tokens chan lexer.Token) (lexer.Token, *ast.ObjectValue, e
 			return token, nil, err
 		}
 		field.Value = val
-		o.Fields = append(o.Fields, field)
+		o.Fields[field.Name] = field
 
 		if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
 			return <-tokens, o, nil

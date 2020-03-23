@@ -53,14 +53,14 @@ func (o *InputObject) GetName() string {
 }
 
 func (o *InputObject) GetKind() schema.TypeKind {
-	return schema.ObjectKind
+	return schema.InputObjectKind
 }
 
 func (o *InputObject) GetDirectives() []schema.Directive {
 	return o.Directives
 }
 
-func (o *InputObject) GetFields() []schema.InputField {
+func (o *InputObject) GetFields() map[string]schema.InputField {
 	return o.Fields
 }
 
@@ -72,7 +72,7 @@ type InputField struct {
 	Directives   Directives
 }
 
-type InputFields []schema.InputField
+type InputFields map[string]schema.InputField
 
 func (o *InputField) GetDescription() string {
 	return o.Description

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"sync"
 
@@ -167,7 +168,7 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, ot ObjectType, f *ast.F
 				varName := argVal.Value.(*ast.VariableValue).Name
 				value, hasValue = vars[varName]
 			} else {
-				value = argVal.Value.GetValue()
+				value = argVal.Value
 			}
 		}
 		if !hasValue && argDef.IsDefaultValueSet() {
@@ -214,6 +215,9 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, ot ObjectType, f *ast.F
 func coerceValue(val interface{}, t Type) (interface{}, error) {
 	switch {
 	case t.GetKind() == NonNullKind:
+		if _, ok := val.(ast.NullValue); ok {
+			return nil, errors.New("Null value on NonNull type")
+		}
 		return coerceValue(val, t.(NonNull).Unwrap())
 	case t.GetKind() == ListKind:
 		wt := t.(List).Unwrap()
@@ -230,12 +234,37 @@ func coerceValue(val interface{}, t Type) (interface{}, error) {
 		return res, nil
 	case t.GetKind() == ScalarKind:
 		s := t.(ScalarType)
-		if reflect.ValueOf(val).Kind() == reflect.String {
-			return s.CoerceInput([]byte(val.(string)))
-		} else if v, ok := val.(ast.Value); ok {
+		if v, ok := val.(ast.Value); ok {
+			// TODO: this should be nicer...
 			return s.CoerceInput([]byte(v.GetValue().(string)))
 		}
 		return nil, fmt.Errorf("invalid value on a Scalar type")
+	case t.GetKind() == InputObjectKind:
+		log.Printf("%+v, %+v", val, t)
+		res := map[string]interface{}{}
+		ov, ok := val.(*ast.ObjectValue)
+		if !ok {
+			return nil, fmt.Errorf("Invalid input object value")
+		}
+		o := t.(InputObjectType)
+		for name, field := range o.GetFields() {
+			astf, ok := ov.Fields[name]
+			if !ok && field.IsDefaultValueSet() {
+				res[name] = field.GetDefaultValue()
+			} else if !ok && field.GetType().GetKind() == NonNullKind {
+				return nil, fmt.Errorf("No value provided for NonNull type")
+			}
+			if astf.Value.Kind() == ast.NullValueKind && field.GetType().GetKind() != NonNullKind {
+				res[name] = nil
+			}
+			if fv, err := coerceValue(astf.Value, field.GetType()); err == nil {
+				res[name] = fv
+			} else {
+				return nil, err
+			}
+			// TODO: resolve variable value
+		}
+		return res, nil
 	}
 	return nil, errors.New("invalid value to coerce")
 }

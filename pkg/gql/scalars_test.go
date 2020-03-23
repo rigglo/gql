@@ -41,5 +41,4 @@ func TestIntScalarResultCoercion(t *testing.T) {
 			t.Fatalf("%s: Expected result '%v', err '%v'; got result '%v', err '%v'", c.name, c.expected.res, c.expected.err, r, err)
 		}
 	}
-
 }

@@ -309,7 +309,7 @@ func (v *ListValue) Kind() ValueKind {
 }
 
 type ObjectValue struct {
-	Fields   []*ObjectFieldValue
+	Fields   map[string]*ObjectFieldValue
 	Location Location
 }
 

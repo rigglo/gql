@@ -2,7 +2,6 @@ package gql
 
 import (
 	"context"
-	"log"
 	"reflect"
 	"strings"
 
@@ -66,7 +65,6 @@ func defaultResolver(fname string) Resolver {
 			// TODO: check 'gql' tag first and if that does not exist, check 'json'
 			tag := field.Tag.Get("json")
 			if strings.Split(tag, ",")[0] == fname {
-				log.Printf("got appearsIn: %v", v.FieldByName(field.Name).Interface())
 				return v.FieldByName(field.Name).Interface(), nil
 			}
 		}
