@@ -11,17 +11,18 @@ import (
 
 func main() {
 	res := BlockBusters.Exec(context.Background(), gql.Params{
-		OperationName: "",
+		OperationName: "myOp",
 		Query: `
-		query {
+		query myOp($barVar: String = "foo") {
 			top_movies {
 				id
 				title
 			}
-			foo(asd: {asd: "bar"}, bar: "foo")
+			foo(asd: {asd: "bar"}, bar: $barVar)
 		}`,
 		Variables: map[string]interface{}{
-			"fromvar": map[string]interface{}{
+			"_barVar": "fooska",
+			"barVarasd": map[string]interface{}{
 				"asd": "barvar",
 			},
 		},
@@ -45,7 +46,8 @@ var (
 		Name: "FooInput",
 		Fields: gql.InputFields{
 			"asd": &gql.InputField{
-				Type: gql.String,
+				Type:         gql.String,
+				DefaultValue: "defoocska",
 			},
 		},
 	}

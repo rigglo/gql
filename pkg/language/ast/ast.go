@@ -36,7 +36,7 @@ const (
 type Operation struct {
 	OperationType OperationType
 	Name          string
-	Variables     []*Variable
+	Variables     map[string]*Variable
 	Directives    []*Directive
 	SelectionSet  []Selection
 	Location      Location

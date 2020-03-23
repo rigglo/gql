@@ -190,7 +190,7 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, ot ObjectType, f *ast.F
 			} else if argVal.Value.Kind() == ast.VariableValueKind {
 				coercedVals[argName] = value
 			} else {
-				coercedVal, err := coerceValue(value, argType)
+				coercedVal, err := coerceValue(ctx, value, argType)
 				if err != nil {
 					ctx.res.addErr(&Error{
 						Message: err.Error(),
@@ -212,19 +212,19 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, ot ObjectType, f *ast.F
 	return coercedVals
 }
 
-func coerceValue(val interface{}, t Type) (interface{}, error) {
+func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 	switch {
 	case t.GetKind() == NonNullKind:
 		if _, ok := val.(ast.NullValue); ok {
 			return nil, errors.New("Null value on NonNull type")
 		}
-		return coerceValue(val, t.(NonNull).Unwrap())
+		return coerceValue(ctx, val, t.(NonNull).Unwrap())
 	case t.GetKind() == ListKind:
 		wt := t.(List).Unwrap()
 		lv := val.(ast.ListValue)
 		res := make([]interface{}, len(lv.Values))
 		for i := 0; i < len(res); i++ {
-			r, err := coerceValue(lv.Values[i].GetValue(), wt)
+			r, err := coerceValue(ctx, lv.Values[i].GetValue(), wt)
 			if err != nil {
 				// TODO: add location info with custom error
 				return nil, err
@@ -257,11 +257,38 @@ func coerceValue(val interface{}, t Type) (interface{}, error) {
 			if astf.Value.Kind() == ast.NullValueKind && field.GetType().GetKind() != NonNullKind {
 				res[name] = nil
 			}
-			if fv, err := coerceValue(astf.Value, field.GetType()); err == nil {
-				res[name] = fv
-			} else {
-				return nil, err
+			if astf.Value.Kind() != ast.VariableValueKind {
+				if fv, err := coerceValue(ctx, astf.Value, field.GetType()); err == nil {
+					res[name] = fv
+				} else {
+					return nil, err
+				}
 			}
+			if astf.Value.Kind() == ast.VariableValueKind {
+				varVal, ok := ctx.Get(keyVariables).(map[string]interface{})
+				if ok && varVal == nil && field.GetType().GetKind() == NonNullKind {
+					return nil, fmt.Errorf("null value on NonNull type")
+				} else if ok {
+					res[name] = varVal
+				}
+				if !ok {
+					op := ctx.Get(keyOperation).(*ast.Operation)
+					vv := astf.Value.(*ast.VariableValue)
+					vDef := op.Variables[vv.Name]
+					if vDef.DefaultValue != nil {
+						defVal, err := coerceValue(ctx, vDef.DefaultValue, field.GetType())
+						if err != nil {
+							return nil, err
+						}
+						res[name] = defVal
+					} else {
+						if field.IsDefaultValueSet() {
+							res[name] = field.GetDefaultValue()
+						}
+					}
+				}
+			}
+
 			// TODO: resolve variable value
 		}
 		return res, nil
@@ -289,7 +316,6 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot Object
 }
 
 func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) interface{} {
-	// TODO: reorganize ..
 	if ft.GetKind() == NonNullKind {
 		// Step 1 - NonNull kinds
 		if result == nil {
