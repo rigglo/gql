@@ -17,6 +17,7 @@ func main() {
 			top_movies {
 				id
 				title
+				__typename
 			}
 			foo(asd: {asd: "bar"}, bar: $barVar)
 		}`,

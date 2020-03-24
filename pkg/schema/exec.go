@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/rigglo/gql/pkg/language/ast"
@@ -98,7 +99,14 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot O
 	gfields := collectFields(ctx, ss, nil)
 	resMap := map[string]interface{}{}
 	for rkey, fields := range gfields {
+
 		fieldName := fields[0].Name
+
+		if strings.HasPrefix(fieldName, "__") {
+			resolveMetaFields(ctx, fields[0], ot, resMap)
+			continue
+		}
+
 		fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
 		rval := executeField(ctx, append(path, fields[0].Alias), ot, ov, fieldType, fields)
 		resMap[rkey] = rval

@@ -44,8 +44,17 @@ func unwrapper(t Type) Type {
 	return t
 }
 
-func validateMetaField(ctx *eCtx, fname *ast.Field, t Type) {
-	ctx.res.addErr(NewError(ctx, "unfortunately, currently no meta fields are supported", nil))
+func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
+	switch f.Name {
+	case "__typename":
+		{
+			// TODO: validate meta fields
+		}
+	default:
+		{
+			ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil))
+		}
+	}
 }
 
 func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
