@@ -17,6 +17,10 @@ func main() {
 	res := PetStore.Exec(context.Background(), gql.Params{
 		OperationName: "getDogName",
 		Query: `
+		fragment fragmentOne on Dog {
+			name
+		  }
+
 		query getDogName {
 			dog {
 				__typename
@@ -24,7 +28,7 @@ func main() {
 			}
 			cat {
 				__typename
-				name
+				...fragmentOne
 			}
 			pet {
 				__typename
@@ -32,7 +36,7 @@ func main() {
 			}
 			catOrDog {
 				__typename
-				name
+				...fragmentOne
 			}
 		  }
 		`,

@@ -115,7 +115,9 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot O
 }
 
 func collectFields(ctx *eCtx, t ObjectType, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
-	// types := ctx.Get(keyTypes).(map[string]Type)
+	types := ctx.Get(keyTypes).(map[string]Type)
+	// log.Printf("types: %+v", types)
+
 	if vFrags == nil {
 		vFrags = []string{}
 	}
@@ -133,11 +135,46 @@ func collectFields(ctx *eCtx, t ObjectType, ss []ast.Selection, vFrags []string)
 					gfields[f.Alias] = ast.Fields{f}
 				}
 			}
+		case ast.FragmentSpreadSelectionKind:
+			{
+				fSpread := sel.(*ast.FragmentSpread)
+				skip := false
+				for _, fragName := range vFrags {
+					if fSpread.Name == fragName {
+						skip = true
+					}
+				}
+				if skip {
+					continue
+				}
+
+				vFrags = append(vFrags, fSpread.Name)
+
+				fragment, ok := ctx.Get(keyQuery).(*ast.Document).Fragments[fSpread.Name]
+				if !ok {
+					continue
+				}
+
+				if !doesFragmentTypeApply(ctx, t, types[fragment.TypeCondition]) {
+					continue
+				}
+
+				fgfields := collectFields(ctx, t, fragment.SelectionSet, vFrags)
+				for rkey, fg := range fgfields {
+					if _, ok := gfields[rkey]; ok {
+						gfields[rkey] = append(gfields[rkey], fg...)
+					} else {
+						gfields[rkey] = fg
+					}
+				}
+			}
 		case ast.InlineFragmentSelectionKind:
 			{
 				f := sel.(*ast.InlineFragment)
 
-				// TODO: check fragment type
+				if f.TypeCondition != "" && !doesFragmentTypeApply(ctx, t, types[f.TypeCondition]) {
+					continue
+				}
 
 				fgfields := collectFields(ctx, t, f.SelectionSet, vFrags)
 				for rkey, fg := range fgfields {
@@ -148,11 +185,32 @@ func collectFields(ctx *eCtx, t ObjectType, ss []ast.Selection, vFrags []string)
 					}
 				}
 			}
-			// TODO: FragmentSpread
-			// TODO: InlineFragment
 		}
 	}
 	return gfields
+}
+
+func doesFragmentTypeApply(ctx *eCtx, ot ObjectType, ft Type) bool {
+	if ft.GetKind() == ObjectKind && reflect.DeepEqual(ot, ft) {
+		return true
+	} else if ft.GetKind() == InterfaceKind {
+		for _, i := range ot.GetInterfaces() {
+			if i.GetName() == ft.GetName() {
+				if reflect.DeepEqual(ft, i) {
+					return true
+				}
+			}
+		}
+	} else if ft.GetKind() == UnionKind {
+		for _, m := range ft.(UnionType).GetMembers() {
+			if m.GetName() == ot.GetName() {
+				if reflect.DeepEqual(ot, m) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func getFragmentSpread(ctx *eCtx, fragName string) (*ast.FragmentSpread, bool) {
