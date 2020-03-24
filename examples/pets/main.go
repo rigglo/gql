@@ -19,7 +19,7 @@ func main() {
 		Query: `
 		fragment fragmentOne on Dog {
 			name
-		  }
+		}
 
 		query getDogName {
 			dog {
@@ -38,7 +38,7 @@ func main() {
 				__typename
 				...fragmentOne
 			}
-		  }
+		}
 		`,
 		Variables: map[string]interface{}{},
 	})
