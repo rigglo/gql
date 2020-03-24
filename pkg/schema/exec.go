@@ -58,6 +58,7 @@ func Execute(ctx context.Context, s Schema, p ExecuteParams) *Result {
 func resolveOperation(ctx *eCtx) *Result {
 	oname := ctx.Get(keyOperationName).(string)
 	doc := ctx.Get(keyQuery).(*ast.Document)
+	// TODO: should move this to validation
 	if oname == "" && len(doc.Operations) != 1 {
 		return &Result{
 			ctx:    ctx,
@@ -80,7 +81,7 @@ func resolveOperation(ctx *eCtx) *Result {
 	}
 	return &Result{
 		ctx:    ctx,
-		Errors: Errors{NewError(ctx, "execution failed", nil)},
+		Errors: Errors{NewError(ctx, "invalid operation", nil)},
 	}
 }
 
