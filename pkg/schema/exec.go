@@ -71,7 +71,7 @@ func resolveOperation(ctx *eCtx) *Result {
 			case ast.Query:
 				return executeQuery(ctx, op)
 			case ast.Mutation:
-				return executeMutation(ctx)
+				return executeMutation(ctx, op)
 			case ast.Subscription:
 				// TODO: implement ExecuteSubscription
 				break
@@ -91,8 +91,11 @@ func executeQuery(ctx *eCtx, op *ast.Operation) *Result {
 	return ctx.res
 }
 
-func executeMutation(ctx *eCtx) *Result {
-	return nil
+func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
+	schema := ctx.Get(keySchema).(Schema)
+	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootMutation(), nil)
+	ctx.res.Data = rmap
+	return ctx.res
 }
 
 func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot ObjectType, ov interface{}) map[string]interface{} {
