@@ -38,6 +38,9 @@ func main() {
 				__typename
 				...fragmentOne
 			}
+			someErr {
+				__typename
+			}
 		}
 		`,
 		Variables: map[string]interface{}{},
@@ -118,6 +121,13 @@ var (
 				Type: gql.NewList(CatOrDogUnion),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					return []interface{}{Catcy, Doggo}, nil
+				},
+			},
+			&gql.Field{
+				Name: "someErr",
+				Type: gql.NewList(CatOrDogUnion),
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					return nil, gql.NewError("asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
 				},
 			},
 		},

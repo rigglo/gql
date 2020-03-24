@@ -22,13 +22,16 @@ func IsTypeSystemDirectiveLocation(loc DirectiveLocation) bool {
 }
 
 const (
-	QueryLoc                DirectiveLocation = "QUERY"
-	MutationLoc             DirectiveLocation = "MUTATION"
-	SubscriptionLoc         DirectiveLocation = "SUBSCRIPTION"
-	FieldLoc                DirectiveLocation = "FIELD"
-	FragmentDefinitionLoc   DirectiveLocation = "FRAGMENT_DEFINITION"
-	FragmentSpreadLoc       DirectiveLocation = "FRAGMENT_SPREAD"
-	InlineFragmentLoc       DirectiveLocation = "INLINE_FRAGMENT"
+	// Executable Directive locations
+	QueryLoc              DirectiveLocation = "QUERY"
+	MutationLoc           DirectiveLocation = "MUTATION"
+	SubscriptionLoc       DirectiveLocation = "SUBSCRIPTION"
+	FieldLoc              DirectiveLocation = "FIELD"
+	FragmentDefinitionLoc DirectiveLocation = "FRAGMENT_DEFINITION"
+	FragmentSpreadLoc     DirectiveLocation = "FRAGMENT_SPREAD"
+	InlineFragmentLoc     DirectiveLocation = "INLINE_FRAGMENT"
+
+	// Type System Directive locations
 	SchemaLoc               DirectiveLocation = "SCHEMA"
 	ScalarLoc               DirectiveLocation = "SCALAR"
 	ObjectLoc               DirectiveLocation = "OBJECT"

@@ -29,6 +29,11 @@ func NewError(ctx context.Context, msg string, extensions map[string]interface{}
 	}
 }
 
+type DetailedError interface {
+	Error() string
+	Extensions() map[string]interface{}
+}
+
 const (
 	ErrValidateOperationName                  = "Operation name '%s' is defined multiple times"
 	ErrAnonymousOperationDefinitions          = "Can not use anonymous operation where multiple operation definitions exist"

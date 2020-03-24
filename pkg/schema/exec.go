@@ -321,7 +321,6 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 		for i := 0; i < len(res); i++ {
 			r, err := coerceValue(ctx, lv.Values[i].GetValue(), wt)
 			if err != nil {
-				// TODO: add location info with custom error
 				return nil, err
 			}
 			res[i] = r
@@ -395,17 +394,30 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot Object
 	f := getFieldOfFields(fn, ot.GetFields())
 	v, err := f.Resolve(ctx, ov, args)
 	if err != nil {
-		// TODO: add option to return custom error
-		ctx.res.addErr(&Error{
-			Message: err.Error(),
-			Path:    path,
-			Locations: []*ErrorLocation{
-				&ErrorLocation{
-					Column: fast.Location.Column,
-					Line:   fast.Location.Line,
+		if e, ok := err.(DetailedError); ok {
+			ctx.res.addErr(&Error{
+				Message: e.Error(),
+				Path:    path,
+				Locations: []*ErrorLocation{
+					&ErrorLocation{
+						Column: fast.Location.Column,
+						Line:   fast.Location.Line,
+					},
 				},
-			},
-		})
+				Extensions: e.Extensions(),
+			})
+		} else {
+			ctx.res.addErr(&Error{
+				Message: err.Error(),
+				Path:    path,
+				Locations: []*ErrorLocation{
+					&ErrorLocation{
+						Column: fast.Location.Column,
+						Line:   fast.Location.Line,
+					},
+				},
+			})
+		}
 	}
 	return v
 }

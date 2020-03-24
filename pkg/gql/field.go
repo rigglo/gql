@@ -71,3 +71,23 @@ func defaultResolver(fname string) Resolver {
 		return nil, nil
 	}
 }
+
+type Error struct {
+	Err  string
+	Data map[string]interface{}
+}
+
+func (e *Error) Error() string {
+	return e.Err
+}
+
+func (e *Error) Extensions() map[string]interface{} {
+	return e.Data
+}
+
+func NewError(msg string, data map[string]interface{}) *Error {
+	return &Error{
+		Err:  msg,
+		Data: data,
+	}
+}
