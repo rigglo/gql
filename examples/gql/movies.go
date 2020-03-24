@@ -15,9 +15,13 @@ func main() {
 		Query: `
 		query myOp($barVar: String = "foo") {
 			top_movies {
-				id
-				title
 				__typename
+				... {
+					title
+					... {
+						id
+					}
+				}
 			}
 			foo(asd: {asd: "bar"}, bar: $barVar)
 		}`,

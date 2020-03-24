@@ -96,7 +96,7 @@ func executeMutation(ctx *eCtx) *Result {
 }
 
 func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot ObjectType, ov interface{}) map[string]interface{} {
-	gfields := collectFields(ctx, ss, nil)
+	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
 	for rkey, fields := range gfields {
 
@@ -114,7 +114,8 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot O
 	return resMap
 }
 
-func collectFields(ctx *eCtx, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
+func collectFields(ctx *eCtx, t ObjectType, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
+	// types := ctx.Get(keyTypes).(map[string]Type)
 	if vFrags == nil {
 		vFrags = []string{}
 	}
@@ -132,11 +133,30 @@ func collectFields(ctx *eCtx, ss []ast.Selection, vFrags []string) map[string]as
 					gfields[f.Alias] = ast.Fields{f}
 				}
 			}
+		case ast.InlineFragmentSelectionKind:
+			{
+				f := sel.(*ast.InlineFragment)
+
+				// TODO: check fragment type
+
+				fgfields := collectFields(ctx, t, f.SelectionSet, vFrags)
+				for rkey, fg := range fgfields {
+					if _, ok := gfields[rkey]; ok {
+						gfields[rkey] = append(gfields[rkey], fg...)
+					} else {
+						gfields[rkey] = fg
+					}
+				}
+			}
 			// TODO: FragmentSpread
 			// TODO: InlineFragment
 		}
 	}
 	return gfields
+}
+
+func getFragmentSpread(ctx *eCtx, fragName string) (*ast.FragmentSpread, bool) {
+	return nil, false
 }
 
 func getFieldOfFields(fn string, fs []Field) Field {

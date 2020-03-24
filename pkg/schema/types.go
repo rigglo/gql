@@ -23,6 +23,10 @@ type Type interface {
 	GetKind() TypeKind
 }
 
+type HasFields interface {
+	GetFields() []Field
+}
+
 type ScalarType interface {
 	Type
 	GetDirectives() []Directive

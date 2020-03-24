@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/rigglo/gql/pkg/language/ast"
@@ -55,6 +56,114 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
 			ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil))
 		}
 	}
+}
+
+func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
+	// types := ctx.Get(keyTypes).(map[string]Type)
+
+	fieldsForName := collectFields(ctx, t.(ObjectType), set, []string{})
+	for _, fields := range fieldsForName {
+		if len(fields) > 1 {
+			for i := 1; i < len(fields); i++ {
+				if !sameResponseShape(ctx, fields[0], fields[i], t) {
+					// TODO: raise error for selection set can not be merged
+					ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same"), nil))
+				}
+				// var ta, tb = getFieldOfFields(fields[0].Name, fs).GetType(), getFieldOfFields(fields[i].Name, fs).GetType()
+				var pa, pb Type
+				/*
+					if fields[0].ParentType == "" {
+						pa = t
+					} else {
+						pa = types[fields[0].ParentType]
+					}
+
+					if fields[i].ParentType == "" {
+						pb = t
+					} else {
+						pb = types[fields[i].ParentType]
+					}
+				*/
+
+				// this is bad, we should check the PARENT TYPE..
+				if reflect.DeepEqual(pa, pb) || (pa.GetKind() != ObjectKind || pb.GetKind() != ObjectKind) {
+					if fields[0].Name != fields[i].Name {
+						// TODO: raise error that selection set can not be merged
+						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrResponseShapeMismatch, "field names are not equal"), nil))
+					}
+					if !reflect.DeepEqual(fields[0].Arguments, fields[1].Arguments) {
+						// TODO: raise error that selection set can not be merged (due to arguments don't match)
+						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrResponseShapeMismatch, "arguments don't match"), nil))
+					}
+					mergedSet := append(fields[0].SelectionSet, fields[1].SelectionSet...)
+					fieldsInSetCanMerge(ctx, mergedSet, getFieldOfFields(fields[0].Name, pa.(HasFields).GetFields()).GetType())
+				}
+			}
+		}
+	}
+}
+
+func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, t Type) bool {
+	var typeA, typeB Type
+	for _, f := range []Field{} {
+		if f.GetName() == fa.Name {
+			typeA = f.GetType()
+		} else if f.GetName() == fb.Name {
+			typeB = f.GetType()
+		}
+	}
+
+	for {
+		if typeA.GetKind() == NonNullKind || typeB.GetKind() == NonNullKind {
+			if typeA.GetKind() != NonNullKind || typeB.GetKind() != NonNullKind {
+				return false
+			}
+			typeA = typeA.(NonNull).Unwrap()
+			typeB = typeB.(NonNull).Unwrap()
+		}
+
+		if typeA.GetKind() == ListKind || typeB.GetKind() == ListKind {
+			if typeA.GetKind() != ListKind || typeB.GetKind() != ListKind {
+				return false
+			}
+			typeA = typeA.(List).Unwrap()
+			typeB = typeB.(List).Unwrap()
+			continue
+		}
+		break
+	}
+
+	if typeA.GetKind() == ScalarKind || typeB.GetKind() == ScalarKind || typeA.GetKind() == EnumKind || typeB.GetKind() == EnumKind {
+		// TODO: Could try reflect.DeepEqual(typeA, typeB)
+		if typeA.GetName() == typeB.GetName() {
+			return true
+		}
+		return false
+	}
+
+	if !isCompositeType(typeA) || !isCompositeType(typeB) {
+		return false
+	}
+
+	mergedSet := append(fa.SelectionSet, fb.SelectionSet...)
+	fieldsForName := collectFields(ctx, typeA.(ObjectType), mergedSet, []string{})
+	for _, fields := range fieldsForName {
+		if len(fields) > 1 {
+			for i := 1; i < len(fields); i++ {
+				if !sameResponseShape(ctx, fields[0], fields[i], typeA) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+func isCompositeType(t Type) bool {
+	if t.GetKind() == ObjectKind || t.GetKind() == InterfaceKind || t.GetKind() == UnionKind {
+		return true
+	}
+	return false
 }
 
 func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
@@ -136,8 +245,4 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 			}
 		}
 	}
-}
-
-func validateOperation(ctx *eCtx, o *ast.Operation) {
-
 }

@@ -35,4 +35,5 @@ const (
 	ErrLeafFieldSelectionsSelectionNotAllowed = "Selection on type '%s' is not allowed"
 	ErrLeafFieldSelectionsSelectionMissing    = "Selection on type '%s' is missing"
 	ErrFieldDoesNotExist                      = "Field '%s' does not exist on type '%s'"
+	ErrResponseShapeMismatch                  = "fields in set can not be merged: %s"
 )
