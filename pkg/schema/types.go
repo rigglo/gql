@@ -55,6 +55,7 @@ type UnionType interface {
 	Type
 	GetDirectives() []Directive
 	GetMembers() []Type
+	Resolve(context.Context, interface{}) ObjectType
 }
 
 type EnumType interface {

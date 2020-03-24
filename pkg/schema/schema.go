@@ -11,7 +11,7 @@ func getTypes(s Schema) map[string]Type {
 	// TODO: getTypes from the Schema into a map[string]Type
 	types := map[string]Type{}
 	typeWalker(types, s.GetRootQuery())
-	// typeWalker(types, s.GetRootMutation())
+	typeWalker(types, s.GetRootMutation())
 	return types
 }
 

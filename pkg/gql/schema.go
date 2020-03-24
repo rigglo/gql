@@ -32,5 +32,15 @@ func (s *Schema) GetDirectives() []schema.Directive {
 }
 
 func (s *Schema) Exec(ctx context.Context, p Params) *schema.Result {
+	if s.Query == nil {
+		s.Query = &Object{
+			Name: "Query",
+		}
+	}
+	if s.Mutation == nil {
+		s.Mutation = &Object{
+			Name: "Mutation",
+		}
+	}
 	return schema.Execute(ctx, s, schema.ExecuteParams(p))
 }

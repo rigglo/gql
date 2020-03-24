@@ -392,6 +392,10 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		ot := ft.(InterfaceType).Resolve(ctx, result)
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
+	} else if ft.GetKind() == UnionKind {
+		ot := ft.(UnionType).Resolve(ctx, result)
+		subSel := fs[0].SelectionSet
+		return executeSelectionSet(ctx, path, subSel, ot, result)
 	}
 	return nil
 }
