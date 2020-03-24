@@ -45,7 +45,12 @@ func Execute(ctx context.Context, s Schema, p ExecuteParams) *Result {
 		keyOperationName: p.OperationName,
 		keyVariables:     p.Variables,
 		keySchema:        s,
+		keyTypes:         getTypes(s),
 	})
+	validate(ectx)
+	if len(ectx.res.Errors) > 0 {
+		return ectx.res
+	}
 	return resolveOperation(ectx)
 }
 
@@ -80,7 +85,7 @@ func resolveOperation(ctx *eCtx) *Result {
 
 func executeQuery(ctx *eCtx, op *ast.Operation) *Result {
 	schema := ctx.Get(keySchema).(Schema)
-	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery().(ObjectType), nil)
+	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery(), nil)
 	ctx.res.Data = rmap
 	return ctx.res
 }

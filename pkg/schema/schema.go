@@ -1,10 +1,14 @@
 package schema
 
 type Schema interface {
-	GetRootQuery() Operation
-	GetRootMutation() Operation
-	GetRootSubsciption() Operation
+	GetRootQuery() ObjectType
+	GetRootMutation() ObjectType
+	GetRootSubsciption() ObjectType
 	GetDirectives() []Directive
+}
+
+func getTypes(s Schema) map[string]Type {
+	return nil
 }
 
 type Operation interface {

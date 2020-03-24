@@ -28,3 +28,11 @@ func NewError(ctx context.Context, msg string, extensions map[string]interface{}
 		Extensions: extensions,
 	}
 }
+
+const (
+	ErrValidateOperationName                  = "Operation name '%s' is defined multiple times"
+	ErrAnonymousOperationDefinitions          = "Can not use anonymous operation where multiple operation definitions exist"
+	ErrLeafFieldSelectionsSelectionNotAllowed = "Selection on type '%s' is not allowed"
+	ErrLeafFieldSelectionsSelectionMissing    = "Selection on type '%s' is missing"
+	ErrFieldDoesNotExist                      = "Field '%s' does not exist on type '%s'"
+)

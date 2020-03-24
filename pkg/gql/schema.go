@@ -15,15 +15,15 @@ type Schema struct {
 
 type Params schema.ExecuteParams
 
-func (s *Schema) GetRootQuery() schema.Operation {
+func (s *Schema) GetRootQuery() schema.ObjectType {
 	return s.Query
 }
 
-func (s *Schema) GetRootMutation() schema.Operation {
+func (s *Schema) GetRootMutation() schema.ObjectType {
 	return s.Mutation
 }
 
-func (s *Schema) GetRootSubsciption() schema.Operation {
+func (s *Schema) GetRootSubsciption() schema.ObjectType {
 	return s.Subscription
 }
 
