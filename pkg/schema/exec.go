@@ -2,6 +2,7 @@ package schema
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -27,9 +28,9 @@ func (r *Result) addErr(err *Error) {
 }
 
 type ExecuteParams struct {
-	Query         string                 `json:"query"`
-	Variables     map[string]interface{} `json:"variables"`
-	OperationName string                 `json:"OperationName"`
+	Query         string `json:"query"`
+	Variables     string `json:"variables"`
+	OperationName string `json:"operationName"`
 }
 
 func Execute(ctx context.Context, s Schema, p ExecuteParams) *Result {
@@ -44,7 +45,7 @@ func Execute(ctx context.Context, s Schema, p ExecuteParams) *Result {
 		keyQuery:         doc,
 		keyRawQuery:      p.Query,
 		keyOperationName: p.OperationName,
-		keyVariables:     p.Variables,
+		keyRawVariables:  p.Variables,
 		keySchema:        s,
 		keyTypes:         getTypes(s),
 	})
@@ -52,32 +53,119 @@ func Execute(ctx context.Context, s Schema, p ExecuteParams) *Result {
 	if len(ectx.res.Errors) > 0 {
 		return ectx.res
 	}
+	getOperation(ectx)
+	if len(ectx.res.Errors) > 0 {
+		return ectx.res
+	}
+
+	coerceVariableValues(ectx)
+	if len(ectx.res.Errors) > 0 {
+		return ectx.res
+	}
+
 	return resolveOperation(ectx)
 }
 
-func resolveOperation(ctx *eCtx) *Result {
+func getOperation(ctx *eCtx) {
 	oname := ctx.Get(keyOperationName).(string)
 	doc := ctx.Get(keyQuery).(*ast.Document)
-	// TODO: should move this to validation
-	if oname == "" && len(doc.Operations) != 1 {
-		return &Result{
-			ctx:    ctx,
-			Errors: Errors{NewError(ctx, "operationName is requeired", nil)},
+
+	var op *ast.Operation
+	if oname == "" {
+		if len(doc.Operations) == 1 {
+			op = doc.Operations[0]
+		} else {
+			ctx.res.addErr(&Error{
+				Message:   "missing operationName",
+				Path:      []interface{}{},
+				Locations: []*ErrorLocation{},
+			})
 		}
-	}
-	for _, op := range doc.Operations {
-		if op.Name == oname {
-			ctx.Set(keyOperation, op)
-			switch op.OperationType {
-			case ast.Query:
-				return executeQuery(ctx, op)
-			case ast.Mutation:
-				return executeMutation(ctx, op)
-			case ast.Subscription:
-				// TODO: implement ExecuteSubscription
-				break
+	} else {
+		for _, o := range doc.Operations {
+			if oname == o.Name {
+				op = o
 			}
 		}
+	}
+	if op != nil {
+		ctx.Set(keyOperation, op)
+		return
+	}
+	ctx.res.addErr(&Error{
+		Message:   "operation not found",
+		Path:      []interface{}{},
+		Locations: []*ErrorLocation{},
+	})
+	return
+}
+
+func coerceVariableValues(ctx *eCtx) {
+	/*
+		coercedValues := map[string]interface{}{}
+
+		types := ctx.Get(keyTypes).(map[string]Type)
+		op := ctx.Get(keyOperation).(*ast.Operation)
+	*/
+	raw := ctx.Get(keyRawVariables).(string)
+
+	if raw == "" {
+		ctx.Set(keyVariables, map[string]interface{}{})
+		return
+	}
+
+	rawVars := map[string]interface{}{}
+
+	err := json.Unmarshal([]byte(raw), &rawVars)
+	if err != nil {
+		ctx.res.addErr(&Error{
+			Message:   "invalid variables format",
+			Path:      []interface{}{},
+			Locations: []*ErrorLocation{},
+		})
+	}
+	ctx.Set(keyVariables, rawVars)
+	/*
+		for _, varDef := range op.Variables {
+			varType, err := resolveAstType(ctx, types, varDef.Type)
+			if err != nil {
+				ctx.res.addErr(&Error{
+					Message: "operation not found",
+					Path:    []interface{}{},
+					Locations: []*ErrorLocation{
+						&ErrorLocation{
+							Column: varDef.Location.Column,
+							Line:   varDef.Location.Line,
+						},
+					},
+				})
+				return
+			}
+			hasValue := false
+			if val, ok := rawVars[varDef.Name]; ok {
+
+			}
+			defVal := varDef.DefaultValue
+
+		}
+	*/
+}
+
+func resolveAstType(ctx *eCtx, types map[string]Type, t ast.Type) (Type, *Error) {
+
+	return nil, nil
+}
+
+func resolveOperation(ctx *eCtx) *Result {
+	op := ctx.Get(keyOperation).(*ast.Operation)
+	switch op.OperationType {
+	case ast.Query:
+		return executeQuery(ctx, op)
+	case ast.Mutation:
+		return executeMutation(ctx, op)
+	case ast.Subscription:
+		// TODO: implement ExecuteSubscription
+		break
 	}
 	return &Result{
 		ctx:    ctx,
@@ -418,6 +506,10 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot Object
 				},
 			})
 		}
+		v = nil
+	}
+	if f.GetType().GetKind() == NonNullKind && v == nil {
+		// TODO: raise field error
 	}
 	return v
 }

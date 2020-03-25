@@ -16,9 +16,10 @@ type GqlContext interface {
 }
 
 const (
-	keyRawQuery      string = "gql_rawQuery"
 	keyOperationName string = "gql_operation_name"
+	keyRawVariables  string = "gql_raw_variables"
 	keyVariables     string = "gql_variables"
+	keyRawQuery      string = "gql_raw_query"
 	keyQuery         string = "gql_query"
 	keySchema        string = "gql_schema"
 	keyOperation     string = "gql_operation"

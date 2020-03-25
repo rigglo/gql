@@ -22,6 +22,18 @@ func Parse(query string) (lexer.Token, *ast.Document, error) {
 	return t, doc, err
 }
 
+func ParseValue(value string) (ast.Value, error) {
+	tokens := make(chan lexer.Token)
+	src := strings.NewReader(value)
+	readr := bufio.NewReader(src)
+	go lexer.Lex(readr, tokens)
+	t, val, err := parseValue(<-tokens, tokens)
+	if err != nil && t.Value == "" {
+		return nil, fmt.Errorf("unexpected EOF")
+	}
+	return val, err
+}
+
 func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) {
 	doc := ast.NewDocument()
 	var err error
