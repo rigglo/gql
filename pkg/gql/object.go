@@ -1,8 +1,8 @@
 package gql
 
 type Object struct {
-	Description string
-	Name        string
+	Description string `json:"description"`
+	Name        string `json:"name"`
 	Implements  Interfaces
 	Directives  Directives
 	Fields      Fields
@@ -30,4 +30,8 @@ func (o *Object) GetDirectives() []*Directive {
 
 func (o *Object) GetFields() []*Field {
 	return o.Fields
+}
+
+func (o *Object) AddFields(fs ...*Field) {
+	o.Fields = append(o.Fields, fs...)
 }
