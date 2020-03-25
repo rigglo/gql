@@ -1,4 +1,4 @@
-package schema
+package gql
 
 import (
 	"context"
@@ -6,9 +6,7 @@ import (
 	"time"
 )
 
-type gqlCtxKey string
-
-type GqlContext interface {
+type gqlContext interface {
 	context.Context
 	Get(key string) interface{}
 	Set(key string, v interface{})
@@ -80,4 +78,4 @@ func (c *eCtx) Delete(key string) {
 	delete(c.store, key)
 }
 
-var _ context.Context = &eCtx{}
+var _ context.Context = (*eCtx)(nil)

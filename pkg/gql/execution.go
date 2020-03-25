@@ -1,4 +1,4 @@
-package schema
+package gql
 
 import (
 	"context"
@@ -33,7 +33,7 @@ type ExecuteParams struct {
 	OperationName string `json:"operationName"`
 }
 
-func Execute(ctx context.Context, s Schema, p ExecuteParams) *Result {
+func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
 	_, doc, err := parser.Parse(p.Query)
 	if err != nil {
 		return &Result{
@@ -174,20 +174,20 @@ func resolveOperation(ctx *eCtx) *Result {
 }
 
 func executeQuery(ctx *eCtx, op *ast.Operation) *Result {
-	schema := ctx.Get(keySchema).(Schema)
+	schema := ctx.Get(keySchema).(*Schema)
 	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery(), nil)
 	ctx.res.Data = rmap
 	return ctx.res
 }
 
 func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
-	schema := ctx.Get(keySchema).(Schema)
+	schema := ctx.Get(keySchema).(*Schema)
 	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootMutation(), nil)
 	ctx.res.Data = rmap
 	return ctx.res
 }
 
-func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot ObjectType, ov interface{}) map[string]interface{} {
+func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) map[string]interface{} {
 	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
 	for rkey, fields := range gfields {
@@ -206,7 +206,7 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot O
 	return resMap
 }
 
-func collectFields(ctx *eCtx, t ObjectType, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
+func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
 	types := ctx.Get(keyTypes).(map[string]Type)
 	// log.Printf("types: %+v", types)
 
@@ -282,7 +282,7 @@ func collectFields(ctx *eCtx, t ObjectType, ss []ast.Selection, vFrags []string)
 	return gfields
 }
 
-func doesFragmentTypeApply(ctx *eCtx, ot ObjectType, ft Type) bool {
+func doesFragmentTypeApply(ctx *eCtx, ot *Object, ft Type) bool {
 	if ft.GetKind() == ObjectKind && reflect.DeepEqual(ot, ft) {
 		return true
 	} else if ft.GetKind() == InterfaceKind {
@@ -294,7 +294,7 @@ func doesFragmentTypeApply(ctx *eCtx, ot ObjectType, ft Type) bool {
 			}
 		}
 	} else if ft.GetKind() == UnionKind {
-		for _, m := range ft.(UnionType).GetMembers() {
+		for _, m := range ft.(*Union).GetMembers() {
 			if m.GetName() == ot.GetName() {
 				if reflect.DeepEqual(ot, m) {
 					return true
@@ -309,7 +309,7 @@ func getFragmentSpread(ctx *eCtx, fragName string) (*ast.FragmentSpread, bool) {
 	return nil, false
 }
 
-func getFieldOfFields(fn string, fs []Field) Field {
+func getFieldOfFields(fn string, fs []*Field) *Field {
 	for _, f := range fs {
 		if f.GetName() == fn {
 			return f
@@ -327,7 +327,7 @@ func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {
 	return nil, false
 }
 
-func executeField(ctx *eCtx, path []interface{}, ot ObjectType, ov interface{}, ft Type, fs ast.Fields) interface{} {
+func executeField(ctx *eCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) interface{} {
 	f := fs[0]
 	fn := f.Name
 	args := coerceArgumentValues(ctx, path, ot, f)
@@ -335,7 +335,7 @@ func executeField(ctx *eCtx, path []interface{}, ot ObjectType, ov interface{}, 
 	return completeValue(ctx, path, getFieldOfFields(fn, ot.GetFields()).GetType(), fs, resVal)
 }
 
-func coerceArgumentValues(ctx *eCtx, path []interface{}, ot ObjectType, f *ast.Field) map[string]interface{} {
+func coerceArgumentValues(ctx *eCtx, path []interface{}, ot *Object, f *ast.Field) map[string]interface{} {
 	vars := ctx.Get(keyVariables).(map[string]interface{})
 	coercedVals := map[string]interface{}{}
 	fieldName := f.Name
@@ -401,9 +401,9 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 		if _, ok := val.(ast.NullValue); ok {
 			return nil, errors.New("Null value on NonNull type")
 		}
-		return coerceValue(ctx, val, t.(NonNull).Unwrap())
+		return coerceValue(ctx, val, t.(*NonNull).Unwrap())
 	case t.GetKind() == ListKind:
-		wt := t.(List).Unwrap()
+		wt := t.(*List).Unwrap()
 		lv := val.(ast.ListValue)
 		res := make([]interface{}, len(lv.Values))
 		for i := 0; i < len(res); i++ {
@@ -415,7 +415,7 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 		}
 		return res, nil
 	case t.GetKind() == ScalarKind:
-		s := t.(ScalarType)
+		s := t.(*Scalar)
 		if v, ok := val.(ast.Value); ok {
 			// TODO: this should be nicer...
 			return s.CoerceInput([]byte(v.GetValue().(string)))
@@ -428,7 +428,7 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 		if !ok {
 			return nil, fmt.Errorf("Invalid input object value")
 		}
-		o := t.(InputObjectType)
+		o := t.(*InputObject)
 		for name, field := range o.GetFields() {
 			astf, ok := ov.Fields[name]
 			if !ok && field.IsDefaultValueSet() {
@@ -478,7 +478,14 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 	return nil, errors.New("invalid value to coerce")
 }
 
-func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot ObjectType, ov interface{}, fn string, args map[string]interface{}) interface{} {
+func resolveMetaFields(ctx *eCtx, f *ast.Field, t Type, res map[string]interface{}) {
+	switch f.Name {
+	case "__typename":
+		res[f.Alias] = t.GetName()
+	}
+}
+
+func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
 	f := getFieldOfFields(fn, ot.GetFields())
 	v, err := f.Resolve(ctx, ov, args)
 	if err != nil {
@@ -521,13 +528,13 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 			ctx.res.addErr(&Error{Message: "null value on a NonNull field", Path: path})
 			return nil
 		}
-		return completeValue(ctx, path, ft.(NonNull).Unwrap(), fs, result)
+		return completeValue(ctx, path, ft.(*NonNull).Unwrap(), fs, result)
 	} else if result == nil {
 		// Step 2 - Return null if nil
 		return nil
 	} else if ft.GetKind() == ListKind {
 		// Step 3 - go through the list and complete each value, then return result
-		lt := ft.(List)
+		lt := ft.(*List)
 		v := reflect.ValueOf(result)
 		res := make([]interface{}, v.Len())
 		for i := 0; i < v.Len(); i++ {
@@ -536,14 +543,14 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		return res
 	} else if ft.GetKind() == ScalarKind {
 		// Step 4.1 - coerce scalar value
-		res, err := ft.(ScalarType).CoerceResult(result)
+		res, err := ft.(*Scalar).CoerceResult(result)
 		if err != nil {
 			ctx.res.addErr(&Error{Message: err.Error(), Path: path})
 		}
 		return res
 	} else if ft.GetKind() == EnumKind {
 		// Step 4.2 - coerce Enum value
-		for name, ev := range ft.(EnumType).GetValues() {
+		for name, ev := range ft.(*Enum).GetValues() {
 			if ev.GetValue() == result {
 				return name
 			}
@@ -551,17 +558,57 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		ctx.res.addErr(&Error{Message: "invalid result", Path: path})
 		return nil
 	} else if ft.GetKind() == ObjectKind {
-		ot := ft.(ObjectType)
+		ot := ft.(*Object)
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
 	} else if ft.GetKind() == InterfaceKind {
-		ot := ft.(InterfaceType).Resolve(ctx, result)
+		ot := ft.(*Interface).Resolve(ctx, result)
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
 	} else if ft.GetKind() == UnionKind {
-		ot := ft.(UnionType).Resolve(ctx, result)
+		ot := ft.(*Union).Resolve(ctx, result)
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
 	}
 	return nil
+}
+
+func getTypes(s *Schema) map[string]Type {
+	// TODO: getTypes from the Schema into a map[string]Type
+	types := map[string]Type{}
+	typeWalker(types, s.GetRootQuery())
+	typeWalker(types, s.GetRootMutation())
+	return types
+}
+
+type hasFields interface {
+	GetFields() []*Field
+}
+
+type WrappingType interface {
+	Unwrap() Type
+}
+
+// unwrapper unwraps Type t, until it results in a real type, one of (scalar, enum, interface, union or an object)
+func unwrapper(t Type) Type {
+	if w, ok := t.(WrappingType); ok {
+		return unwrapper(w.Unwrap())
+	}
+	return t
+}
+
+func typeWalker(types map[string]Type, t Type) {
+	wt := unwrapper(t)
+	if _, ok := types[wt.GetName()]; !ok {
+		types[wt.GetName()] = wt
+	}
+	if hf, ok := t.(hasFields); ok {
+		for _, f := range hf.GetFields() {
+			typeWalker(types, f.GetType())
+		}
+	} else if u, ok := wt.(*Union); ok {
+		for _, m := range u.GetMembers() {
+			typeWalker(types, m)
+		}
+	}
 }

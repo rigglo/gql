@@ -1,7 +1,5 @@
 package gql
 
-import "github.com/rigglo/gql/pkg/schema"
-
 type Enum struct {
 	Name        string
 	Description string
@@ -17,23 +15,23 @@ func (e *Enum) GetName() string {
 	return e.Name
 }
 
-func (e *Enum) GetDirectives() []schema.Directive {
+func (e *Enum) GetDirectives() []*Directive {
 	return e.Directives
 }
 
-func (e *Enum) GetKind() schema.TypeKind {
-	return schema.EnumKind
+func (e *Enum) GetKind() TypeKind {
+	return EnumKind
 }
 
-func (e *Enum) GetValues() map[string]schema.EnumValue {
+func (e *Enum) GetValues() map[string]EnumValue {
 	return e.Values
 }
 
 // TODO: enum values has to be a list, return
 
-var _ schema.EnumType = &Enum{}
+// var _ EnumType = &Enum{}
 
-type EnumValues map[string]schema.EnumValue
+type EnumValues map[string]EnumValue
 
 type EnumValue struct {
 	Description string
@@ -41,16 +39,16 @@ type EnumValue struct {
 	Value       interface{}
 }
 
-func (e *EnumValue) GetDescription() string {
+func (e EnumValue) GetDescription() string {
 	return e.Description
 }
 
-func (e *EnumValue) GetDirectives() []schema.Directive {
+func (e EnumValue) GetDirectives() []*Directive {
 	return e.Directives
 }
 
-func (e *EnumValue) GetValue() interface{} {
+func (e EnumValue) GetValue() interface{} {
 	return e.Value
 }
 
-var _ schema.EnumValue = &EnumValue{}
+// var _ EnumValue = &EnumValue{}

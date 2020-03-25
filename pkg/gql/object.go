@@ -1,7 +1,5 @@
 package gql
 
-import "github.com/rigglo/gql/pkg/schema"
-
 type Object struct {
 	Description string
 	Name        string
@@ -18,18 +16,18 @@ func (o *Object) GetName() string {
 	return o.Name
 }
 
-func (o *Object) GetKind() schema.TypeKind {
-	return schema.ObjectKind
+func (o *Object) GetKind() TypeKind {
+	return ObjectKind
 }
 
-func (o *Object) GetInterfaces() []schema.InterfaceType {
+func (o *Object) GetInterfaces() []*Interface {
 	return o.Implements
 }
 
-func (o *Object) GetDirectives() []schema.Directive {
+func (o *Object) GetDirectives() []*Directive {
 	return o.Directives
 }
 
-func (o *Object) GetFields() []schema.Field {
+func (o *Object) GetFields() []*Field {
 	return o.Fields
 }

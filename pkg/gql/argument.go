@@ -2,11 +2,9 @@ package gql
 
 import (
 	"reflect"
-
-	"github.com/rigglo/gql/pkg/schema"
 )
 
-type Arguments []schema.Argument
+type Arguments []*Argument
 
 type Argument struct {
 	Description  string
@@ -23,7 +21,7 @@ func (a *Argument) GetName() string {
 	return a.Name
 }
 
-func (a *Argument) GetType() schema.Type {
+func (a *Argument) GetType() Type {
 	return a.Type
 }
 
@@ -42,7 +40,7 @@ type InputObject struct {
 	Fields      InputFields
 }
 
-var _ schema.InputObjectType = &InputObject{}
+// var _ schema.InputObjectType = &InputObject{}
 
 func (o *InputObject) GetDescription() string {
 	return o.Description
@@ -52,15 +50,15 @@ func (o *InputObject) GetName() string {
 	return o.Name
 }
 
-func (o *InputObject) GetKind() schema.TypeKind {
-	return schema.InputObjectKind
+func (o *InputObject) GetKind() TypeKind {
+	return InputObjectKind
 }
 
-func (o *InputObject) GetDirectives() []schema.Directive {
+func (o *InputObject) GetDirectives() []*Directive {
 	return o.Directives
 }
 
-func (o *InputObject) GetFields() map[string]schema.InputField {
+func (o *InputObject) GetFields() map[string]*InputField {
 	return o.Fields
 }
 
@@ -72,7 +70,7 @@ type InputField struct {
 	Directives   Directives
 }
 
-type InputFields map[string]schema.InputField
+type InputFields map[string]*InputField
 
 func (o *InputField) GetDescription() string {
 	return o.Description
@@ -82,7 +80,7 @@ func (o *InputField) GetName() string {
 	return o.Name
 }
 
-func (o *InputField) GetType() schema.Type {
+func (o *InputField) GetType() Type {
 	return o.Type
 }
 
@@ -94,8 +92,8 @@ func (o *InputField) IsDefaultValueSet() bool {
 	return reflect.ValueOf(o.DefaultValue).IsValid()
 }
 
-func (o *InputField) GetDirectives() []schema.Directive {
+func (o *InputField) GetDirectives() []*Directive {
 	return o.Directives
 }
 
-var _ schema.InputField = &InputField{}
+// var _ InputField = &InputField{}

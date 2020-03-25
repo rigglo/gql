@@ -6,12 +6,10 @@ import (
 	"math"
 	"strconv"
 	"strings"
-
-	"github.com/rigglo/gql/pkg/schema"
 )
 
-type CoerceResultFunc schema.CoerceResultFunc
-type CoerceInputFunc schema.CoerceInputFunc
+type CoerceResultFunc func(interface{}) (interface{}, error)
+type CoerceInputFunc func([]byte) (interface{}, error)
 
 type Scalar struct {
 	Name             string
@@ -29,11 +27,11 @@ func (s *Scalar) GetDescription() string {
 	return s.Description
 }
 
-func (s *Scalar) GetKind() schema.TypeKind {
-	return schema.ScalarKind
+func (s *Scalar) GetKind() TypeKind {
+	return ScalarKind
 }
 
-func (s *Scalar) GetDirectives() []schema.Directive {
+func (s *Scalar) GetDirectives() []*Directive {
 	return s.Directives
 }
 

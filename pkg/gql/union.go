@@ -2,8 +2,6 @@ package gql
 
 import (
 	"context"
-
-	"github.com/rigglo/gql/pkg/schema"
 )
 
 type Union struct {
@@ -14,7 +12,7 @@ type Union struct {
 	TypeResolver TypeResolver
 }
 
-type Members []schema.Type
+type Members []Type
 
 func (u *Union) GetDescription() string {
 	return u.Description
@@ -24,20 +22,20 @@ func (u *Union) GetName() string {
 	return u.Name
 }
 
-func (u *Union) GetKind() schema.TypeKind {
-	return schema.UnionKind
+func (u *Union) GetKind() TypeKind {
+	return UnionKind
 }
 
-func (u *Union) GetMembers() []schema.Type {
+func (u *Union) GetMembers() []Type {
 	return u.Members
 }
 
-func (u *Union) GetDirectives() []schema.Directive {
+func (u *Union) GetDirectives() []*Directive {
 	return u.Directives
 }
 
-func (u *Union) Resolve(ctx context.Context, v interface{}) schema.ObjectType {
+func (u *Union) Resolve(ctx context.Context, v interface{}) *Object {
 	return u.TypeResolver(ctx, v)
 }
 
-var _ schema.UnionType = &Union{}
+// var _ UnionType = &Union{}

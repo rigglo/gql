@@ -1,14 +1,12 @@
 package gql
 
-import "github.com/rigglo/gql/pkg/schema"
-
-type Directives []schema.Directive
+type Directives []*Directive
 
 type Directive struct {
 	Description string
 	Name        string
 	Arguments   Arguments
-	Locations   []schema.DirectiveLocation
+	Locations   []DirectiveLocation
 }
 
 func (d *Directive) GetDescription() string {
@@ -19,36 +17,38 @@ func (d *Directive) GetName() string {
 	return d.Name
 }
 
-func (d *Directive) GetArguments() []schema.Argument {
+func (d *Directive) GetArguments() []*Argument {
 	return d.Arguments
 }
 
-func (d *Directive) GetLocations() []schema.DirectiveLocation {
+func (d *Directive) GetLocations() []DirectiveLocation {
 	return d.Locations
 }
 
+type DirectiveLocation string
+
 const (
 	// Executable directive locations
-	QueryLoc              schema.DirectiveLocation = "QUERY"
-	MutationLoc           schema.DirectiveLocation = "MUTATION"
-	SubscriptionLoc       schema.DirectiveLocation = "SUBSCRIPTION"
-	FieldLoc              schema.DirectiveLocation = "FIELD"
-	FragmentDefinitionLoc schema.DirectiveLocation = "FRAGMENT_DEFINITION"
-	FragmentSpreadLoc     schema.DirectiveLocation = "FRAGMENT_SPREAD"
-	InlineFragmentLoc     schema.DirectiveLocation = "INLINE_FRAGMENT"
+	QueryLoc              DirectiveLocation = "QUERY"
+	MutationLoc           DirectiveLocation = "MUTATION"
+	SubscriptionLoc       DirectiveLocation = "SUBSCRIPTION"
+	FieldLoc              DirectiveLocation = "FIELD"
+	FragmentDefinitionLoc DirectiveLocation = "FRAGMENT_DEFINITION"
+	FragmentSpreadLoc     DirectiveLocation = "FRAGMENT_SPREAD"
+	InlineFragmentLoc     DirectiveLocation = "INLINE_FRAGMENT"
 
 	// Type System directive locations
-	SchemaLoc               schema.DirectiveLocation = "SCHEMA"
-	ScalarLoc               schema.DirectiveLocation = "SCALAR"
-	ObjectLoc               schema.DirectiveLocation = "OBJECT"
-	FieldDefinitionLoc      schema.DirectiveLocation = "FIELD_DEFINITION"
-	ArgumentDefinitionLoc   schema.DirectiveLocation = "ARGUMENT_DEFINITION"
-	InterfaceLoc            schema.DirectiveLocation = "INTERFACE"
-	UnionLoc                schema.DirectiveLocation = "UNION"
-	EnumLoc                 schema.DirectiveLocation = "ENUM"
-	EnumValueLoc            schema.DirectiveLocation = "ENUM_VALUE"
-	InputObjectLoc          schema.DirectiveLocation = "INPUT_OBJECT"
-	InputFieldDefinitionLoc schema.DirectiveLocation = "INPUT_FIELD_DEFINITION"
+	SchemaLoc               DirectiveLocation = "SCHEMA"
+	ScalarLoc               DirectiveLocation = "SCALAR"
+	ObjectLoc               DirectiveLocation = "OBJECT"
+	FieldDefinitionLoc      DirectiveLocation = "FIELD_DEFINITION"
+	ArgumentDefinitionLoc   DirectiveLocation = "ARGUMENT_DEFINITION"
+	InterfaceLoc            DirectiveLocation = "INTERFACE"
+	UnionLoc                DirectiveLocation = "UNION"
+	EnumLoc                 DirectiveLocation = "ENUM"
+	EnumValueLoc            DirectiveLocation = "ENUM_VALUE"
+	InputObjectLoc          DirectiveLocation = "INPUT_OBJECT"
+	InputFieldDefinitionLoc DirectiveLocation = "INPUT_FIELD_DEFINITION"
 )
 
 var DepricatiedDirective *Directive = &Directive{
@@ -60,10 +60,10 @@ var DepricatiedDirective *Directive = &Directive{
 			Description: "Reason of the deprication",
 		},
 	},
-	Locations: []schema.DirectiveLocation{
+	Locations: []DirectiveLocation{
 		FieldDefinitionLoc,
 		EnumValueLoc,
 	},
 }
 
-var _ schema.Directive = DepricatiedDirective
+// var _ Directive = DepricatiedDirective

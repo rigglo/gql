@@ -43,7 +43,7 @@ func main() {
 			}
 		}
 		`,
-		Variables: map[string]interface{}{},
+		Variables: "",
 	})
 	bs, _ := json.MarshalIndent(res, "", "  ")
 	log.Printf("%s\n", string(bs))
@@ -127,7 +127,7 @@ var (
 				Name: "someErr",
 				Type: gql.NewList(CatOrDogUnion),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return nil, gql.NewError("asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
+					return nil, gql.NewError(ctx, "asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
 				},
 			},
 		},
@@ -136,15 +136,15 @@ var (
 	DogCommandEnum = &gql.Enum{
 		Name: "DogCommand",
 		Values: gql.EnumValues{
-			"SIT": &gql.EnumValue{
+			"SIT": gql.EnumValue{
 				Value:       "SIT",
 				Description: "SIT",
 			},
-			"DOWN": &gql.EnumValue{
+			"DOWN": gql.EnumValue{
 				Value:       "DOWN",
 				Description: "DOWN",
 			},
-			"HEEL": &gql.EnumValue{
+			"HEEL": gql.EnumValue{
 				Value:       "HEEL",
 				Description: "HEEL",
 			},
@@ -211,7 +211,7 @@ var (
 				Type: gql.NewNonNull(gql.String),
 			},
 		},
-		TypeResolver: func(ctx context.Context, r interface{}) gql.ObjectType {
+		TypeResolver: func(ctx context.Context, r interface{}) *gql.Object {
 			if _, ok := r.(Dog); ok {
 				return DogType
 			}
@@ -248,7 +248,7 @@ var (
 	CatCommandEnum = &gql.Enum{
 		Name: "CatCommand",
 		Values: gql.EnumValues{
-			"JUMP": &gql.EnumValue{
+			"JUMP": gql.EnumValue{
 				Value:       "JUMP",
 				Description: "JUMP",
 			},
@@ -286,7 +286,7 @@ var (
 	CatOrDogUnion = &gql.Union{
 		Name:    "CatOrDog",
 		Members: gql.Members{CatType, DogType},
-		TypeResolver: func(ctx context.Context, r interface{}) gql.ObjectType {
+		TypeResolver: func(ctx context.Context, r interface{}) *gql.Object {
 			if _, ok := r.(Dog); ok {
 				return DogType
 			}

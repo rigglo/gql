@@ -1,4 +1,4 @@
-package schema
+package gql
 
 import (
 	"fmt"
@@ -29,20 +29,12 @@ func validate(ctx *eCtx) {
 		// 5.3 - Fields
 		switch o.OperationType {
 		case ast.Query:
-			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(Schema).GetRootQuery())
+			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootQuery())
 		case ast.Mutation:
-			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(Schema).GetRootMutation())
+			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootMutation())
 		}
 		// validateSelectionSet(ctx, o)
 	}
-}
-
-// unwrapper unwraps Type t, until it results in a real type, one of (scalar, enum, interface, union or an object)
-func unwrapper(t Type) Type {
-	if w, ok := t.(WrappingType); ok {
-		return unwrapper(w.Unwrap())
-	}
-	return t
 }
 
 func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
@@ -61,7 +53,7 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
 func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 	// types := ctx.Get(keyTypes).(map[string]Type)
 
-	fieldsForName := collectFields(ctx, t.(ObjectType), set, []string{})
+	fieldsForName := collectFields(ctx, t.(*Object), set, []string{})
 	for _, fields := range fieldsForName {
 		if len(fields) > 1 {
 			for i := 1; i < len(fields); i++ {
@@ -96,7 +88,7 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrResponseShapeMismatch, "arguments don't match"), nil))
 					}
 					mergedSet := append(fields[0].SelectionSet, fields[1].SelectionSet...)
-					fieldsInSetCanMerge(ctx, mergedSet, getFieldOfFields(fields[0].Name, pa.(HasFields).GetFields()).GetType())
+					fieldsInSetCanMerge(ctx, mergedSet, getFieldOfFields(fields[0].Name, pa.(hasFields).GetFields()).GetType())
 				}
 			}
 		}
@@ -118,16 +110,16 @@ func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, t Type) bool {
 			if typeA.GetKind() != NonNullKind || typeB.GetKind() != NonNullKind {
 				return false
 			}
-			typeA = typeA.(NonNull).Unwrap()
-			typeB = typeB.(NonNull).Unwrap()
+			typeA = typeA.(*NonNull).Unwrap()
+			typeB = typeB.(*NonNull).Unwrap()
 		}
 
 		if typeA.GetKind() == ListKind || typeB.GetKind() == ListKind {
 			if typeA.GetKind() != ListKind || typeB.GetKind() != ListKind {
 				return false
 			}
-			typeA = typeA.(List).Unwrap()
-			typeB = typeB.(List).Unwrap()
+			typeA = typeA.(*List).Unwrap()
+			typeB = typeB.(*List).Unwrap()
 			continue
 		}
 		break
@@ -146,7 +138,7 @@ func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, t Type) bool {
 	}
 
 	mergedSet := append(fa.SelectionSet, fb.SelectionSet...)
-	fieldsForName := collectFields(ctx, typeA.(ObjectType), mergedSet, []string{})
+	fieldsForName := collectFields(ctx, typeA.(*Object), mergedSet, []string{})
 	for _, fields := range fieldsForName {
 		if len(fields) > 1 {
 			for i := 1; i < len(fields); i++ {
@@ -177,7 +169,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 				validateMetaField(ctx, f, t)
 			} else {
 				// check if the type 't' is an Object
-				if o, ok := t.(ObjectType); ok {
+				if o, ok := t.(*Object); ok {
 					ok = false
 					for _, tf := range o.GetFields() {
 
@@ -207,7 +199,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 					if !ok {
 						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil))
 					}
-				} else if i, ok := t.(InterfaceType); ok {
+				} else if i, ok := t.(*Interface); ok {
 					ok = false
 					for _, tf := range i.GetFields() {
 
@@ -237,7 +229,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 					if !ok {
 						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil))
 					}
-				} else if _, ok := t.(UnionType); ok {
+				} else if _, ok := t.(*Union); ok {
 					// TODO: add error, that field selection on Union type does not supported (only fragments)
 				} else {
 					// TODO: add error ..

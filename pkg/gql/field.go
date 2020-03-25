@@ -4,11 +4,9 @@ import (
 	"context"
 	"reflect"
 	"strings"
-
-	"github.com/rigglo/gql/pkg/schema"
 )
 
-type Fields []schema.Field
+type Fields []*Field
 
 func (fs Fields) Add(f *Field) {
 	fs = append(fs, f)
@@ -33,15 +31,15 @@ func (f *Field) GetName() string {
 	return f.Name
 }
 
-func (f *Field) GetArguments() []schema.Argument {
+func (f *Field) GetArguments() []*Argument {
 	return f.Arguments
 }
 
-func (f *Field) GetType() schema.Type {
+func (f *Field) GetType() Type {
 	return f.Type
 }
 
-func (f *Field) GetDirectives() []schema.Directive {
+func (f *Field) GetDirectives() []*Directive {
 	return f.Directives
 }
 
@@ -52,7 +50,7 @@ func (f *Field) Resolve(ctx context.Context, parent interface{}, args map[string
 	return f.Resolver(ctx, parent, args)
 }
 
-var _ schema.Field = &Field{}
+// var _ schema.Field = &Field{}
 
 func defaultResolver(fname string) Resolver {
 	return func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
@@ -72,6 +70,7 @@ func defaultResolver(fname string) Resolver {
 	}
 }
 
+/*
 type Error struct {
 	Message    string
 	Extensions map[string]interface{}
@@ -94,4 +93,4 @@ func NewError(msg string, extensions map[string]interface{}) *Error {
 		Message:    msg,
 		Extensions: extensions,
 	}
-}
+} */
