@@ -6,11 +6,10 @@ import (
 	"net/http"
 
 	"github.com/rigglo/gql/pkg/gql"
-	"github.com/rigglo/gql/pkg/schema"
 )
 
 type Config struct {
-	schema gql.Schema
+	schema *gql.Schema
 }
 
 func New(c Config) http.Handler {
@@ -24,11 +23,11 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var params *schema.ExecuteParams
+	var params *gql.ExecuteParams
 	switch r.Method {
 	case http.MethodGet:
 		{
-			params = &schema.ExecuteParams{
+			params = &gql.ExecuteParams{
 				Query:         r.URL.Query().Get("query"),
 				Variables:     r.URL.Query().Get("variables"),
 				OperationName: r.URL.Query().Get("operationName"),
@@ -36,7 +35,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if params != nil {
-		bs, err := json.MarshalIndent(schema.Execute(r.Context(), h.conf.schema, *p), "", "\t")
+		bs, err := json.MarshalIndent(gql.Execute(r.Context(), h.conf.schema, *params), "", "\t")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

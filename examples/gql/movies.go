@@ -25,12 +25,7 @@ func main() {
 			}
 			foo(asd: {asd: "bar"}, bar: $barVar)
 		}`,
-		Variables: map[string]interface{}{
-			"_barVar": "fooska",
-			"barVarasd": map[string]interface{}{
-				"asd": "barvar",
-			},
-		},
+		Variables: "",
 	})
 	bs, _ := json.MarshalIndent(res, "", "  ")
 	fmt.Printf("%s\n", string(bs))

@@ -95,15 +95,15 @@ func init() {
 	episodeEnum := &gql.Enum{
 		Name: "Episode",
 		Values: gql.EnumValues{
-			"NEWHOPE": &gql.EnumValue{
+			"NEWHOPE": gql.EnumValue{
 				Value:       4,
 				Description: "Released in 1977",
 			},
-			"EMPIRE": &gql.EnumValue{
+			"EMPIRE": gql.EnumValue{
 				Value:       5,
 				Description: "Released in 1980",
 			},
-			"JEDI": &gql.EnumValue{
+			"JEDI": gql.EnumValue{
 				Value:       6,
 				Description: "Released in 1983",
 			},
@@ -127,7 +127,7 @@ func init() {
 				Type: gql.NewList(episodeEnum),
 			},
 		},
-		TypeResolver: func(ctx context.Context, value interface{}) gql.ObjectType {
+		TypeResolver: func(ctx context.Context, value interface{}) *gql.Object {
 			if c, ok := value.(StarWarsChar); ok {
 				id, _ := strconv.Atoi(c.ID)
 				human := GetHuman(id)
