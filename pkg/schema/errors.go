@@ -29,9 +29,9 @@ func NewError(ctx context.Context, msg string, extensions map[string]interface{}
 	}
 }
 
-type DetailedError interface {
-	Error() string
-	Extensions() map[string]interface{}
+type CustomError interface {
+	GetMessage() string
+	GetExtensions() map[string]interface{}
 }
 
 const (

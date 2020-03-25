@@ -73,21 +73,25 @@ func defaultResolver(fname string) Resolver {
 }
 
 type Error struct {
-	Err  string
-	Data map[string]interface{}
+	Message    string
+	Extensions map[string]interface{}
 }
 
 func (e *Error) Error() string {
-	return e.Err
+	return e.Message
 }
 
-func (e *Error) Extensions() map[string]interface{} {
-	return e.Data
+func (e *Error) GetMessage() string {
+	return e.Message
 }
 
-func NewError(msg string, data map[string]interface{}) *Error {
+func (e *Error) GetExtensions() map[string]interface{} {
+	return e.Extensions
+}
+
+func NewError(msg string, extensions map[string]interface{}) *Error {
 	return &Error{
-		Err:  msg,
-		Data: data,
+		Message:    msg,
+		Extensions: extensions,
 	}
 }

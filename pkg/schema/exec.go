@@ -394,9 +394,9 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot Object
 	f := getFieldOfFields(fn, ot.GetFields())
 	v, err := f.Resolve(ctx, ov, args)
 	if err != nil {
-		if e, ok := err.(DetailedError); ok {
+		if e, ok := err.(CustomError); ok {
 			ctx.res.addErr(&Error{
-				Message: e.Error(),
+				Message: e.GetMessage(),
 				Path:    path,
 				Locations: []*ErrorLocation{
 					&ErrorLocation{
@@ -404,7 +404,7 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot Object
 						Line:   fast.Location.Line,
 					},
 				},
-				Extensions: e.Extensions(),
+				Extensions: e.GetExtensions(),
 			})
 		} else {
 			ctx.res.addErr(&Error{
