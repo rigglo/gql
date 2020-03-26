@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 	"sync"
@@ -195,7 +194,7 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 		fieldName := fields[0].Name
 
 		if strings.HasPrefix(fieldName, "__") {
-			resolveMetaFields(ctx, fields[0], ot, resMap)
+			resolveMetaFields(ctx, fields, ot, resMap)
 			continue
 		}
 
@@ -422,7 +421,6 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 		}
 		return nil, fmt.Errorf("invalid value on a Scalar type")
 	case t.GetKind() == InputObjectKind:
-		log.Printf("%+v, %+v", val, t)
 		res := map[string]interface{}{}
 		ov, ok := val.(*ast.ObjectValue)
 		if !ok {
@@ -478,10 +476,12 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 	return nil, errors.New("invalid value to coerce")
 }
 
-func resolveMetaFields(ctx *eCtx, f *ast.Field, t Type, res map[string]interface{}) {
-	switch f.Name {
+func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type, res map[string]interface{}) {
+	switch fs[0].Name {
 	case "__typename":
-		res[f.Alias] = t.GetName()
+		res[fs[0].Alias] = t.GetName()
+	case "__schema":
+		res[fs[0].Alias] = completeValue(ctx, []interface{}{}, schemaIntrospection, fs, true)
 	}
 }
 
@@ -578,6 +578,7 @@ func getTypes(s *Schema) map[string]Type {
 	types := map[string]Type{}
 	typeWalker(types, s.GetRootQuery())
 	typeWalker(types, s.GetRootMutation())
+	addIntrospectionTypes(types)
 	return types
 }
 
@@ -604,6 +605,9 @@ func typeWalker(types map[string]Type, t Type) {
 	}
 	if hf, ok := t.(hasFields); ok {
 		for _, f := range hf.GetFields() {
+			for _, arg := range f.GetArguments() {
+				typeWalker(types, arg.Type)
+			}
 			typeWalker(types, f.GetType())
 		}
 	} else if u, ok := wt.(*Union); ok {

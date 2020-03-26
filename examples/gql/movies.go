@@ -2,17 +2,28 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
+	"net/http"
+
+	"github.com/rigglo/gql/pkg/handler"
 
 	"github.com/rigglo/gql/pkg/gql"
 )
 
 func main() {
-	res := BlockBusters.Exec(context.Background(), gql.Params{
-		OperationName: "myOp",
+	h := handler.New(handler.Config{
+		Schema: BlockBusters,
+	})
+	/* res := BlockBusters.Exec(context.Background(), gql.Params{
+		OperationName: "introspection",
 		Query: `
+		query introspection {
+			__schema {
+				queryType {
+					name
+				}
+			}
+		}
 		query myOp($barVar: String = "foo") {
 			top_movies {
 				__typename
@@ -28,8 +39,12 @@ func main() {
 		Variables: "",
 	})
 	bs, _ := json.MarshalIndent(res, "", "  ")
-	fmt.Printf("%s\n", string(bs))
+	fmt.Printf("%s\n", string(bs)) */
 	//fmt.Printf("%+v", res)
+	http.Handle("/graphql", h)
+	if err := http.ListenAndServe(":9999", nil); err != nil {
+		log.Println(err)
+	}
 }
 
 type Movie struct {
@@ -39,7 +54,8 @@ type Movie struct {
 
 var (
 	BlockBusters = &gql.Schema{
-		Query: Query,
+		Query:    Query,
+		Mutation: Query,
 	}
 
 	FooInput = &gql.InputObject{
@@ -116,11 +132,9 @@ var (
 				Description: "title of the movie",
 			},
 			&gql.Field{
-				Name: "name",
-				Type: gql.String,
-				Directives: gql.Directives{
-					gql.DepricatiedDirective,
-				},
+				Name:        "name",
+				Type:        gql.String,
+				Directives:  gql.Directives{},
 				Description: "name of the movie",
 			},
 		},

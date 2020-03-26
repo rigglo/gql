@@ -51,13 +51,13 @@ const (
 	InputFieldDefinitionLoc DirectiveLocation = "INPUT_FIELD_DEFINITION"
 )
 
-var DepricatiedDirective *Directive = &Directive{
-	Name: "depricated",
+var DeprecatedDirective *Directive = &Directive{
+	Name: "deprecated",
 	Arguments: Arguments{
 		&Argument{
 			Name:        "reason",
 			Type:        String,
-			Description: "Reason of the deprication",
+			Description: "Reason of the deprecation",
 		},
 	},
 	Locations: []DirectiveLocation{
@@ -66,4 +66,13 @@ var DepricatiedDirective *Directive = &Directive{
 	},
 }
 
-// var _ Directive = DepricatiedDirective
+type Skip struct {
+	*Directive
+	Func string
+}
+
+func asd() {
+
+}
+
+// var _ Directive = DeprecatedDirective

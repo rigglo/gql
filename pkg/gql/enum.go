@@ -34,6 +34,7 @@ func (e *Enum) GetValues() map[string]EnumValue {
 type EnumValues map[string]EnumValue
 
 type EnumValue struct {
+	name        string
 	Description string
 	Directives  Directives
 	Value       interface{}
