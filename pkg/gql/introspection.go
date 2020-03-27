@@ -2,7 +2,6 @@ package gql
 
 import (
 	"context"
-	"log"
 )
 
 func init() {
@@ -331,8 +330,7 @@ var (
 					} else if v, ok := parent.(*InputField); ok {
 						return v.Name, nil
 					}
-					log.Printf("%+v", parent)
-					return "nil", nil
+					return nil, nil
 				},
 			},
 			&Field{
