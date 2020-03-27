@@ -95,15 +95,18 @@ func init() {
 	episodeEnum := &gql.Enum{
 		Name: "Episode",
 		Values: gql.EnumValues{
-			"NEWHOPE": gql.EnumValue{
+			&gql.EnumValue{
+				Name:        "NEWHOPE",
 				Value:       4,
 				Description: "Released in 1977",
 			},
-			"EMPIRE": gql.EnumValue{
+			&gql.EnumValue{
+				Name:        "EMPIRE",
 				Value:       5,
 				Description: "Released in 1980",
 			},
-			"JEDI": gql.EnumValue{
+			&gql.EnumValue{
+				Name:        "JEDI",
 				Value:       6,
 				Description: "Released in 1983",
 			},

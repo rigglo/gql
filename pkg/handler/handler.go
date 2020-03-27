@@ -36,8 +36,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		{
 			params = &gql.ExecuteParams{
-				Query:         r.URL.Query().Get("query"),
-				Variables:     r.URL.Query().Get("variables"),
+				Query:         html.UnescapeString(r.URL.Query().Get("query")),
+				Variables:     html.UnescapeString(r.URL.Query().Get("variables")),
 				OperationName: r.URL.Query().Get("operationName"),
 			}
 		}

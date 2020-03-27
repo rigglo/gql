@@ -427,19 +427,19 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 			return nil, fmt.Errorf("Invalid input object value")
 		}
 		o := t.(*InputObject)
-		for name, field := range o.GetFields() {
-			astf, ok := ov.Fields[name]
+		for _, field := range o.GetFields() {
+			astf, ok := ov.Fields[field.Name]
 			if !ok && field.IsDefaultValueSet() {
-				res[name] = field.GetDefaultValue()
+				res[field.Name] = field.GetDefaultValue()
 			} else if !ok && field.GetType().GetKind() == NonNullKind {
 				return nil, fmt.Errorf("No value provided for NonNull type")
 			}
 			if astf.Value.Kind() == ast.NullValueKind && field.GetType().GetKind() != NonNullKind {
-				res[name] = nil
+				res[field.Name] = nil
 			}
 			if astf.Value.Kind() != ast.VariableValueKind {
 				if fv, err := coerceValue(ctx, astf.Value, field.GetType()); err == nil {
-					res[name] = fv
+					res[field.Name] = fv
 				} else {
 					return nil, err
 				}
@@ -449,7 +449,7 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 				if ok && varVal == nil && field.GetType().GetKind() == NonNullKind {
 					return nil, fmt.Errorf("null value on NonNull type")
 				} else if ok {
-					res[name] = varVal
+					res[field.Name] = varVal
 				}
 				if !ok {
 					op := ctx.Get(keyOperation).(*ast.Operation)
@@ -460,10 +460,10 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 						if err != nil {
 							return nil, err
 						}
-						res[name] = defVal
+						res[field.Name] = defVal
 					} else {
 						if field.IsDefaultValueSet() {
-							res[name] = field.GetDefaultValue()
+							res[field.Name] = field.GetDefaultValue()
 						}
 					}
 				}
@@ -482,6 +482,8 @@ func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type, res map[string]interf
 		res[fs[0].Alias] = t.GetName()
 	case "__schema":
 		res[fs[0].Alias] = completeValue(ctx, []interface{}{}, schemaIntrospection, fs, true)
+	case "__type":
+		res[fs[0].Alias] = executeField(ctx, []interface{}{}, introspectionQuery, nil, typeIntrospection, fs)
 	}
 }
 
@@ -550,9 +552,9 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		return res
 	} else if ft.GetKind() == EnumKind {
 		// Step 4.2 - coerce Enum value
-		for name, ev := range ft.(*Enum).GetValues() {
+		for _, ev := range ft.(*Enum).GetValues() {
 			if ev.GetValue() == result {
-				return name
+				return ev.Name
 			}
 		}
 		ctx.res.addErr(&Error{Message: "invalid result", Path: path})

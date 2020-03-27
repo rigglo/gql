@@ -47,6 +47,10 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
 		{
 			// TODO: validate meta fields
 		}
+	case "__type":
+		{
+			// TODO: validate meta fields
+		}
 	default:
 		{
 			ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil))

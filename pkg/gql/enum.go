@@ -23,7 +23,7 @@ func (e *Enum) GetKind() TypeKind {
 	return EnumKind
 }
 
-func (e *Enum) GetValues() map[string]EnumValue {
+func (e *Enum) GetValues() []*EnumValue {
 	return e.Values
 }
 
@@ -31,10 +31,10 @@ func (e *Enum) GetValues() map[string]EnumValue {
 
 // var _ EnumType = &Enum{}
 
-type EnumValues map[string]EnumValue
+type EnumValues []*EnumValue
 
 type EnumValue struct {
-	name        string
+	Name        string
 	Description string
 	Directives  Directives
 	Value       interface{}

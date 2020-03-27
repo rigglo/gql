@@ -1,6 +1,9 @@
 package gql
 
-import "context"
+import (
+	"context"
+	"log"
+)
 
 func init() {
 	typeIntrospection.AddFields(
@@ -76,15 +79,31 @@ func addIntrospectionTypes(types map[string]Type) {
 }
 
 var (
-	introspectionQueryies = map[string]*Field{
-		"__schema": &Field{
-			Name: "__schema",
-			Type: NewNonNull(schemaIntrospection),
-			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				return nil, nil
+	introspectionQuery = &Object{
+		Fields: Fields{
+			&Field{
+				Name: "__schema",
+				Type: NewNonNull(schemaIntrospection),
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					return nil, nil
+				},
+			},
+			&Field{
+				Name: "__type",
+				Type: typeIntrospection,
+				Arguments: Arguments{
+					&Argument{
+						Name: "name",
+						Type: NewNonNull(String),
+					},
+				},
+				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					ectx := ctx.(*eCtx)
+					ts := ectx.Get(keyTypes).(map[string]Type)
+					return ts[args["name"].(string)], nil
+				},
 			},
 		},
-		"__type": &Field{},
 	}
 
 	schemaIntrospection = &Object{
@@ -218,12 +237,7 @@ var (
 				Type: NewList(NewNonNull(enumValueIntrospection)),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					if parent.(Type).GetKind() == EnumKind {
-						fs := []EnumValue{}
-						for name, f := range parent.(*Enum).GetValues() {
-							f.name = name
-							fs = append(fs, f)
-						}
-						return fs, nil
+						return parent.(*Enum).GetValues(), nil
 					}
 					return nil, nil
 				},
@@ -308,9 +322,16 @@ var (
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(EnumValue); ok {
-						return v, nil
+					if v, ok := parent.(*EnumValue); ok {
+						return v.Name, nil
+					} else if v, ok := parent.(*Argument); ok {
+						return v.Name, nil
+					} else if v, ok := parent.(*Scalar); ok {
+						return v.Name, nil
+					} else if v, ok := parent.(*InputField); ok {
+						return v.Name, nil
 					}
+					log.Printf("%+v", parent)
 					return "nil", nil
 				},
 			},
@@ -344,8 +365,8 @@ var (
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(EnumValue); ok {
-						return v.name, nil
+					if v, ok := parent.(*EnumValue); ok {
+						return v.Name, nil
 					}
 					return nil, nil
 				},
@@ -354,7 +375,7 @@ var (
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(EnumValue); ok {
+					if v, ok := parent.(*EnumValue); ok {
 						return v.Description, nil
 					}
 					return nil, nil
@@ -386,28 +407,36 @@ var (
 	typeKindIntrospection = &Enum{
 		Name: "__TypeKind",
 		Values: EnumValues{
-			"SCALAR": EnumValue{
+			&EnumValue{
+				Name:  "SCALAR",
 				Value: "SCALAR",
 			},
-			"OBJECT": EnumValue{
+			&EnumValue{
+				Name:  "OBJECT",
 				Value: "OBJECT",
 			},
-			"INTERFACE": EnumValue{
+			&EnumValue{
+				Name:  "INTERFACE",
 				Value: "INTERFACE",
 			},
-			"UNION": EnumValue{
+			&EnumValue{
+				Name:  "UNION",
 				Value: "UNION",
 			},
-			"ENUM": EnumValue{
+			&EnumValue{
+				Name:  "ENUM",
 				Value: "ENUM",
 			},
-			"INPUT_OBJECT": EnumValue{
+			&EnumValue{
+				Name:  "INPUT_OBJECT",
 				Value: "INPUT_OBJECT",
 			},
-			"LIST": EnumValue{
+			&EnumValue{
+				Name:  "LIST",
 				Value: "LIST",
 			},
-			"NON_NULL": EnumValue{
+			&EnumValue{
+				Name:  "NON_NULL",
 				Value: "NON_NULL",
 			},
 		},
@@ -462,58 +491,76 @@ var (
 	directiveLocationIntrospection = &Enum{
 		Name: "__DirectiveLocation",
 		Values: EnumValues{
-			"QUERY": EnumValue{
+			&EnumValue{
+				Name:  "QUERY",
 				Value: "QUERY",
 			},
-			"MUTATION": EnumValue{
+			&EnumValue{
+				Name:  "MUTATION",
 				Value: "MUTATION",
 			},
-			"SUBSCRIPTION": EnumValue{
+			&EnumValue{
+				Name:  "SUBSCRIPTION",
 				Value: "SUBSCRIPTION",
 			},
-			"FIELD": EnumValue{
+			&EnumValue{
+				Name:  "FIELD",
 				Value: "FIELD",
 			},
-			"FRAGMENT_DEFINITION": EnumValue{
+			&EnumValue{
+				Name:  "FRAGMENT_DEFINITION",
 				Value: "FRAGMENT_DEFINITION",
 			},
-			"FRAGMENT_SPREAD": EnumValue{
+			&EnumValue{
+				Name:  "FRAGMENT_SPREAD",
 				Value: "FRAGMENT_SPREAD",
 			},
-			"INLINE_FRAGMENT": EnumValue{
+			&EnumValue{
+				Name:  "INLINE_FRAGMENT",
 				Value: "INLINE_FRAGMENT",
 			},
-			"SCHEMA": EnumValue{
+			&EnumValue{
+				Name:  "SCHEMA",
 				Value: "SCHEMA",
 			},
-			"SCALAR": EnumValue{
+			&EnumValue{
+				Name:  "SCALAR",
 				Value: "SCALAR",
 			},
-			"OBJECT": EnumValue{
+			&EnumValue{
+				Name:  "OBJECT",
 				Value: "OBJECT",
 			},
-			"FIELD_DEFINITION": EnumValue{
+			&EnumValue{
+				Name:  "FIELD_DEFINITION",
 				Value: "FIELD_DEFINITION",
 			},
-			"ARGUMENT_DEFINITION": EnumValue{
+			&EnumValue{
+				Name:  "ARGUMENT_DEFINITION",
 				Value: "ARGUMENT_DEFINITION",
 			},
-			"INTERFACE": EnumValue{
+			&EnumValue{
+				Name:  "INTERFACE",
 				Value: "INTERFACE",
 			},
-			"UNION": EnumValue{
+			&EnumValue{
+				Name:  "UNION",
 				Value: "UNION",
 			},
-			"ENUM": EnumValue{
+			&EnumValue{
+				Name:  "ENUM",
 				Value: "ENUM",
 			},
-			"ENUM_VALUE": EnumValue{
+			&EnumValue{
+				Name:  "ENUM_VALUE",
 				Value: "ENUM_VALUE",
 			},
-			"INPUT_OBJECT": EnumValue{
+			&EnumValue{
+				Name:  "INPUT_OBJECT",
 				Value: "INPUT_OBJECT",
 			},
-			"INPUT_FIELD_DEFINITION": EnumValue{
+			&EnumValue{
+				Name:  "INPUT_FIELD_DEFINITION",
 				Value: "INPUT_FIELD_DEFINITION",
 			},
 		},

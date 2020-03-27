@@ -58,7 +58,7 @@ func (o *InputObject) GetDirectives() []*Directive {
 	return o.Directives
 }
 
-func (o *InputObject) GetFields() map[string]*InputField {
+func (o *InputObject) GetFields() []*InputField {
 	return o.Fields
 }
 
@@ -70,7 +70,7 @@ type InputField struct {
 	Directives   Directives
 }
 
-type InputFields map[string]*InputField
+type InputFields []*InputField
 
 func (o *InputField) GetDescription() string {
 	return o.Description

@@ -136,15 +136,18 @@ var (
 	DogCommandEnum = &gql.Enum{
 		Name: "DogCommand",
 		Values: gql.EnumValues{
-			"SIT": gql.EnumValue{
+			&gql.EnumValue{
+				Name:        "SIT",
 				Value:       "SIT",
-				Description: "SIT",
+				Description: "SIT command, usually the dog would sit to this command",
 			},
-			"DOWN": gql.EnumValue{
+			&gql.EnumValue{
+				Name:        "DOWN",
 				Value:       "DOWN",
 				Description: "DOWN",
 			},
-			"HEEL": gql.EnumValue{
+			&gql.EnumValue{
+				Name:        "HEEL",
 				Value:       "HEEL",
 				Description: "HEEL",
 			},
@@ -248,7 +251,8 @@ var (
 	CatCommandEnum = &gql.Enum{
 		Name: "CatCommand",
 		Values: gql.EnumValues{
-			"JUMP": gql.EnumValue{
+			&gql.EnumValue{
+				Name:        "JUMP",
 				Value:       "JUMP",
 				Description: "JUMP",
 			},
