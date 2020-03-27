@@ -2,14 +2,11 @@ package gql
 
 import (
 	"context"
-	"log"
 	"reflect"
 	"strings"
-
-	"github.com/rigglo/gql/pkg/schema"
 )
 
-type Fields []schema.Field
+type Fields []*Field
 
 func (fs Fields) Add(f *Field) {
 	fs = append(fs, f)
@@ -34,15 +31,15 @@ func (f *Field) GetName() string {
 	return f.Name
 }
 
-func (f *Field) GetArguments() []schema.Argument {
+func (f *Field) GetArguments() []*Argument {
 	return f.Arguments
 }
 
-func (f *Field) GetType() schema.Type {
+func (f *Field) GetType() Type {
 	return f.Type
 }
 
-func (f *Field) GetDirectives() []schema.Directive {
+func (f *Field) GetDirectives() []*Directive {
 	return f.Directives
 }
 
@@ -53,7 +50,7 @@ func (f *Field) Resolve(ctx context.Context, parent interface{}, args map[string
 	return f.Resolver(ctx, parent, args)
 }
 
-var _ schema.Field = &Field{}
+// var _ schema.Field = &Field{}
 
 func defaultResolver(fname string) Resolver {
 	return func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
@@ -66,10 +63,34 @@ func defaultResolver(fname string) Resolver {
 			// TODO: check 'gql' tag first and if that does not exist, check 'json'
 			tag := field.Tag.Get("json")
 			if strings.Split(tag, ",")[0] == fname {
-				log.Printf("got appearsIn: %v", v.FieldByName(field.Name).Interface())
 				return v.FieldByName(field.Name).Interface(), nil
 			}
 		}
 		return nil, nil
 	}
 }
+
+/*
+type Error struct {
+	Message    string
+	Extensions map[string]interface{}
+}
+
+func (e *Error) Error() string {
+	return e.Message
+}
+
+func (e *Error) GetMessage() string {
+	return e.Message
+}
+
+func (e *Error) GetExtensions() map[string]interface{} {
+	return e.Extensions
+}
+
+func NewError(msg string, extensions map[string]interface{}) *Error {
+	return &Error{
+		Message:    msg,
+		Extensions: extensions,
+	}
+} */

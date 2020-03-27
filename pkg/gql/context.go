@@ -1,4 +1,4 @@
-package schema
+package gql
 
 import (
 	"context"
@@ -6,9 +6,7 @@ import (
 	"time"
 )
 
-type gqlCtxKey string
-
-type GqlContext interface {
+type gqlContext interface {
 	context.Context
 	Get(key string) interface{}
 	Set(key string, v interface{})
@@ -16,12 +14,14 @@ type GqlContext interface {
 }
 
 const (
-	keyRawQuery      string = "gql_rawQuery"
 	keyOperationName string = "gql_operation_name"
+	keyRawVariables  string = "gql_raw_variables"
 	keyVariables     string = "gql_variables"
+	keyRawQuery      string = "gql_raw_query"
 	keyQuery         string = "gql_query"
 	keySchema        string = "gql_schema"
 	keyOperation     string = "gql_operation"
+	keyTypes         string = "gql_types"
 )
 
 type eCtx struct {
@@ -78,4 +78,4 @@ func (c *eCtx) Delete(key string) {
 	delete(c.store, key)
 }
 
-var _ context.Context = &eCtx{}
+var _ context.Context = (*eCtx)(nil)

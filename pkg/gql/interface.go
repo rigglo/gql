@@ -2,11 +2,9 @@ package gql
 
 import (
 	"context"
-
-	"github.com/rigglo/gql/pkg/schema"
 )
 
-type Interfaces []schema.InterfaceType
+type Interfaces []*Interface
 
 type Interface struct {
 	Description  string
@@ -16,9 +14,9 @@ type Interface struct {
 	TypeResolver TypeResolver
 }
 
-type ObjectType schema.ObjectType
+// type ObjectType ObjectType
 
-type TypeResolver func(context.Context, interface{}) ObjectType
+type TypeResolver func(context.Context, interface{}) *Object
 
 func (i *Interface) GetDescription() string {
 	return i.Description
@@ -28,20 +26,20 @@ func (i *Interface) GetName() string {
 	return i.Name
 }
 
-func (i *Interface) GetKind() schema.TypeKind {
-	return schema.InterfaceKind
+func (i *Interface) GetKind() TypeKind {
+	return InterfaceKind
 }
 
-func (i *Interface) GetDirectives() []schema.Directive {
+func (i *Interface) GetDirectives() []*Directive {
 	return i.Directives
 }
 
-func (i *Interface) GetFields() []schema.Field {
+func (i *Interface) GetFields() []*Field {
 	return i.Fields
 }
 
-func (i *Interface) Resolve(ctx context.Context, v interface{}) schema.ObjectType {
+func (i *Interface) Resolve(ctx context.Context, v interface{}) *Object {
 	return i.TypeResolver(ctx, v)
 }
 
-var _ schema.InterfaceType = &Interface{}
+// var _ InterfaceType = &Interface{}

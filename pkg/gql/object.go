@@ -1,10 +1,12 @@
 package gql
 
-import "github.com/rigglo/gql/pkg/schema"
+import (
+	"reflect"
+)
 
 type Object struct {
-	Description string
-	Name        string
+	Description string `json:"description"`
+	Name        string `json:"name"`
 	Implements  Interfaces
 	Directives  Directives
 	Fields      Fields
@@ -18,18 +20,31 @@ func (o *Object) GetName() string {
 	return o.Name
 }
 
-func (o *Object) GetKind() schema.TypeKind {
-	return schema.ObjectKind
+func (o *Object) GetKind() TypeKind {
+	return ObjectKind
 }
 
-func (o *Object) GetInterfaces() []schema.InterfaceType {
+func (o *Object) GetInterfaces() []*Interface {
 	return o.Implements
 }
 
-func (o *Object) GetDirectives() []schema.Directive {
+func (o *Object) GetDirectives() []*Directive {
 	return o.Directives
 }
 
-func (o *Object) GetFields() []schema.Field {
+func (o *Object) GetFields() []*Field {
 	return o.Fields
+}
+
+func (o *Object) AddFields(fs ...*Field) {
+	o.Fields = append(o.Fields, fs...)
+}
+
+func (o *Object) DoesImplement(i *Interface) bool {
+	for _, in := range o.Implements {
+		if reflect.DeepEqual(i, in) {
+			return true
+		}
+	}
+	return false
 }

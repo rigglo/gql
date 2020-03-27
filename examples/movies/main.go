@@ -2,31 +2,49 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
+	"net/http"
+
+	"github.com/rigglo/gql/pkg/handler"
 
 	"github.com/rigglo/gql/pkg/gql"
 )
 
 func main() {
-	res := BlockBusters.Exec(context.Background(), gql.Params{
-		OperationName: "",
-		Query: `
-		query {
-			top_movies {
-				id
-				title
-			}
-			foo(asd: $bar)
-		}`,
-		Variables: map[string]interface{}{
-			"bar": "foobar",
-		},
+	h := handler.New(handler.Config{
+		Schema: BlockBusters,
 	})
-	bs, _ := json.Marshal(res)
-	fmt.Printf("%s\n", string(bs))
+	/* res := BlockBusters.Exec(context.Background(), gql.Params{
+		OperationName: "introspection",
+		Query: `
+		query introspection {
+			__schema {
+				queryType {
+					name
+				}
+			}
+		}
+		query myOp($barVar: String = "foo") {
+			top_movies {
+				__typename
+				... {
+					title
+					... {
+						id
+					}
+				}
+			}
+			foo(asd: {asd: "bar"}, bar: $barVar)
+		}`,
+		Variables: "",
+	})
+	bs, _ := json.MarshalIndent(res, "", "  ")
+	fmt.Printf("%s\n", string(bs)) */
 	//fmt.Printf("%+v", res)
+	http.Handle("/graphql", h)
+	if err := http.ListenAndServe(":9999", nil); err != nil {
+		log.Println(err)
+	}
 }
 
 type Movie struct {
@@ -36,7 +54,19 @@ type Movie struct {
 
 var (
 	BlockBusters = &gql.Schema{
-		Query: Query,
+		Query:    Query,
+		Mutation: Query,
+	}
+
+	FooInput = &gql.InputObject{
+		Name: "FooInput",
+		Fields: gql.InputFields{
+			&gql.InputField{
+				Name:         "asd",
+				Type:         gql.String,
+				DefaultValue: "defoocska",
+			},
+		},
 	}
 
 	Query = &gql.Object{
@@ -67,12 +97,16 @@ var (
 				Arguments: gql.Arguments{
 					&gql.Argument{
 						Name: "asd",
+						Type: FooInput,
+					},
+					&gql.Argument{
+						Name: "bar",
 						Type: gql.String,
 					},
 				},
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					log.Println(args)
-					return args["asd"], nil
+					return args["asd"].(map[string]interface{})["asd"], nil
 				},
 			},
 		},
@@ -86,6 +120,12 @@ var (
 				Name:        "id",
 				Type:        gql.String,
 				Description: "id of the movie",
+				Arguments: gql.Arguments{
+					&gql.Argument{
+						Name: "foo",
+						Type: gql.String,
+					},
+				},
 			},
 			&gql.Field{
 				Name:        "title",
@@ -93,11 +133,9 @@ var (
 				Description: "title of the movie",
 			},
 			&gql.Field{
-				Name: "name",
-				Type: gql.String,
-				Directives: gql.Directives{
-					gql.DepricatiedDirective,
-				},
+				Name:        "name",
+				Type:        gql.String,
+				Directives:  gql.Directives{},
 				Description: "name of the movie",
 			},
 		},

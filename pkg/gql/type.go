@@ -1,11 +1,22 @@
 package gql
 
-import "github.com/rigglo/gql/pkg/schema"
+type TypeKind uint
+
+const (
+	ScalarKind TypeKind = iota
+	ObjectKind
+	InterfaceKind
+	UnionKind
+	EnumKind
+	InputObjectKind
+	NonNullKind
+	ListKind
+)
 
 type Type interface {
 	GetName() string
 	GetDescription() string
-	GetKind() schema.TypeKind
+	GetKind() TypeKind
 }
 
 type List struct {
@@ -30,15 +41,15 @@ func (l *List) GetDescription() string {
 	return l.Description
 }
 
-func (l *List) GetKind() schema.TypeKind {
-	return schema.ListKind
+func (l *List) GetKind() TypeKind {
+	return ListKind
 }
 
-func (l *List) Unwrap() schema.Type {
+func (l *List) Unwrap() Type {
 	return l.Wrapped
 }
 
-var _ schema.List = &List{}
+// var _ schema.List = &List{}
 
 type NonNull struct {
 	Name        string
@@ -62,12 +73,12 @@ func (l *NonNull) GetDescription() string {
 	return l.Description
 }
 
-func (l *NonNull) GetKind() schema.TypeKind {
-	return schema.NonNullKind
+func (l *NonNull) GetKind() TypeKind {
+	return NonNullKind
 }
 
-func (l *NonNull) Unwrap() schema.Type {
+func (l *NonNull) Unwrap() Type {
 	return l.Wrapped
 }
 
-var _ schema.NonNull = &NonNull{}
+// var _ schema.NonNull = &NonNull{}

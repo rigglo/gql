@@ -36,7 +36,7 @@ const (
 type Operation struct {
 	OperationType OperationType
 	Name          string
-	Variables     []*Variable
+	Variables     map[string]*Variable
 	Directives    []*Directive
 	SelectionSet  []Selection
 	Location      Location
@@ -309,7 +309,7 @@ func (v *ListValue) Kind() ValueKind {
 }
 
 type ObjectValue struct {
-	Fields   []*ObjectFieldValue
+	Fields   map[string]*ObjectFieldValue
 	Location Location
 }
 

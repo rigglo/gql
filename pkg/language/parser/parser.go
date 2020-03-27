@@ -22,6 +22,18 @@ func Parse(query string) (lexer.Token, *ast.Document, error) {
 	return t, doc, err
 }
 
+func ParseValue(value string) (ast.Value, error) {
+	tokens := make(chan lexer.Token)
+	src := strings.NewReader(value)
+	readr := bufio.NewReader(src)
+	go lexer.Lex(readr, tokens)
+	t, val, err := parseValue(<-tokens, tokens)
+	if err != nil && t.Value == "" {
+		return nil, fmt.Errorf("unexpected EOF")
+	}
+	return val, err
+}
+
 func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) {
 	doc := ast.NewDocument()
 	var err error
@@ -139,7 +151,7 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 			token = <-tokens
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "(":
-			vs := []*ast.Variable{}
+			vs := map[string]*ast.Variable{}
 			token, vs, err = parseVariables(tokens)
 			if err != nil {
 				return token, nil, err
@@ -167,9 +179,9 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 	}
 }
 
-func parseVariables(tokens chan lexer.Token) (lexer.Token, []*ast.Variable, error) {
+func parseVariables(tokens chan lexer.Token) (lexer.Token, map[string]*ast.Variable, error) {
 	token := <-tokens
-	vs := []*ast.Variable{}
+	vs := map[string]*ast.Variable{}
 	var err error
 
 	for {
@@ -205,21 +217,24 @@ func parseVariables(tokens chan lexer.Token) (lexer.Token, []*ast.Variable, erro
 		}
 		v.Type = t
 
+		if token.Kind == lexer.PunctuatorToken && token.Value == "=" {
+			var dv ast.Value
+			token, dv, err = parseValue(<-tokens, tokens)
+			if err != nil {
+				return token, nil, err
+			}
+			v.DefaultValue = dv
+			vs[v.Name] = v
+		}
+
 		if token.Kind == lexer.PunctuatorToken && token.Value == "$" {
-			vs = append(vs, v)
+			vs[v.Name] = v
 			token = <-tokens
 			continue
 		} else if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
-			vs = append(vs, v)
+			vs[v.Name] = v
 			return <-tokens, vs, nil
 		}
-		var dv ast.Value
-		token, dv, err = parseValue(token, tokens)
-		if err != nil {
-			return token, nil, err
-		}
-		v.DefaultValue = dv
-		vs = append(vs, v)
 	}
 }
 
@@ -487,6 +502,7 @@ func parseObjectValue(tokens chan lexer.Token) (lexer.Token, *ast.ObjectValue, e
 	token := <-tokens
 	var err error
 	o := new(ast.ObjectValue)
+	o.Fields = map[string]*ast.ObjectFieldValue{}
 	for {
 		field := new(ast.ObjectFieldValue)
 		field.Location.Column = token.Col
@@ -510,7 +526,7 @@ func parseObjectValue(tokens chan lexer.Token) (lexer.Token, *ast.ObjectValue, e
 			return token, nil, err
 		}
 		field.Value = val
-		o.Fields = append(o.Fields, field)
+		o.Fields[field.Name] = field
 
 		if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
 			return <-tokens, o, nil
