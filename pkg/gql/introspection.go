@@ -455,40 +455,28 @@ var (
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(*Directive); ok {
-						return v.Name, nil
-					}
-					return nil, nil
+					return parent.(*Directive).Name, nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(*Directive); ok {
-						return v.Description, nil
-					}
-					return nil, nil
+					return parent.(*Directive).Description, nil
 				},
 			},
 			&Field{
 				Name: "locations",
 				Type: NewNonNull(NewList(NewNonNull(directiveLocationIntrospection))),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(*Directive); ok {
-						return v.Locations, nil
-					}
-					return nil, nil
+					return parent.(*Directive).Locations, nil
 				},
 			},
 			&Field{
 				Name: "args",
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(*Directive); ok {
-						return v.Arguments, nil
-					}
-					return []interface{}{}, nil
+					return parent.(*Directive).Arguments, nil
 				},
 			},
 		},
