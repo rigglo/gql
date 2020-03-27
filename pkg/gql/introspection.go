@@ -10,14 +10,32 @@ func init() {
 			Name: "interfaces",
 			Type: NewList(NewNonNull(typeIntrospection)),
 			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				return []interface{}{}, nil
+				if parent.(Type).GetKind() == ObjectKind {
+					return parent.(*Object).GetInterfaces(), nil
+				}
+				return nil, nil
 			},
 		},
 		&Field{
 			Name: "possibleTypes",
 			Type: NewList(NewNonNull(typeIntrospection)),
 			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				return []interface{}{}, nil
+				if parent.(Type).GetKind() == UnionKind {
+					return parent.(*Union).GetMembers(), nil
+				} else if parent.(Type).GetKind() == InterfaceKind {
+					ectx := ctx.(*eCtx)
+					ts := ectx.Get(keyTypes).(map[string]Type)
+
+					out := []Type{}
+					for _, t := range ts {
+						if t.GetKind() == ObjectKind {
+							t.(*Object).DoesImplement(parent.(*Interface))
+						}
+						out = append(out, t)
+					}
+					return out, nil
+				}
+				return nil, nil
 			},
 		},
 		&Field{
@@ -43,8 +61,7 @@ func init() {
 			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 				if v, ok := parent.(*Argument); ok {
 					return v.GetType(), nil
-				}
-				if v, ok := parent.(*InputField); ok {
+				} else if v, ok := parent.(*InputField); ok {
 					return v.GetType(), nil
 				}
 				return nil, nil
@@ -57,10 +74,7 @@ func init() {
 			Name: "type",
 			Type: NewNonNull(typeIntrospection),
 			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				if v, ok := parent.(*Field); ok {
-					return v.Type, nil
-				}
-				return nil, nil
+				return parent.(*Field).GetType(), nil
 			},
 		},
 	)
@@ -136,14 +150,18 @@ var (
 				Name: "mutationType",
 				Type: typeIntrospection,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return nil, nil
+					ectx := ctx.(*eCtx)
+					schema := ectx.Get(keySchema).(*Schema)
+					return schema.GetRootMutation(), nil
 				},
 			},
 			&Field{
 				Name: "subscriptionType",
 				Type: typeIntrospection,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return nil, nil
+					ectx := ctx.(*eCtx)
+					schema := ectx.Get(keySchema).(*Schema)
+					return schema.GetRootSubsciption(), nil
 				},
 			},
 			&Field{
@@ -165,33 +183,16 @@ var (
 				Name: "kind",
 				Type: NewNonNull(typeKindIntrospection),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					switch parent.(Type).GetKind() {
-					case ScalarKind:
-						return "SCALAR", nil
-					case ObjectKind:
-						return "OBJECT", nil
-					case InterfaceKind:
-						return "INTERFACE", nil
-					case UnionKind:
-						return "UNION", nil
-					case EnumKind:
-						return "ENUM", nil
-					case InputObjectKind:
-						return "INPUT_OBJECT", nil
-					case ListKind:
-						return "LIST", nil
-					case NonNullKind:
-						return "NON_NULL", nil
-					}
-					return "OBJECT", nil
+					return parent.(Type).GetKind(), nil
 				},
 			},
 			&Field{
 				Name: "name",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					// ectx := ctx.(*eCtx)
-					// schema := ectx.Get(keySchema).(*Schema)
+					if _, ok := parent.(WrappingType); ok {
+						return nil, nil
+					}
 					return parent.(Type).GetName(), nil
 				},
 			},
@@ -199,8 +200,9 @@ var (
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					// ectx := ctx.(*eCtx)
-					// schema := ectx.Get(keySchema).(*Schema)
+					if _, ok := parent.(WrappingType); ok {
+						return nil, nil
+					}
 					return parent.(Type).GetDescription(), nil
 				},
 			},
@@ -215,11 +217,23 @@ var (
 				},
 				Type: NewList(NewNonNull(fieldIntrospection)),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					includeDeprecated := args["includeDeprecated"].(bool)
+
 					if parent.(Type).GetKind() == ObjectKind {
-						return parent.(*Object).GetFields(), nil
+						if includeDeprecated {
+							return parent.(*Object).GetFields(), nil
+						} else {
+							// TODO: only return non deprecated fields
+							return parent.(*Object).GetFields(), nil
+						}
 					}
 					if parent.(Type).GetKind() == InterfaceKind {
-						return parent.(*Interface).GetFields(), nil
+						if includeDeprecated {
+							return parent.(*Interface).GetFields(), nil
+						} else {
+							// TODO: only return non deprecated fields
+							return parent.(*Interface).GetFields(), nil
+						}
 					}
 					return nil, nil
 				},
@@ -235,8 +249,15 @@ var (
 				},
 				Type: NewList(NewNonNull(enumValueIntrospection)),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					includeDeprecated := args["includeDeprecated"].(bool)
+
 					if parent.(Type).GetKind() == EnumKind {
-						return parent.(*Enum).GetValues(), nil
+						if includeDeprecated {
+							return parent.(*Enum).GetValues(), nil
+						} else {
+							// TODO: only return non deprecated values
+							return parent.(*Enum).GetValues(), nil
+						}
 					}
 					return nil, nil
 				},
@@ -265,30 +286,21 @@ var (
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if f, ok := parent.(*Field); ok {
-						return f.GetName(), nil
-					}
-					return nil, nil
+					return parent.(*Field).GetName(), nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if f, ok := parent.(*Field); ok {
-						return f.GetDescription(), nil
-					}
-					return nil, nil
+					return parent.(*Field).GetDescription(), nil
 				},
 			},
 			&Field{
 				Name: "args",
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if f, ok := parent.(*Field); ok && f.Arguments != nil {
-						return f.GetArguments(), nil
-					}
-					return []interface{}{}, nil
+					return parent.(*Field).GetArguments(), nil
 				},
 			},
 			&Field{
@@ -347,9 +359,11 @@ var (
 				Name: "defaultValue",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					/* if f, ok := parent.(*Field); ok {
-						return f.GetName(), nil
-					} */
+					if v, ok := parent.(*Argument); ok && v.IsDefaultValueSet() {
+						return v.DefaultValue, nil
+					} else if v, ok := parent.(*InputField); ok && v.IsDefaultValueSet() {
+						return v.DefaultValue, nil
+					}
 					return nil, nil
 				},
 			},
@@ -363,20 +377,14 @@ var (
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(*EnumValue); ok {
-						return v.Name, nil
-					}
-					return nil, nil
+					return parent.(*EnumValue).Name, nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(*EnumValue); ok {
-						return v.Description, nil
-					}
-					return nil, nil
+					return parent.(*EnumValue).Description, nil
 				},
 			},
 			&Field{
@@ -407,35 +415,35 @@ var (
 		Values: EnumValues{
 			&EnumValue{
 				Name:  "SCALAR",
-				Value: "SCALAR",
+				Value: ScalarKind,
 			},
 			&EnumValue{
 				Name:  "OBJECT",
-				Value: "OBJECT",
+				Value: ObjectKind,
 			},
 			&EnumValue{
 				Name:  "INTERFACE",
-				Value: "INTERFACE",
+				Value: InterfaceKind,
 			},
 			&EnumValue{
 				Name:  "UNION",
-				Value: "UNION",
+				Value: UnionKind,
 			},
 			&EnumValue{
 				Name:  "ENUM",
-				Value: "ENUM",
+				Value: EnumKind,
 			},
 			&EnumValue{
 				Name:  "INPUT_OBJECT",
-				Value: "INPUT_OBJECT",
+				Value: InputObjectKind,
 			},
 			&EnumValue{
 				Name:  "LIST",
-				Value: "LIST",
+				Value: ListKind,
 			},
 			&EnumValue{
 				Name:  "NON_NULL",
-				Value: "NON_NULL",
+				Value: NonNullKind,
 			},
 		},
 	}

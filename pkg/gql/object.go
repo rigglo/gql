@@ -1,5 +1,9 @@
 package gql
 
+import (
+	"reflect"
+)
+
 type Object struct {
 	Description string `json:"description"`
 	Name        string `json:"name"`
@@ -34,4 +38,13 @@ func (o *Object) GetFields() []*Field {
 
 func (o *Object) AddFields(fs ...*Field) {
 	o.Fields = append(o.Fields, fs...)
+}
+
+func (o *Object) DoesImplement(i *Interface) bool {
+	for _, in := range o.Implements {
+		if reflect.DeepEqual(i, in) {
+			return true
+		}
+	}
+	return false
 }
