@@ -2,7 +2,6 @@ package gql
 
 import (
 	"context"
-	"log"
 )
 
 func init() {
@@ -99,7 +98,9 @@ var (
 				Name: "__schema",
 				Type: NewNonNull(schemaIntrospection),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return nil, nil
+					ectx := ctx.(*eCtx)
+					s := ectx.Get(keySchema).(*Schema)
+					return s, nil
 				},
 			},
 			&Field{
@@ -134,7 +135,6 @@ var (
 					for _, t := range ts {
 						out = append(out, t)
 					}
-					log.Printf("types: %+v", out)
 					return out, nil
 				},
 			},
@@ -144,7 +144,6 @@ var (
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					ectx := ctx.(*eCtx)
 					schema := ectx.Get(keySchema).(*Schema)
-					log.Printf("query: %+v", schema.GetRootQuery())
 					return schema.GetRootQuery(), nil
 				},
 			},
@@ -154,6 +153,9 @@ var (
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					ectx := ctx.(*eCtx)
 					schema := ectx.Get(keySchema).(*Schema)
+					if schema.GetRootMutation() == nil {
+						return nil, nil
+					}
 					return schema.GetRootMutation(), nil
 				},
 			},
@@ -163,8 +165,10 @@ var (
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					ectx := ctx.(*eCtx)
 					schema := ectx.Get(keySchema).(*Schema)
-					log.Printf("subscription: %+v", schema.GetRootSubsciption())
-					return nil, nil
+					if schema.GetRootSubsciption() == nil {
+						return nil, nil
+					}
+					return schema.GetRootSubsciption(), nil
 				},
 			},
 			&Field{
@@ -186,7 +190,6 @@ var (
 				Name: "kind",
 				Type: NewNonNull(typeKindIntrospection),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					log.Printf("kind: %+v", parent)
 					return parent.(Type).GetKind(), nil
 				},
 			},
@@ -197,7 +200,6 @@ var (
 					if _, ok := parent.(WrappingType); ok {
 						return nil, nil
 					}
-					log.Printf("name: %+v", parent)
 					return parent.(Type).GetName(), nil
 				},
 			},
@@ -222,7 +224,6 @@ var (
 				},
 				Type: NewList(NewNonNull(fieldIntrospection)),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					log.Printf("fields - args: %+v", args)
 					includeDeprecated := args["includeDeprecated"].(bool)
 
 					if parent.(Type).GetKind() == ObjectKind {
@@ -255,7 +256,6 @@ var (
 				},
 				Type: NewList(NewNonNull(enumValueIntrospection)),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					log.Printf("enumValues - args: %+v", args)
 					includeDeprecated := args["includeDeprecated"].(bool)
 
 					if parent.(Type).GetKind() == EnumKind {
