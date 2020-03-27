@@ -215,7 +215,19 @@ func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) ma
 	gfields := map[string]ast.Fields{}
 
 	for _, sel := range ss {
-		// TODO: directive checks (skip, include)
+		for _, d := range sel.GetDirectives() {
+			if d.Name == "skip" {
+				if skipDirective.Skip(d.Arguments) {
+					continue
+				}
+			}
+			if d.Name == "include" {
+				if !includeDirective.Include(d.Arguments) {
+					continue
+				}
+			}
+			// TODO: resolve directive
+		}
 		switch sel.Kind() {
 		case ast.FieldSelectionKind:
 			{
@@ -579,7 +591,9 @@ func getTypes(s *Schema) map[string]Type {
 	// TODO: getTypes from the Schema into a map[string]Type
 	types := map[string]Type{}
 	typeWalker(types, s.GetRootQuery())
-	typeWalker(types, s.GetRootMutation())
+	if s.GetRootMutation() != nil {
+		typeWalker(types, s.GetRootMutation())
+	}
 	addIntrospectionTypes(types)
 	return types
 }

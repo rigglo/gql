@@ -98,7 +98,9 @@ var (
 				Name: "__schema",
 				Type: NewNonNull(schemaIntrospection),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return nil, nil
+					ectx := ctx.(*eCtx)
+					s := ectx.Get(keySchema).(*Schema)
+					return s, nil
 				},
 			},
 			&Field{
@@ -133,7 +135,6 @@ var (
 					for _, t := range ts {
 						out = append(out, t)
 					}
-
 					return out, nil
 				},
 			},
@@ -152,6 +153,9 @@ var (
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					ectx := ctx.(*eCtx)
 					schema := ectx.Get(keySchema).(*Schema)
+					if schema.GetRootMutation() == nil {
+						return nil, nil
+					}
 					return schema.GetRootMutation(), nil
 				},
 			},
@@ -161,6 +165,9 @@ var (
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					ectx := ctx.(*eCtx)
 					schema := ectx.Get(keySchema).(*Schema)
+					if schema.GetRootSubsciption() == nil {
+						return nil, nil
+					}
 					return schema.GetRootSubsciption(), nil
 				},
 			},
@@ -455,28 +462,28 @@ var (
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Directive).Name, nil
+					return parent.(Directive).GetName(), nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Directive).Description, nil
+					return parent.(Directive).GetDescription(), nil
 				},
 			},
 			&Field{
 				Name: "locations",
 				Type: NewNonNull(NewList(NewNonNull(directiveLocationIntrospection))),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Directive).Locations, nil
+					return parent.(Directive).GetLocations(), nil
 				},
 			},
 			&Field{
 				Name: "args",
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Directive).Arguments, nil
+					return parent.(Directive).GetArguments(), nil
 				},
 			},
 		},

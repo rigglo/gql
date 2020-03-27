@@ -55,7 +55,7 @@ type Movie struct {
 var (
 	BlockBusters = &gql.Schema{
 		Query:    Query,
-		Mutation: Query,
+		Mutation: nil,
 	}
 
 	FooInput = &gql.InputObject{
@@ -135,7 +135,6 @@ var (
 			&gql.Field{
 				Name:        "name",
 				Type:        gql.String,
-				Directives:  gql.Directives{},
 				Description: "name of the movie",
 			},
 		},

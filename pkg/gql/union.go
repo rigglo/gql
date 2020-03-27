@@ -30,7 +30,7 @@ func (u *Union) GetMembers() []Type {
 	return u.Members
 }
 
-func (u *Union) GetDirectives() []*Directive {
+func (u *Union) GetDirectives() []Directive {
 	return u.Directives
 }
 

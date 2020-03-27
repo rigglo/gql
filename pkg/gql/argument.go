@@ -54,7 +54,7 @@ func (o *InputObject) GetKind() TypeKind {
 	return InputObjectKind
 }
 
-func (o *InputObject) GetDirectives() []*Directive {
+func (o *InputObject) GetDirectives() []Directive {
 	return o.Directives
 }
 
@@ -92,7 +92,7 @@ func (o *InputField) IsDefaultValueSet() bool {
 	return reflect.ValueOf(o.DefaultValue).IsValid()
 }
 
-func (o *InputField) GetDirectives() []*Directive {
+func (o *InputField) GetDirectives() []Directive {
 	return o.Directives
 }
 

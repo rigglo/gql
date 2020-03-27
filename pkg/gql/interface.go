@@ -30,7 +30,7 @@ func (i *Interface) GetKind() TypeKind {
 	return InterfaceKind
 }
 
-func (i *Interface) GetDirectives() []*Directive {
+func (i *Interface) GetDirectives() []Directive {
 	return i.Directives
 }
 

@@ -31,7 +31,7 @@ func (s *Scalar) GetKind() TypeKind {
 	return ScalarKind
 }
 
-func (s *Scalar) GetDirectives() []*Directive {
+func (s *Scalar) GetDirectives() []Directive {
 	return s.Directives
 }
 
@@ -204,6 +204,11 @@ var Boolean *Scalar = &Scalar{
 		return i, nil
 	},
 	CoerceInputFunc: func(bs []byte) (interface{}, error) {
-		return string(bs), nil
+		if string(bs) == "true" {
+			return true, nil
+		} else if string(bs) == "false" {
+			return false, nil
+		}
+		return nil, errors.New("couldn't coerce value to boolean")
 	},
 }
