@@ -25,7 +25,7 @@ func (s *Schema) GetRootSubsciption() *Object {
 	return s.Subscription
 }
 
-func (s *Schema) GetDirectives() []*Directive {
+func (s *Schema) GetDirectives() []Directive {
 	return s.Directives
 }
 

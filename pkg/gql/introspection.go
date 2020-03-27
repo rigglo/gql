@@ -2,6 +2,7 @@ package gql
 
 import (
 	"context"
+	"log"
 )
 
 func init() {
@@ -133,7 +134,7 @@ var (
 					for _, t := range ts {
 						out = append(out, t)
 					}
-
+					log.Printf("types: %+v", out)
 					return out, nil
 				},
 			},
@@ -143,6 +144,7 @@ var (
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					ectx := ctx.(*eCtx)
 					schema := ectx.Get(keySchema).(*Schema)
+					log.Printf("query: %+v", schema.GetRootQuery())
 					return schema.GetRootQuery(), nil
 				},
 			},
@@ -161,7 +163,8 @@ var (
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
 					ectx := ctx.(*eCtx)
 					schema := ectx.Get(keySchema).(*Schema)
-					return schema.GetRootSubsciption(), nil
+					log.Printf("subscription: %+v", schema.GetRootSubsciption())
+					return nil, nil
 				},
 			},
 			&Field{
@@ -183,6 +186,7 @@ var (
 				Name: "kind",
 				Type: NewNonNull(typeKindIntrospection),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					log.Printf("kind: %+v", parent)
 					return parent.(Type).GetKind(), nil
 				},
 			},
@@ -193,6 +197,7 @@ var (
 					if _, ok := parent.(WrappingType); ok {
 						return nil, nil
 					}
+					log.Printf("name: %+v", parent)
 					return parent.(Type).GetName(), nil
 				},
 			},
@@ -217,6 +222,7 @@ var (
 				},
 				Type: NewList(NewNonNull(fieldIntrospection)),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					log.Printf("fields - args: %+v", args)
 					includeDeprecated := args["includeDeprecated"].(bool)
 
 					if parent.(Type).GetKind() == ObjectKind {
@@ -249,6 +255,7 @@ var (
 				},
 				Type: NewList(NewNonNull(enumValueIntrospection)),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+					log.Printf("enumValues - args: %+v", args)
 					includeDeprecated := args["includeDeprecated"].(bool)
 
 					if parent.(Type).GetKind() == EnumKind {
@@ -455,28 +462,28 @@ var (
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Directive).Name, nil
+					return parent.(Directive).GetName(), nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Directive).Description, nil
+					return parent.(Directive).GetDescription(), nil
 				},
 			},
 			&Field{
 				Name: "locations",
 				Type: NewNonNull(NewList(NewNonNull(directiveLocationIntrospection))),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Directive).Locations, nil
+					return parent.(Directive).GetLocations(), nil
 				},
 			},
 			&Field{
 				Name: "args",
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Directive).Arguments, nil
+					return parent.(Directive).GetArguments(), nil
 				},
 			},
 		},

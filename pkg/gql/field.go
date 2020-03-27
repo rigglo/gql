@@ -39,7 +39,7 @@ func (f *Field) GetType() Type {
 	return f.Type
 }
 
-func (f *Field) GetDirectives() []*Directive {
+func (f *Field) GetDirectives() []Directive {
 	return f.Directives
 }
 

@@ -15,7 +15,7 @@ func (e *Enum) GetName() string {
 	return e.Name
 }
 
-func (e *Enum) GetDirectives() []*Directive {
+func (e *Enum) GetDirectives() []Directive {
 	return e.Directives
 }
 
@@ -44,7 +44,7 @@ func (e EnumValue) GetDescription() string {
 	return e.Description
 }
 
-func (e EnumValue) GetDirectives() []*Directive {
+func (e EnumValue) GetDirectives() []Directive {
 	return e.Directives
 }
 

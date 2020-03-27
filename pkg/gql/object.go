@@ -28,7 +28,7 @@ func (o *Object) GetInterfaces() []*Interface {
 	return o.Implements
 }
 
-func (o *Object) GetDirectives() []*Directive {
+func (o *Object) GetDirectives() []Directive {
 	return o.Directives
 }
 
