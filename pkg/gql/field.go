@@ -50,6 +50,15 @@ func (f *Field) Resolve(ctx context.Context, parent interface{}, args map[string
 	return f.Resolver(ctx, parent, args)
 }
 
+func (f *Field) IsDeprecated() bool {
+	for _, d := range f.Directives {
+		if _, ok := d.(*deprecated); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // var _ schema.Field = &Field{}
 
 func defaultResolver(fname string) Resolver {

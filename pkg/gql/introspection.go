@@ -234,16 +234,26 @@ var (
 						if includeDeprecated {
 							return parent.(*Object).GetFields(), nil
 						} else {
-							// TODO: only return non deprecated fields
-							return parent.(*Object).GetFields(), nil
+							out := []*Field{}
+							for _, f := range parent.(*Object).GetFields() {
+								if !f.IsDeprecated() {
+									out = append(out, f)
+								}
+							}
+							return out, nil
 						}
 					}
 					if parent.(Type).GetKind() == InterfaceKind {
 						if includeDeprecated {
 							return parent.(*Interface).GetFields(), nil
 						} else {
-							// TODO: only return non deprecated fields
-							return parent.(*Interface).GetFields(), nil
+							out := []*Field{}
+							for _, f := range parent.(*Interface).GetFields() {
+								if !f.IsDeprecated() {
+									out = append(out, f)
+								}
+							}
+							return out, nil
 						}
 					}
 					return nil, nil
@@ -266,8 +276,13 @@ var (
 						if includeDeprecated {
 							return parent.(*Enum).GetValues(), nil
 						} else {
-							// TODO: only return non deprecated values
-							return parent.(*Enum).GetValues(), nil
+							out := []*EnumValue{}
+							for _, v := range parent.(*Enum).GetValues() {
+								if !v.IsDeprecated() {
+									out = append(out, v)
+								}
+							}
+							return out, nil
 						}
 					}
 					return nil, nil
@@ -318,9 +333,11 @@ var (
 				Name: "isDeprecated",
 				Type: NewNonNull(Boolean),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					/* if f, ok := parent.(*Field); ok {
-						return f.GetName(), nil
-					} */
+					for _, d := range parent.(*Field).GetDirectives() {
+						if _, ok := d.(*deprecated); ok {
+							return true, nil
+						}
+					}
 					return false, nil
 				},
 			},
@@ -328,9 +345,11 @@ var (
 				Name: "deprecationReason",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					/* if f, ok := parent.(*Field); ok {
-						return f.GetName(), nil
-					} */
+					for _, d := range parent.(*Field).GetDirectives() {
+						if dep, ok := d.(*deprecated); ok {
+							return dep.reason, nil
+						}
+					}
 					return nil, nil
 				},
 			},
@@ -402,9 +421,11 @@ var (
 				Name: "isDeprecated",
 				Type: NewNonNull(Boolean),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					/* if v, ok := parent.(EnumValue); ok {
-						return v, nil
-					} */
+					for _, d := range parent.(*EnumValue).GetDirectives() {
+						if _, ok := d.(*deprecated); ok {
+							return true, nil
+						}
+					}
 					return false, nil
 				},
 			},
@@ -412,9 +433,11 @@ var (
 				Name: "deprecationReason",
 				Type: String,
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					/* if v, ok := parent.(EnumValue); ok {
-						return v, nil
-					} */
+					for _, d := range parent.(*EnumValue).GetDirectives() {
+						if dep, ok := d.(*deprecated); ok {
+							return dep.reason, nil
+						}
+					}
 					return nil, nil
 				},
 			},

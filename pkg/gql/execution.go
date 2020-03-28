@@ -592,8 +592,9 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 func getTypes(s *Schema) (map[string]Type, map[string]Directive) {
 	types := map[string]Type{}
 	directives := map[string]Directive{
-		"skip":    skipDirective,
-		"include": includeDirective,
+		"skip":       skipDirective,
+		"include":    includeDirective,
+		"deprecated": deprecatedDirective,
 	}
 	addIntrospectionTypes(types)
 	typeWalker(types, directives, s.GetRootQuery())

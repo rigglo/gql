@@ -36,7 +36,7 @@ func (s *skip) GetArguments() []*Argument {
 
 func (s *skip) GetLocations() []DirectiveLocation {
 	return []DirectiveLocation{
-		FieldDefinitionLoc,
+		FieldLoc,
 		FragmentSpreadLoc,
 		InlineFragmentLoc,
 	}
@@ -70,7 +70,7 @@ func (s *include) GetArguments() []*Argument {
 
 func (s *include) GetLocations() []DirectiveLocation {
 	return []DirectiveLocation{
-		FieldDefinitionLoc,
+		FieldLoc,
 		FragmentSpreadLoc,
 		InlineFragmentLoc,
 	}
@@ -83,9 +83,47 @@ func (s *include) Include(args []*ast.Argument) bool {
 	return false
 }
 
+func Deprecate(reason string) Directive {
+	return &deprecated{reason}
+}
+
+type deprecated struct {
+	reason string
+}
+
+func (d *deprecated) GetName() string {
+	return "deprecated"
+}
+
+func (d *deprecated) GetDescription() string {
+	return "The `@deprecated` directive is used within the type system definition language to indicate deprecated portions of a GraphQL service’s schema, such as deprecated fields on a type or deprecated enum values"
+}
+
+func (d *deprecated) GetArguments() []*Argument {
+	return []*Argument{
+		&Argument{
+			Name:         "reason",
+			Type:         String,
+			DefaultValue: "",
+		},
+	}
+}
+
+func (d *deprecated) GetLocations() []DirectiveLocation {
+	return []DirectiveLocation{
+		FieldDefinitionLoc,
+		EnumValueLoc,
+	}
+}
+
+func (d *deprecated) Reason() string {
+	return d.reason
+}
+
 var (
-	skipDirective    = &skip{}
-	includeDirective = &include{}
+	skipDirective       = &skip{}
+	includeDirective    = &include{}
+	deprecatedDirective = &deprecated{}
 )
 
 type DirectiveLocation string
