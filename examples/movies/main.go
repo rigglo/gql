@@ -136,6 +136,9 @@ var (
 				Name:        "name",
 				Type:        gql.String,
 				Description: "name of the movie",
+				Directives: gql.Directives{
+					gql.Deprecate("It's just not implemented and movies have titles, not names"),
+				},
 			},
 		},
 	}

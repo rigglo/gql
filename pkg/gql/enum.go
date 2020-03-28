@@ -52,4 +52,13 @@ func (e EnumValue) GetValue() interface{} {
 	return e.Value
 }
 
+func (e EnumValue) IsDeprecated() bool {
+	for _, d := range e.Directives {
+		if _, ok := d.(*deprecated); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // var _ EnumValue = &EnumValue{}
