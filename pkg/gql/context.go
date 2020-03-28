@@ -22,6 +22,7 @@ const (
 	keySchema        string = "gql_schema"
 	keyOperation     string = "gql_operation"
 	keyTypes         string = "gql_types"
+	keyDirectives    string = "gql_directives"
 )
 
 type eCtx struct {

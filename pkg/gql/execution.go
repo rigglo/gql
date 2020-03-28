@@ -40,13 +40,15 @@ func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
 			Errors: Errors{NewError(ctx, err.Error(), nil)},
 		}
 	}
+	types, directives := getTypes(s)
 	ectx := newCtx(ctx, map[string]interface{}{
 		keyQuery:         doc,
 		keyRawQuery:      p.Query,
 		keyOperationName: p.OperationName,
 		keyRawVariables:  p.Variables,
 		keySchema:        s,
-		keyTypes:         getTypes(s),
+		keyTypes:         types,
+		keyDirectives:    directives,
 	})
 	validate(ectx)
 	if len(ectx.res.Errors) > 0 {
@@ -215,19 +217,19 @@ func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) ma
 	gfields := map[string]ast.Fields{}
 
 	for _, sel := range ss {
+		skip := false
 		for _, d := range sel.GetDirectives() {
 			if d.Name == "skip" {
-				if skipDirective.Skip(d.Arguments) {
-					continue
-				}
+				skip = skipDirective.Skip(d.Arguments)
+			} else if d.Name == "include" {
+				skip = !includeDirective.Include(d.Arguments)
 			}
-			if d.Name == "include" {
-				if !includeDirective.Include(d.Arguments) {
-					continue
-				}
-			}
-			// TODO: resolve directive
+			// TODO: resolve directives
 		}
+		if skip {
+			continue
+		}
+
 		switch sel.Kind() {
 		case ast.FieldSelectionKind:
 			{
@@ -587,15 +589,18 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 	return nil
 }
 
-func getTypes(s *Schema) map[string]Type {
-	// TODO: getTypes from the Schema into a map[string]Type
+func getTypes(s *Schema) (map[string]Type, map[string]Directive) {
 	types := map[string]Type{}
-	typeWalker(types, s.GetRootQuery())
-	if s.GetRootMutation() != nil {
-		typeWalker(types, s.GetRootMutation())
+	directives := map[string]Directive{
+		"skip":    skipDirective,
+		"include": includeDirective,
 	}
 	addIntrospectionTypes(types)
-	return types
+	typeWalker(types, directives, s.GetRootQuery())
+	if s.GetRootMutation() != nil {
+		typeWalker(types, directives, s.GetRootMutation())
+	}
+	return types, directives
 }
 
 type hasFields interface {
@@ -614,7 +619,7 @@ func unwrapper(t Type) Type {
 	return t
 }
 
-func typeWalker(types map[string]Type, t Type) {
+func typeWalker(types map[string]Type, directives map[string]Directive, t Type) {
 	wt := unwrapper(t)
 	if _, ok := types[wt.GetName()]; !ok {
 		types[wt.GetName()] = wt
@@ -622,13 +627,81 @@ func typeWalker(types map[string]Type, t Type) {
 	if hf, ok := t.(hasFields); ok {
 		for _, f := range hf.GetFields() {
 			for _, arg := range f.GetArguments() {
-				typeWalker(types, arg.Type)
+				typeWalker(types, directives, arg.Type)
 			}
-			typeWalker(types, f.GetType())
+			typeWalker(types, directives, f.GetType())
 		}
 	} else if u, ok := wt.(*Union); ok {
 		for _, m := range u.GetMembers() {
-			typeWalker(types, m)
+			typeWalker(types, directives, m)
+		}
+	}
+}
+
+func gatherDirectives(directives map[string]Directive, t Type) {
+	ds := []Directive{}
+	switch t.GetKind() {
+	case ScalarKind:
+		ds = t.(*Scalar).GetDirectives()
+		for _, d := range ds {
+			if _, ok := directives[d.GetName()]; !ok {
+				directives[d.GetName()] = d
+			}
+		}
+	case ObjectKind:
+		ds = t.(*Object).GetDirectives()
+		for _, d := range ds {
+			if _, ok := directives[d.GetName()]; !ok {
+				directives[d.GetName()] = d
+			}
+		}
+		for _, f := range t.(*Object).GetFields() {
+			gatherDirectives(directives, unwrapper(f.GetType()))
+		}
+	case InterfaceKind:
+		ds = t.(*Interface).GetDirectives()
+		for _, d := range ds {
+			if _, ok := directives[d.GetName()]; !ok {
+				directives[d.GetName()] = d
+			}
+		}
+		for _, f := range t.(*Interface).GetFields() {
+			gatherDirectives(directives, unwrapper(f.GetType()))
+		}
+	case UnionKind:
+		ds = t.(*Union).GetDirectives()
+		for _, d := range ds {
+			if _, ok := directives[d.GetName()]; !ok {
+				directives[d.GetName()] = d
+			}
+		}
+	case EnumKind:
+		ds = t.(*Enum).GetDirectives()
+		for _, d := range ds {
+			if _, ok := directives[d.GetName()]; !ok {
+				directives[d.GetName()] = d
+			}
+		}
+		for _, v := range t.(*Enum).GetValues() {
+			for _, d := range v.GetDirectives() {
+				if _, ok := directives[d.GetName()]; !ok {
+					directives[d.GetName()] = d
+				}
+			}
+		}
+	case InputObjectKind:
+		ds = t.(*InputObject).GetDirectives()
+		for _, d := range ds {
+			if _, ok := directives[d.GetName()]; !ok {
+				directives[d.GetName()] = d
+			}
+		}
+		for _, v := range t.(*InputObject).GetFields() {
+			for _, d := range v.GetDirectives() {
+				if _, ok := directives[d.GetName()]; !ok {
+					directives[d.GetName()] = d
+				}
+			}
 		}
 	}
 }

@@ -175,9 +175,13 @@ var (
 				Name: "directives",
 				Type: NewNonNull(NewList(NewNonNull(directiveIntrospection))),
 				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					// ectx := ctx.(*eCtx)
-					// schema := ectx.Get(keySchema).(*Schema)
-					return []interface{}{}, nil
+					ectx := ctx.(*eCtx)
+					ds := ectx.Get(keyDirectives).(map[string]Directive)
+					out := []Directive{}
+					for _, d := range ds {
+						out = append(out, d)
+					}
+					return out, nil
 				},
 			},
 		},
@@ -494,75 +498,75 @@ var (
 		Values: EnumValues{
 			&EnumValue{
 				Name:  "QUERY",
-				Value: "QUERY",
+				Value: QueryLoc,
 			},
 			&EnumValue{
 				Name:  "MUTATION",
-				Value: "MUTATION",
+				Value: MutationLoc,
 			},
 			&EnumValue{
 				Name:  "SUBSCRIPTION",
-				Value: "SUBSCRIPTION",
+				Value: SubscriptionLoc,
 			},
 			&EnumValue{
 				Name:  "FIELD",
-				Value: "FIELD",
+				Value: FieldLoc,
 			},
 			&EnumValue{
 				Name:  "FRAGMENT_DEFINITION",
-				Value: "FRAGMENT_DEFINITION",
+				Value: FragmentDefinitionLoc,
 			},
 			&EnumValue{
 				Name:  "FRAGMENT_SPREAD",
-				Value: "FRAGMENT_SPREAD",
+				Value: FragmentSpreadLoc,
 			},
 			&EnumValue{
 				Name:  "INLINE_FRAGMENT",
-				Value: "INLINE_FRAGMENT",
+				Value: InlineFragmentLoc,
 			},
 			&EnumValue{
 				Name:  "SCHEMA",
-				Value: "SCHEMA",
+				Value: SchemaLoc,
 			},
 			&EnumValue{
 				Name:  "SCALAR",
-				Value: "SCALAR",
+				Value: ScalarLoc,
 			},
 			&EnumValue{
 				Name:  "OBJECT",
-				Value: "OBJECT",
+				Value: ObjectLoc,
 			},
 			&EnumValue{
 				Name:  "FIELD_DEFINITION",
-				Value: "FIELD_DEFINITION",
+				Value: FieldDefinitionLoc,
 			},
 			&EnumValue{
 				Name:  "ARGUMENT_DEFINITION",
-				Value: "ARGUMENT_DEFINITION",
+				Value: ArgumentDefinitionLoc,
 			},
 			&EnumValue{
 				Name:  "INTERFACE",
-				Value: "INTERFACE",
+				Value: InterfaceLoc,
 			},
 			&EnumValue{
 				Name:  "UNION",
-				Value: "UNION",
+				Value: UnionLoc,
 			},
 			&EnumValue{
 				Name:  "ENUM",
-				Value: "ENUM",
+				Value: EnumLoc,
 			},
 			&EnumValue{
 				Name:  "ENUM_VALUE",
-				Value: "ENUM_VALUE",
+				Value: EnumValueLoc,
 			},
 			&EnumValue{
 				Name:  "INPUT_OBJECT",
-				Value: "INPUT_OBJECT",
+				Value: InputObjectLoc,
 			},
 			&EnumValue{
 				Name:  "INPUT_FIELD_DEFINITION",
-				Value: "INPUT_FIELD_DEFINITION",
+				Value: InputFieldDefinitionLoc,
 			},
 		},
 	}

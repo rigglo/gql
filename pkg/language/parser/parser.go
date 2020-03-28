@@ -339,8 +339,8 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 	}()
 
 	end := false
+	token = <-tokens
 	for {
-		token = <-tokens
 		switch {
 		case token.Kind == lexer.PunctuatorToken && token.Value == ":" && f.Name == "":
 			token = <-tokens
@@ -349,6 +349,7 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 			} else {
 				return token, nil, fmt.Errorf("unexpected token, expected name token, got: %s", token.Value)
 			}
+			token = <-tokens
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "(":
 			args, err := parseArguments(tokens)
@@ -356,6 +357,7 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 				return <-tokens, nil, err
 			}
 			f.Arguments = args
+			token = <-tokens
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "@":
 			ds := []*ast.Directive{}
@@ -365,7 +367,6 @@ func parseField(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.F
 				return token, nil, err
 			}
 			f.Directives = ds
-			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "{":
 			sSet := []ast.Selection{}
 			token, sSet, err = parseSelectionSet(tokens)
@@ -623,6 +624,12 @@ func parseDirectives(tokens chan lexer.Token) (lexer.Token, []*ast.Directive, er
 				token = <-tokens
 			}
 			ds = append(ds, d)
+
+			if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+				token = <-tokens
+			} else {
+				return token, ds, nil
+			}
 		} else {
 			return token, ds, nil
 		}
