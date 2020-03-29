@@ -14,14 +14,14 @@ func validate(ctx *eCtx) {
 	for _, o := range ctx.Get(keyQuery).(*ast.Document).Operations {
 		// 5.2.1 - Named Operation Definitions
 		if _, ok := ops[o.Name]; ok && o.Name != "" {
-			ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrValidateOperationName, o.Name), nil))
+			ctx.res.addErr(&Error{fmt.Sprintf(ErrValidateOperationName, o.Name), nil, nil, nil})
 		} else {
 			ops[o.Name] = true
 		}
 
 		// 5.2.2 - Anonymous Operation Definitions
 		if o.Name == "" && len(ctx.Get(keyQuery).(*ast.Document).Operations) > 1 {
-			ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrAnonymousOperationDefinitions), nil))
+			ctx.res.addErr(&Error{fmt.Sprintf(ErrAnonymousOperationDefinitions), nil, nil, nil})
 		}
 
 		// TODO: 5.2.3 - Subscription Operation Definitions
@@ -53,7 +53,7 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
 		}
 	default:
 		{
-			ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil))
+			ctx.res.addErr(&Error{fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil, nil, nil})
 		}
 	}
 }
@@ -67,7 +67,7 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 			for i := 1; i < len(fields); i++ {
 				if !sameResponseShape(ctx, fields[0], fields[i], t) {
 					// TODO: raise error for selection set can not be merged
-					ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same"), nil))
+					ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
 				}
 				// var ta, tb = getFieldOfFields(fields[0].Name, fs).GetType(), getFieldOfFields(fields[i].Name, fs).GetType()
 				var pa, pb Type
@@ -89,11 +89,11 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 				if reflect.DeepEqual(pa, pb) || (pa.GetKind() != ObjectKind || pb.GetKind() != ObjectKind) {
 					if fields[0].Name != fields[i].Name {
 						// TODO: raise error that selection set can not be merged
-						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrResponseShapeMismatch, "field names are not equal"), nil))
+						ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "field names are not equal")), nil, nil, nil})
 					}
 					if !reflect.DeepEqual(fields[0].Arguments, fields[1].Arguments) {
 						// TODO: raise error that selection set can not be merged (due to arguments don't match)
-						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrResponseShapeMismatch, "arguments don't match"), nil))
+						ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "arguments don't match")), nil, nil, nil})
 					}
 					mergedSet := append(fields[0].SelectionSet, fields[1].SelectionSet...)
 					fieldsInSetCanMerge(ctx, mergedSet, getFieldOfFields(fields[0].Name, pa.(hasFields).GetFields()).GetType())
@@ -190,11 +190,11 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 								if len(f.SelectionSet) > 0 {
 									validateSelectionSet(ctx, f.SelectionSet, selType)
 								} else {
-									ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, selType.GetName()), nil))
+									ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, selType.GetName())), nil, nil, nil})
 								}
 							} else if selType.GetKind() == ScalarKind || selType.GetKind() == EnumKind {
 								if len(f.SelectionSet) != 0 {
-									ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName()), nil))
+									ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 								}
 							}
 
@@ -205,7 +205,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
 					// if field does NOT exist on type
 					if !ok {
-						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil))
+						ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					}
 				} else if i, ok := t.(*Interface); ok {
 					ok = false
@@ -220,11 +220,11 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 								if len(f.SelectionSet) > 0 {
 									validateSelectionSet(ctx, f.SelectionSet, selType)
 								} else {
-									ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, selType.GetName()), nil))
+									ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, selType.GetName())), nil, nil, nil})
 								}
 							} else if selType.GetKind() == ScalarKind || selType.GetKind() == EnumKind {
 								if len(f.SelectionSet) != 0 {
-									ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName()), nil))
+									ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 								}
 							}
 
@@ -235,7 +235,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
 					// if field does NOT exist on type
 					if !ok {
-						ctx.res.addErr(NewError(ctx, fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil))
+						ctx.res.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					}
 				} else if _, ok := t.(*Union); ok {
 					// TODO: add error, that field selection on Union type does not supported (only fragments)

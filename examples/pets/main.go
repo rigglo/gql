@@ -98,36 +98,36 @@ var (
 			&gql.Field{
 				Name: "dog",
 				Type: DogType,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return Doggo, nil
 				},
 			},
 			&gql.Field{
 				Name: "cat",
 				Type: CatType,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return Catcy, nil
 				},
 			},
 			&gql.Field{
 				Name: "pet",
 				Type: gql.NewList(PetInterface),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []interface{}{Catcy, Doggo}, nil
 				},
 			},
 			&gql.Field{
 				Name: "catOrDog",
 				Type: gql.NewList(CatOrDogUnion),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []interface{}{Catcy, Doggo}, nil
 				},
 			},
 			&gql.Field{
 				Name: "someErr",
 				Type: gql.NewList(CatOrDogUnion),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return nil, gql.NewError(ctx, "asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
+				Resolver: func(ctx gql.Context) (interface{}, error) {
+					return nil, gql.NewError("asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
 				},
 			},
 		},

@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 
-	"github.com/rigglo/gql/pkg/handler"
-
 	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql/pkg/handler"
 )
 
 func main() {
@@ -63,7 +61,7 @@ var (
 		Fields: gql.InputFields{
 			&gql.InputField{
 				Name:         "asd",
-				Type:         gql.String,
+				Type:         gql.NewNonNull(gql.String),
 				DefaultValue: "defoocska",
 			},
 		},
@@ -77,7 +75,7 @@ var (
 				Name:        "top_movies",
 				Type:        gql.NewList(MovieType),
 				Description: "",
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
+				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []Movie{
 						Movie{
 							ID:    "22424234",
@@ -97,16 +95,15 @@ var (
 				Arguments: gql.Arguments{
 					&gql.Argument{
 						Name: "asd",
-						Type: FooInput,
+						Type: gql.NewNonNull(FooInput),
 					},
 					&gql.Argument{
 						Name: "bar",
 						Type: gql.String,
 					},
 				},
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					log.Println(args)
-					return args["asd"].(map[string]interface{})["asd"], nil
+				Resolver: func(ctx gql.Context) (interface{}, error) {
+					return ctx.Args()["asd"].(map[string]interface{})["asd"], nil
 				},
 			},
 		},

@@ -37,7 +37,7 @@ func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
 	if err != nil {
 		return &Result{
 			ctx:    ctx,
-			Errors: Errors{NewError(ctx, err.Error(), nil)},
+			Errors: Errors{&Error{err.Error(), nil, nil, nil}},
 		}
 	}
 	types, directives := getTypes(s)
@@ -170,7 +170,7 @@ func resolveOperation(ctx *eCtx) *Result {
 	}
 	return &Result{
 		ctx:    ctx,
-		Errors: Errors{NewError(ctx, "invalid operation", nil)},
+		Errors: Errors{&Error{"invalid operation", nil, nil, nil}},
 	}
 }
 
@@ -503,7 +503,16 @@ func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type, res map[string]interf
 
 func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
 	f := getFieldOfFields(fn, ot.GetFields())
-	v, err := f.Resolve(ctx, ov, args)
+	rCtx := &resolveContext{
+		ctx:    ctx.ctx, // this is the original context
+		eCtx:   ctx,     // execution context
+		args:   args,
+		parent: ov, // parent's value
+		path:   path,
+		fields: []string{}, // currently it's not implemented
+	}
+
+	v, err := f.Resolve(rCtx)
 	if err != nil {
 		if e, ok := err.(CustomError); ok {
 			ctx.res.addErr(&Error{
@@ -530,9 +539,6 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 			})
 		}
 		v = nil
-	}
-	if f.GetType().GetKind() == NonNullKind && v == nil {
-		// TODO: raise field error
 	}
 	return v
 }
