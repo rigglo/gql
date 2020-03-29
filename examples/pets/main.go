@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/rigglo/gql/pkg/gql"
 )
@@ -99,6 +100,9 @@ var (
 				Name: "dog",
 				Type: DogType,
 				Resolver: func(ctx gql.Context) (interface{}, error) {
+					log.Println("start dog", time.Now())
+					time.Sleep(2 * time.Second)
+					log.Println("finish dog", time.Now())
 					return Doggo, nil
 				},
 			},
@@ -106,6 +110,9 @@ var (
 				Name: "cat",
 				Type: CatType,
 				Resolver: func(ctx gql.Context) (interface{}, error) {
+					log.Println("start cat", time.Now())
+					time.Sleep(4 * time.Second)
+					log.Println("finish cat", time.Now())
 					return Catcy, nil
 				},
 			},

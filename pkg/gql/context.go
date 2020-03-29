@@ -23,12 +23,14 @@ type eCtx struct {
 	store map[string]interface{}
 	mu    sync.Mutex
 	res   *Result
+	sem   chan struct{}
 }
 
-func newCtx(ctx context.Context, store map[string]interface{}) *eCtx {
+func newCtx(ctx context.Context, store map[string]interface{}, semLimit int) *eCtx {
 	return &eCtx{
 		ctx:   ctx,
 		store: store,
+		sem:   make(chan struct{}, semLimit),
 		res: &Result{
 			ctx: ctx,
 		},

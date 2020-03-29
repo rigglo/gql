@@ -41,15 +41,19 @@ func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
 		}
 	}
 	types, directives := getTypes(s)
-	ectx := newCtx(ctx, map[string]interface{}{
-		keyQuery:         doc,
-		keyRawQuery:      p.Query,
-		keyOperationName: p.OperationName,
-		keyRawVariables:  p.Variables,
-		keySchema:        s,
-		keyTypes:         types,
-		keyDirectives:    directives,
-	})
+	ectx := newCtx(
+		ctx,
+		map[string]interface{}{
+			keyQuery:         doc,
+			keyRawQuery:      p.Query,
+			keyOperationName: p.OperationName,
+			keyRawVariables:  p.Variables,
+			keySchema:        s,
+			keyTypes:         types,
+			keyDirectives:    directives,
+		},
+		100,
+	)
 	validate(ectx)
 	if len(ectx.res.Errors) > 0 {
 		return ectx.res
@@ -191,19 +195,45 @@ func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
 func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) map[string]interface{} {
 	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
+	wg := sync.WaitGroup{}
+	wg.Add(len(gfields))
+	mu := sync.Mutex{}
 	for rkey, fields := range gfields {
-
-		fieldName := fields[0].Name
-
-		if strings.HasPrefix(fieldName, "__") {
-			resolveMetaFields(ctx, fields, ot, resMap)
-			continue
+		fs := fields
+		rkey := rkey
+		select {
+		case ctx.sem <- struct{}{}:
+			go func() {
+				fieldName := fs[0].Name
+				var rval interface{}
+				if strings.HasPrefix(fieldName, "__") {
+					rval = resolveMetaFields(ctx, fs, ot)
+				} else {
+					fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+					rval = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+				}
+				mu.Lock()
+				resMap[rkey] = rval
+				mu.Unlock()
+				<-ctx.sem
+				wg.Done()
+			}()
+		default:
+			fieldName := fields[0].Name
+			var rval interface{}
+			if strings.HasPrefix(fieldName, "__") {
+				rval = resolveMetaFields(ctx, fs, ot)
+			} else {
+				fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+				rval = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+			}
+			mu.Lock()
+			resMap[rkey] = rval
+			mu.Unlock()
+			wg.Done()
 		}
-
-		fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
-		rval := executeField(ctx, append(path, fields[0].Alias), ot, ov, fieldType, fields)
-		resMap[rkey] = rval
 	}
+	wg.Wait()
 	return resMap
 }
 
@@ -490,15 +520,16 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 	return nil, errors.New("invalid value to coerce")
 }
 
-func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type, res map[string]interface{}) {
+func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type) interface{} {
 	switch fs[0].Name {
 	case "__typename":
-		res[fs[0].Alias] = t.GetName()
+		return t.GetName()
 	case "__schema":
-		res[fs[0].Alias] = completeValue(ctx, []interface{}{}, schemaIntrospection, fs, true)
+		return completeValue(ctx, []interface{}{}, schemaIntrospection, fs, true)
 	case "__type":
-		res[fs[0].Alias] = executeField(ctx, []interface{}{}, introspectionQuery, nil, typeIntrospection, fs)
+		return executeField(ctx, []interface{}{}, introspectionQuery, nil, typeIntrospection, fs)
 	}
+	return nil
 }
 
 func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
