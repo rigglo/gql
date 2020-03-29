@@ -1,17 +1,13 @@
 package gql
 
-import (
-	"context"
-)
-
 func init() {
 	typeIntrospection.AddFields(
 		&Field{
 			Name: "interfaces",
 			Type: NewList(NewNonNull(typeIntrospection)),
-			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				if parent.(Type).GetKind() == ObjectKind {
-					return parent.(*Object).GetInterfaces(), nil
+			Resolver: func(ctx Context) (interface{}, error) {
+				if ctx.Parent().(Type).GetKind() == ObjectKind {
+					return ctx.Parent().(*Object).GetInterfaces(), nil
 				}
 				return nil, nil
 			},
@@ -19,17 +15,17 @@ func init() {
 		&Field{
 			Name: "possibleTypes",
 			Type: NewList(NewNonNull(typeIntrospection)),
-			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				if parent.(Type).GetKind() == UnionKind {
-					return parent.(*Union).GetMembers(), nil
-				} else if parent.(Type).GetKind() == InterfaceKind {
-					ectx := ctx.(*eCtx)
+			Resolver: func(ctx Context) (interface{}, error) {
+				if ctx.Parent().(Type).GetKind() == UnionKind {
+					return ctx.Parent().(*Union).GetMembers(), nil
+				} else if ctx.Parent().(Type).GetKind() == InterfaceKind {
+					ectx := ctx.(*resolveContext).eCtx
 					ts := ectx.Get(keyTypes).(map[string]Type)
 
 					out := []Type{}
 					for _, t := range ts {
 						if t.GetKind() == ObjectKind {
-							t.(*Object).DoesImplement(parent.(*Interface))
+							t.(*Object).DoesImplement(ctx.Parent().(*Interface))
 						}
 						out = append(out, t)
 					}
@@ -41,8 +37,8 @@ func init() {
 		&Field{
 			Name: "ofType",
 			Type: typeIntrospection,
-			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				t := parent.(Type)
+			Resolver: func(ctx Context) (interface{}, error) {
+				t := ctx.Parent().(Type)
 				switch t.GetKind() {
 				case NonNullKind:
 					return t.(WrappingType).Unwrap(), nil
@@ -58,10 +54,10 @@ func init() {
 		&Field{
 			Name: "type",
 			Type: NewNonNull(typeIntrospection),
-			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				if v, ok := parent.(*Argument); ok {
+			Resolver: func(ctx Context) (interface{}, error) {
+				if v, ok := ctx.Parent().(*Argument); ok {
 					return v.GetType(), nil
-				} else if v, ok := parent.(*InputField); ok {
+				} else if v, ok := ctx.Parent().(*InputField); ok {
 					return v.GetType(), nil
 				}
 				return nil, nil
@@ -73,8 +69,8 @@ func init() {
 		&Field{
 			Name: "type",
 			Type: NewNonNull(typeIntrospection),
-			Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-				return parent.(*Field).GetType(), nil
+			Resolver: func(ctx Context) (interface{}, error) {
+				return ctx.Parent().(*Field).GetType(), nil
 			},
 		},
 	)
@@ -97,8 +93,8 @@ var (
 			&Field{
 				Name: "__schema",
 				Type: NewNonNull(schemaIntrospection),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					ectx := ctx.(*eCtx)
+				Resolver: func(ctx Context) (interface{}, error) {
+					ectx := ctx.(*resolveContext).eCtx
 					s := ectx.Get(keySchema).(*Schema)
 					return s, nil
 				},
@@ -112,10 +108,10 @@ var (
 						Type: NewNonNull(String),
 					},
 				},
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					ectx := ctx.(*eCtx)
+				Resolver: func(ctx Context) (interface{}, error) {
+					ectx := ctx.(*resolveContext).eCtx
 					ts := ectx.Get(keyTypes).(map[string]Type)
-					return ts[args["name"].(string)], nil
+					return ts[ctx.Args()["name"].(string)], nil
 				},
 			},
 		},
@@ -127,8 +123,8 @@ var (
 			&Field{
 				Name: "types",
 				Type: NewNonNull(NewList(NewNonNull(typeIntrospection))),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					ectx := ctx.(*eCtx)
+				Resolver: func(ctx Context) (interface{}, error) {
+					ectx := ctx.(*resolveContext).eCtx
 					ts := ectx.Get(keyTypes).(map[string]Type)
 
 					out := []Type{}
@@ -141,8 +137,8 @@ var (
 			&Field{
 				Name: "queryType",
 				Type: NewNonNull(typeIntrospection),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					ectx := ctx.(*eCtx)
+				Resolver: func(ctx Context) (interface{}, error) {
+					ectx := ctx.(*resolveContext).eCtx
 					schema := ectx.Get(keySchema).(*Schema)
 					return schema.GetRootQuery(), nil
 				},
@@ -150,8 +146,8 @@ var (
 			&Field{
 				Name: "mutationType",
 				Type: typeIntrospection,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					ectx := ctx.(*eCtx)
+				Resolver: func(ctx Context) (interface{}, error) {
+					ectx := ctx.(*resolveContext).eCtx
 					schema := ectx.Get(keySchema).(*Schema)
 					if schema.GetRootMutation() == nil {
 						return nil, nil
@@ -162,8 +158,8 @@ var (
 			&Field{
 				Name: "subscriptionType",
 				Type: typeIntrospection,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					ectx := ctx.(*eCtx)
+				Resolver: func(ctx Context) (interface{}, error) {
+					ectx := ctx.(*resolveContext).eCtx
 					schema := ectx.Get(keySchema).(*Schema)
 					if schema.GetRootSubsciption() == nil {
 						return nil, nil
@@ -174,8 +170,8 @@ var (
 			&Field{
 				Name: "directives",
 				Type: NewNonNull(NewList(NewNonNull(directiveIntrospection))),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					ectx := ctx.(*eCtx)
+				Resolver: func(ctx Context) (interface{}, error) {
+					ectx := ctx.(*resolveContext).eCtx
 					ds := ectx.Get(keyDirectives).(map[string]Directive)
 					out := []Directive{}
 					for _, d := range ds {
@@ -193,28 +189,28 @@ var (
 			&Field{
 				Name: "kind",
 				Type: NewNonNull(typeKindIntrospection),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(Type).GetKind(), nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(Type).GetKind(), nil
 				},
 			},
 			&Field{
 				Name: "name",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if _, ok := parent.(WrappingType); ok {
+				Resolver: func(ctx Context) (interface{}, error) {
+					if _, ok := ctx.Parent().(WrappingType); ok {
 						return nil, nil
 					}
-					return parent.(Type).GetName(), nil
+					return ctx.Parent().(Type).GetName(), nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if _, ok := parent.(WrappingType); ok {
+				Resolver: func(ctx Context) (interface{}, error) {
+					if _, ok := ctx.Parent().(WrappingType); ok {
 						return nil, nil
 					}
-					return parent.(Type).GetDescription(), nil
+					return ctx.Parent().(Type).GetDescription(), nil
 				},
 			},
 			&Field{
@@ -227,15 +223,15 @@ var (
 					},
 				},
 				Type: NewList(NewNonNull(fieldIntrospection)),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					includeDeprecated := args["includeDeprecated"].(bool)
+				Resolver: func(ctx Context) (interface{}, error) {
+					includeDeprecated := ctx.Args()["includeDeprecated"].(bool)
 
-					if parent.(Type).GetKind() == ObjectKind {
+					if ctx.Parent().(Type).GetKind() == ObjectKind {
 						if includeDeprecated {
-							return parent.(*Object).GetFields(), nil
+							return ctx.Parent().(*Object).GetFields(), nil
 						} else {
 							out := []*Field{}
-							for _, f := range parent.(*Object).GetFields() {
+							for _, f := range ctx.Parent().(*Object).GetFields() {
 								if !f.IsDeprecated() {
 									out = append(out, f)
 								}
@@ -243,12 +239,12 @@ var (
 							return out, nil
 						}
 					}
-					if parent.(Type).GetKind() == InterfaceKind {
+					if ctx.Parent().(Type).GetKind() == InterfaceKind {
 						if includeDeprecated {
-							return parent.(*Interface).GetFields(), nil
+							return ctx.Parent().(*Interface).GetFields(), nil
 						} else {
 							out := []*Field{}
-							for _, f := range parent.(*Interface).GetFields() {
+							for _, f := range ctx.Parent().(*Interface).GetFields() {
 								if !f.IsDeprecated() {
 									out = append(out, f)
 								}
@@ -269,15 +265,15 @@ var (
 					},
 				},
 				Type: NewList(NewNonNull(enumValueIntrospection)),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					includeDeprecated := args["includeDeprecated"].(bool)
+				Resolver: func(ctx Context) (interface{}, error) {
+					includeDeprecated := ctx.Args()["includeDeprecated"].(bool)
 
-					if parent.(Type).GetKind() == EnumKind {
+					if ctx.Parent().(Type).GetKind() == EnumKind {
 						if includeDeprecated {
-							return parent.(*Enum).GetValues(), nil
+							return ctx.Parent().(*Enum).GetValues(), nil
 						} else {
 							out := []*EnumValue{}
-							for _, v := range parent.(*Enum).GetValues() {
+							for _, v := range ctx.Parent().(*Enum).GetValues() {
 								if !v.IsDeprecated() {
 									out = append(out, v)
 								}
@@ -291,10 +287,10 @@ var (
 			&Field{
 				Name: "inputFields",
 				Type: NewList(NewNonNull(inputValueIntrospection)),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if parent.(Type).GetKind() == InputObjectKind {
+				Resolver: func(ctx Context) (interface{}, error) {
+					if ctx.Parent().(Type).GetKind() == InputObjectKind {
 						fs := []*InputField{}
-						for _, f := range parent.(*InputObject).GetFields() {
+						for _, f := range ctx.Parent().(*InputObject).GetFields() {
 							fs = append(fs, f)
 						}
 						return fs, nil
@@ -311,29 +307,29 @@ var (
 			&Field{
 				Name: "name",
 				Type: NewNonNull(String),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Field).GetName(), nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(*Field).GetName(), nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Field).GetDescription(), nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(*Field).GetDescription(), nil
 				},
 			},
 			&Field{
 				Name: "args",
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*Field).GetArguments(), nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(*Field).GetArguments(), nil
 				},
 			},
 			&Field{
 				Name: "isDeprecated",
 				Type: NewNonNull(Boolean),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					for _, d := range parent.(*Field).GetDirectives() {
+				Resolver: func(ctx Context) (interface{}, error) {
+					for _, d := range ctx.Parent().(*Field).GetDirectives() {
 						if _, ok := d.(*deprecated); ok {
 							return true, nil
 						}
@@ -344,8 +340,8 @@ var (
 			&Field{
 				Name: "deprecationReason",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					for _, d := range parent.(*Field).GetDirectives() {
+				Resolver: func(ctx Context) (interface{}, error) {
+					for _, d := range ctx.Parent().(*Field).GetDirectives() {
 						if dep, ok := d.(*deprecated); ok {
 							return dep.reason, nil
 						}
@@ -362,14 +358,14 @@ var (
 			&Field{
 				Name: "name",
 				Type: NewNonNull(String),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(*EnumValue); ok {
+				Resolver: func(ctx Context) (interface{}, error) {
+					if v, ok := ctx.Parent().(*EnumValue); ok {
 						return v.Name, nil
-					} else if v, ok := parent.(*Argument); ok {
+					} else if v, ok := ctx.Parent().(*Argument); ok {
 						return v.Name, nil
-					} else if v, ok := parent.(*Scalar); ok {
+					} else if v, ok := ctx.Parent().(*Scalar); ok {
 						return v.Name, nil
-					} else if v, ok := parent.(*InputField); ok {
+					} else if v, ok := ctx.Parent().(*InputField); ok {
 						return v.Name, nil
 					}
 					return nil, nil
@@ -378,8 +374,8 @@ var (
 			&Field{
 				Name: "description",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if f, ok := parent.(*Field); ok {
+				Resolver: func(ctx Context) (interface{}, error) {
+					if f, ok := ctx.Parent().(*Field); ok {
 						return f.GetName(), nil
 					}
 					return nil, nil
@@ -388,10 +384,10 @@ var (
 			&Field{
 				Name: "defaultValue",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					if v, ok := parent.(*Argument); ok && v.IsDefaultValueSet() {
+				Resolver: func(ctx Context) (interface{}, error) {
+					if v, ok := ctx.Parent().(*Argument); ok && v.IsDefaultValueSet() {
 						return v.DefaultValue, nil
-					} else if v, ok := parent.(*InputField); ok && v.IsDefaultValueSet() {
+					} else if v, ok := ctx.Parent().(*InputField); ok && v.IsDefaultValueSet() {
 						return v.DefaultValue, nil
 					}
 					return nil, nil
@@ -406,22 +402,22 @@ var (
 			&Field{
 				Name: "name",
 				Type: NewNonNull(String),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*EnumValue).Name, nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(*EnumValue).Name, nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(*EnumValue).Description, nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(*EnumValue).Description, nil
 				},
 			},
 			&Field{
 				Name: "isDeprecated",
 				Type: NewNonNull(Boolean),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					for _, d := range parent.(*EnumValue).GetDirectives() {
+				Resolver: func(ctx Context) (interface{}, error) {
+					for _, d := range ctx.Parent().(*EnumValue).GetDirectives() {
 						if _, ok := d.(*deprecated); ok {
 							return true, nil
 						}
@@ -432,8 +428,8 @@ var (
 			&Field{
 				Name: "deprecationReason",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					for _, d := range parent.(*EnumValue).GetDirectives() {
+				Resolver: func(ctx Context) (interface{}, error) {
+					for _, d := range ctx.Parent().(*EnumValue).GetDirectives() {
 						if dep, ok := d.(*deprecated); ok {
 							return dep.reason, nil
 						}
@@ -488,29 +484,29 @@ var (
 			&Field{
 				Name: "name",
 				Type: NewNonNull(String),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(Directive).GetName(), nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(Directive).GetName(), nil
 				},
 			},
 			&Field{
 				Name: "description",
 				Type: String,
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(Directive).GetDescription(), nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(Directive).GetDescription(), nil
 				},
 			},
 			&Field{
 				Name: "locations",
 				Type: NewNonNull(NewList(NewNonNull(directiveLocationIntrospection))),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(Directive).GetLocations(), nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(Directive).GetLocations(), nil
 				},
 			},
 			&Field{
 				Name: "args",
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
-				Resolver: func(ctx context.Context, parent interface{}, args map[string]interface{}) (interface{}, error) {
-					return parent.(Directive).GetArguments(), nil
+				Resolver: func(ctx Context) (interface{}, error) {
+					return ctx.Parent().(Directive).GetArguments(), nil
 				},
 			},
 		},
