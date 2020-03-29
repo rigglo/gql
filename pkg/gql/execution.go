@@ -504,12 +504,12 @@ func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type, res map[string]interf
 func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
 	f := getFieldOfFields(fn, ot.GetFields())
 	rCtx := &resolveContext{
-		Context: ctx.ctx,
-		eCtx:    ctx,
-		args:    args,
-		parent:  ov,
-		path:    path,
-		fields:  []string{},
+		ctx:    ctx.ctx, // this is the original context
+		eCtx:   ctx,     // execution context
+		args:   args,
+		parent: ov, // parent's value
+		path:   path,
+		fields: []string{}, // currently it's not implemented
 	}
 
 	v, err := f.Resolve(rCtx)
@@ -539,9 +539,6 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 			})
 		}
 		v = nil
-	}
-	if f.GetType().GetKind() == NonNullKind && v == nil {
-		// TODO: raise field error
 	}
 	return v
 }

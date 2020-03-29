@@ -75,7 +75,7 @@ func (c *eCtx) Delete(key string) {
 var _ context.Context = (*eCtx)(nil)
 
 type Context interface {
-	context.Context
+	Context() context.Context
 	Path() []interface{}
 	// 	Fields() []string
 	Args() map[string]interface{}
@@ -83,12 +83,16 @@ type Context interface {
 }
 
 type resolveContext struct {
-	context.Context
+	ctx    context.Context
 	eCtx   *eCtx
 	path   []interface{}
 	fields []string
 	args   map[string]interface{}
 	parent interface{}
+}
+
+func (r *resolveContext) Context() context.Context {
+	return r.ctx
 }
 
 func (r *resolveContext) Path() []interface{} {
