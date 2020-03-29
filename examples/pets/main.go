@@ -127,7 +127,7 @@ var (
 				Name: "someErr",
 				Type: gql.NewList(CatOrDogUnion),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
-					return nil, gql.NewError(ctx, "asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
+					return nil, gql.NewError("asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
 				},
 			},
 		},

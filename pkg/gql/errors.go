@@ -1,9 +1,5 @@
 package gql
 
-import (
-	"context"
-)
-
 type Errors []*Error
 
 type Error struct {
@@ -22,14 +18,32 @@ type ErrorLocation struct {
 	Column int `json:"column"`
 }
 
-func NewError(ctx context.Context, msg string, extensions map[string]interface{}) *Error {
-	return &Error{
-		Message:    msg,
-		Extensions: extensions,
+func NewError(msg string, extensions map[string]interface{}) CustomError {
+	return &cErr{
+		msg:  msg,
+		exts: extensions,
 	}
 }
 
+type cErr struct {
+	msg  string
+	exts map[string]interface{}
+}
+
+func (c *cErr) Error() string {
+	return c.msg
+}
+
+func (c *cErr) GetMessage() string {
+	return c.msg
+}
+
+func (c *cErr) GetExtensions() map[string]interface{} {
+	return c.exts
+}
+
 type CustomError interface {
+	error
 	GetMessage() string
 	GetExtensions() map[string]interface{}
 }

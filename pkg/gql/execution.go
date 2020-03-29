@@ -37,7 +37,7 @@ func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
 	if err != nil {
 		return &Result{
 			ctx:    ctx,
-			Errors: Errors{NewError(ctx, err.Error(), nil)},
+			Errors: Errors{&Error{err.Error(), nil, nil, nil}},
 		}
 	}
 	types, directives := getTypes(s)
@@ -170,7 +170,7 @@ func resolveOperation(ctx *eCtx) *Result {
 	}
 	return &Result{
 		ctx:    ctx,
-		Errors: Errors{NewError(ctx, "invalid operation", nil)},
+		Errors: Errors{&Error{"invalid operation", nil, nil, nil}},
 	}
 }
 
