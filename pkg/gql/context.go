@@ -24,16 +24,17 @@ type eCtx struct {
 	mu    sync.Mutex
 	res   *Result
 	sem   chan struct{}
+	runC  bool
+	errMu sync.Mutex
 }
 
-func newCtx(ctx context.Context, store map[string]interface{}, semLimit int) *eCtx {
+func newCtx(ctx context.Context, store map[string]interface{}, semLimit int, runConcurrently bool) *eCtx {
 	return &eCtx{
 		ctx:   ctx,
 		store: store,
 		sem:   make(chan struct{}, semLimit),
-		res: &Result{
-			ctx: ctx,
-		},
+		runC:  runConcurrently,
+		res:   &Result{},
 	}
 }
 
@@ -72,6 +73,12 @@ func (c *eCtx) Delete(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.store, key)
+}
+
+func (c *eCtx) addErr(err *Error) {
+	c.errMu.Lock()
+	defer c.errMu.Unlock()
+	c.res.Errors = append(c.res.Errors, err)
 }
 
 var _ context.Context = (*eCtx)(nil)
