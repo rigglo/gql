@@ -216,7 +216,7 @@ func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
 func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) map[string]interface{} {
 	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
-	if ctx.enableGoroutines {
+	if ctx.enableGoroutines && !reflect.DeepEqual(ot, ctx.Get(keySchema).(*Schema).GetRootMutation()) {
 		wg := sync.WaitGroup{}
 		wg.Add(len(gfields))
 		mu := sync.Mutex{}
@@ -625,8 +625,36 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		lt := ft.(*List)
 		v := reflect.ValueOf(result)
 		res := make([]interface{}, v.Len())
-		for i := 0; i < v.Len(); i++ {
-			res[i] = completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+		if ctx.enableGoroutines {
+			wg := sync.WaitGroup{}
+			wg.Add(v.Len())
+			mu := sync.Mutex{}
+			for i := 0; i < v.Len(); i++ {
+				i := i
+				select {
+				case ctx.sem <- struct{}{}:
+					go func() {
+						rval := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+						mu.Lock()
+						res[i] = rval
+						mu.Unlock()
+						<-ctx.sem
+						wg.Done()
+					}()
+				default:
+					rval := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+					mu.Lock()
+					res[i] = rval
+					mu.Unlock()
+					<-ctx.sem
+					wg.Done()
+				}
+			}
+			wg.Wait()
+		} else {
+			for i := 0; i < v.Len(); i++ {
+				res[i] = completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+			}
 		}
 		return res
 	} else if ft.GetKind() == ScalarKind {
