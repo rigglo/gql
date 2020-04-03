@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -108,6 +109,9 @@ var (
 				Description: "name of the movie",
 				Directives: gql.Directives{
 					gql.Deprecate("It's just not implemented and movies have titles, not names"),
+				},
+				Resolver: func(ctx gql.Context) (interface{}, error) {
+					return "asd", errors.New("something bad happened")
 				},
 			},
 		},

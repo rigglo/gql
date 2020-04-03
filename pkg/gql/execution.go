@@ -633,6 +633,8 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 			})
 		}
 		v = nil
+	} else if f.GetType().GetKind() == NonNullKind && v == nil && err == nil {
+		ctx.addErr(&Error{Message: "null value on a NonNull field", Path: path})
 	}
 	return v
 }
@@ -641,15 +643,8 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) (interface{}, bool) {
 	if ft.GetKind() == NonNullKind {
 		// Step 1 - NonNull kinds
-		if result == nil {
-			ctx.addErr(&Error{Message: "null value on a NonNull field", Path: path})
-			return nil, true
-		}
 		rval, hasErr := completeValue(ctx, path, ft.(*NonNull).Unwrap(), fs, result)
-		if !hasErr && rval == nil {
-			ctx.addErr(&Error{Message: "null value on a NonNull field", Path: path})
-			return nil, true
-		} else if hasErr {
+		if hasErr || rval == nil {
 			return nil, true
 		} else if ft.(*NonNull).Unwrap().GetKind() == ListKind {
 			v := reflect.ValueOf(rval)
