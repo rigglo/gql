@@ -201,21 +201,30 @@ func resolveOperation(ctx *eCtx) *Result {
 
 func executeQuery(ctx *eCtx, op *ast.Operation) *Result {
 	schema := ctx.Get(keySchema).(*Schema)
-	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery(), nil)
-	ctx.res.Data = rmap
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery(), nil)
+	if hasNullErrs {
+		ctx.res.Data = nil
+	} else {
+		ctx.res.Data = rmap
+	}
 	return ctx.res
 }
 
 func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
 	schema := ctx.Get(keySchema).(*Schema)
-	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootMutation(), nil)
-	ctx.res.Data = rmap
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootMutation(), nil)
+	if hasNullErrs {
+		ctx.res.Data = nil
+	} else {
+		ctx.res.Data = rmap
+	}
 	return ctx.res
 }
 
-func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) map[string]interface{} {
+func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) (map[string]interface{}, bool) {
 	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
+	hasNullErrs := false
 	if ctx.enableGoroutines && !reflect.DeepEqual(ot, ctx.Get(keySchema).(*Schema).GetRootMutation()) {
 		wg := sync.WaitGroup{}
 		wg.Add(len(gfields))
@@ -227,12 +236,18 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 			case ctx.sem <- struct{}{}:
 				go func() {
 					fieldName := fs[0].Name
-					var rval interface{}
+					var (
+						rval   interface{}
+						hasErr bool
+					)
 					if strings.HasPrefix(fieldName, "__") {
-						rval = resolveMetaFields(ctx, fs, ot)
+						rval, hasErr = resolveMetaFields(ctx, fs, ot)
 					} else {
 						fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
-						rval = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+						rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+					}
+					if hasErr {
+						hasNullErrs = true
 					}
 					mu.Lock()
 					resMap[rkey] = rval
@@ -242,12 +257,18 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 				}()
 			default:
 				fieldName := fields[0].Name
-				var rval interface{}
+				var (
+					rval   interface{}
+					hasErr bool
+				)
 				if strings.HasPrefix(fieldName, "__") {
-					rval = resolveMetaFields(ctx, fs, ot)
+					rval, hasErr = resolveMetaFields(ctx, fs, ot)
 				} else {
 					fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
-					rval = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+					rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+				}
+				if hasErr {
+					hasNullErrs = true
 				}
 				mu.Lock()
 				resMap[rkey] = rval
@@ -259,17 +280,26 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 	} else {
 		for rkey, fs := range gfields {
 			fieldName := fs[0].Name
-			var rval interface{}
+			var (
+				rval   interface{}
+				hasErr bool
+			)
 			if strings.HasPrefix(fieldName, "__") {
-				rval = resolveMetaFields(ctx, fs, ot)
+				rval, hasErr = resolveMetaFields(ctx, fs, ot)
 			} else {
 				fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
-				rval = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+				rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+			}
+			if hasErr {
+				hasNullErrs = true
 			}
 			resMap[rkey] = rval
 		}
 	}
-	return resMap
+	if hasNullErrs {
+		return nil, true
+	}
+	return resMap, false
 }
 
 func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
@@ -405,7 +435,7 @@ func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {
 	return nil, false
 }
 
-func executeField(ctx *eCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) interface{} {
+func executeField(ctx *eCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) (interface{}, bool) {
 	f := fs[0]
 	fn := f.Name
 	args := coerceArgumentValues(ctx, path, ot, f)
@@ -547,24 +577,22 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 					}
 				}
 			}
-
-			// TODO: resolve variable value
 		}
 		return res, nil
 	}
 	return nil, errors.New("invalid value to coerce")
 }
 
-func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type) interface{} {
+func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type) (interface{}, bool) {
 	switch fs[0].Name {
 	case "__typename":
-		return t.GetName()
+		return t.GetName(), false
 	case "__schema":
 		return completeValue(ctx, []interface{}{}, schemaIntrospection, fs, true)
 	case "__type":
 		return executeField(ctx, []interface{}{}, introspectionQuery, nil, typeIntrospection, fs)
 	}
-	return nil
+	return nil, true
 }
 
 func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
@@ -609,17 +637,32 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 	return v
 }
 
-func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) interface{} {
+// returns the completed value and a bool value if there is a NonNull error
+func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) (interface{}, bool) {
 	if ft.GetKind() == NonNullKind {
 		// Step 1 - NonNull kinds
 		if result == nil {
 			ctx.addErr(&Error{Message: "null value on a NonNull field", Path: path})
-			return nil
+			return nil, true
 		}
-		return completeValue(ctx, path, ft.(*NonNull).Unwrap(), fs, result)
+		rval, hasErr := completeValue(ctx, path, ft.(*NonNull).Unwrap(), fs, result)
+		if !hasErr && rval == nil {
+			ctx.addErr(&Error{Message: "null value on a NonNull field", Path: path})
+			return nil, true
+		} else if hasErr {
+			return nil, true
+		} else if ft.(*NonNull).Unwrap().GetKind() == ListKind {
+			v := reflect.ValueOf(rval)
+			for i := 0; i < v.Len(); i++ {
+				if v.Index(i).Interface() == nil {
+					return nil, true
+				}
+			}
+		}
+		return rval, false
 	} else if result == nil {
 		// Step 2 - Return null if nil
-		return nil
+		return nil, false
 	} else if ft.GetKind() == ListKind {
 		// Step 3 - go through the list and complete each value, then return result
 		lt := ft.(*List)
@@ -630,22 +673,34 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 			wg.Add(v.Len())
 			mu := sync.Mutex{}
 			for i := 0; i < v.Len(); i++ {
-				i := i
 				select {
 				case ctx.sem <- struct{}{}:
+					i := i
 					go func() {
-						rval := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
-						mu.Lock()
-						res[i] = rval
-						mu.Unlock()
+						rval, hasErr := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+						if hasErr {
+							mu.Lock()
+							res[i] = nil
+							mu.Unlock()
+						} else {
+							mu.Lock()
+							res[i] = rval
+							mu.Unlock()
+						}
 						<-ctx.sem
 						wg.Done()
 					}()
 				default:
-					rval := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
-					mu.Lock()
-					res[i] = rval
-					mu.Unlock()
+					rval, hasErr := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+					if hasErr {
+						mu.Lock()
+						res[i] = nil
+						mu.Unlock()
+					} else {
+						mu.Lock()
+						res[i] = rval
+						mu.Unlock()
+					}
 					<-ctx.sem
 					wg.Done()
 				}
@@ -653,26 +708,31 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 			wg.Wait()
 		} else {
 			for i := 0; i < v.Len(); i++ {
-				res[i] = completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+				rval, hasErr := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+				if hasErr {
+					res[i] = nil
+				} else {
+					res[i] = rval
+				}
 			}
 		}
-		return res
+		return res, false
 	} else if ft.GetKind() == ScalarKind {
 		// Step 4.1 - coerce scalar value
 		res, err := ft.(*Scalar).CoerceResult(result)
 		if err != nil {
 			ctx.addErr(&Error{Message: err.Error(), Path: path})
 		}
-		return res
+		return res, false
 	} else if ft.GetKind() == EnumKind {
 		// Step 4.2 - coerce Enum value
 		for _, ev := range ft.(*Enum).GetValues() {
 			if ev.GetValue() == result {
-				return ev.Name
+				return ev.Name, false
 			}
 		}
 		ctx.addErr(&Error{Message: "invalid result", Path: path})
-		return nil
+		return nil, false
 	} else if ft.GetKind() == ObjectKind {
 		ot := ft.(*Object)
 		subSel := fs[0].SelectionSet
@@ -686,7 +746,7 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
 	}
-	return nil
+	return nil, true
 }
 
 func getTypes(s *Schema) (map[string]Type, map[string]Directive) {

@@ -46,7 +46,7 @@ var (
 		Fields: gql.Fields{
 			&gql.Field{
 				Name:        "top_movies",
-				Type:        gql.NewList(MovieType),
+				Type:        gql.NewNonNull(gql.NewList(MovieType)),
 				Description: "",
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []Movie{
@@ -104,7 +104,7 @@ var (
 			},
 			&gql.Field{
 				Name:        "name",
-				Type:        gql.String,
+				Type:        gql.NewNonNull(gql.String),
 				Description: "name of the movie",
 				Directives: gql.Directives{
 					gql.Deprecate("It's just not implemented and movies have titles, not names"),
