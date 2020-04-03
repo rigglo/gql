@@ -10,35 +10,8 @@ import (
 
 func main() {
 	h := handler.New(handler.Config{
-		Schema: BlockBusters,
+		Executor: gql.DefaultExecutor(BlockBusters),
 	})
-	/* res := BlockBusters.Exec(context.Background(), gql.Params{
-		OperationName: "introspection",
-		Query: `
-		query introspection {
-			__schema {
-				queryType {
-					name
-				}
-			}
-		}
-		query myOp($barVar: String = "foo") {
-			top_movies {
-				__typename
-				... {
-					title
-					... {
-						id
-					}
-				}
-			}
-			foo(asd: {asd: "bar"}, bar: $barVar)
-		}`,
-		Variables: "",
-	})
-	bs, _ := json.MarshalIndent(res, "", "  ")
-	fmt.Printf("%s\n", string(bs)) */
-	//fmt.Printf("%+v", res)
 	http.Handle("/graphql", h)
 	if err := http.ListenAndServe(":9999", nil); err != nil {
 		log.Println(err)

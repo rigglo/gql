@@ -18,20 +18,40 @@ type Result struct {
 	Errors []*Error               `json:"errors,omitempty"`
 }
 
-type ExecuteParams struct {
-	Query         string `json:"query"`
-	Variables     string `json:"variables"`
-	OperationName string `json:"operationName"`
+type Executor struct {
+	config *ExecutorConfig
 }
 
-func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
+type ExecutorConfig struct {
+	GoroutineLimit   int
+	EnableGoroutines bool
+	Schema           *Schema
+}
+
+func DefaultExecutor(s *Schema) *Executor {
+	return &Executor{
+		config: &ExecutorConfig{
+			EnableGoroutines: true,
+			GoroutineLimit:   100,
+			Schema:           s,
+		},
+	}
+}
+
+func NewExecutor(c ExecutorConfig) *Executor {
+	return &Executor{
+		config: &c,
+	}
+}
+
+func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 	_, doc, err := parser.Parse(p.Query)
 	if err != nil {
 		return &Result{
 			Errors: Errors{&Error{err.Error(), nil, nil, nil}},
 		}
 	}
-	types, directives := getTypes(s)
+	types, directives := getTypes(e.config.Schema)
 	ectx := newCtx(
 		ctx,
 		map[string]interface{}{
@@ -39,12 +59,12 @@ func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
 			keyRawQuery:      p.Query,
 			keyOperationName: p.OperationName,
 			keyRawVariables:  p.Variables,
-			keySchema:        s,
+			keySchema:        e.config.Schema,
 			keyTypes:         types,
 			keyDirectives:    directives,
 		},
-		100,
-		true,
+		e.config.GoroutineLimit,
+		e.config.EnableGoroutines,
 	)
 	validate(ectx)
 	if len(ectx.res.Errors) > 0 {
@@ -61,6 +81,16 @@ func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
 	}
 
 	return resolveOperation(ectx)
+}
+
+type Params struct {
+	Query         string `json:"query"`
+	Variables     string `json:"variables"`
+	OperationName string `json:"operationName"`
+}
+
+func Execute(ctx context.Context, s *Schema, p Params) *Result {
+	return DefaultExecutor(s).Execute(ctx, p)
 }
 
 func getOperation(ctx *eCtx) {
@@ -186,16 +216,32 @@ func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
 func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) map[string]interface{} {
 	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
-	wg := sync.WaitGroup{}
-	wg.Add(len(gfields))
-	mu := sync.Mutex{}
-	for rkey, fields := range gfields {
-		fs := fields
-		rkey := rkey
-		select {
-		case ctx.sem <- struct{}{}:
-			go func() {
-				fieldName := fs[0].Name
+	if ctx.enableGoroutines {
+		wg := sync.WaitGroup{}
+		wg.Add(len(gfields))
+		mu := sync.Mutex{}
+		for rkey, fields := range gfields {
+			fs := fields
+			rkey := rkey
+			select {
+			case ctx.sem <- struct{}{}:
+				go func() {
+					fieldName := fs[0].Name
+					var rval interface{}
+					if strings.HasPrefix(fieldName, "__") {
+						rval = resolveMetaFields(ctx, fs, ot)
+					} else {
+						fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+						rval = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+					}
+					mu.Lock()
+					resMap[rkey] = rval
+					mu.Unlock()
+					<-ctx.sem
+					wg.Done()
+				}()
+			default:
+				fieldName := fields[0].Name
 				var rval interface{}
 				if strings.HasPrefix(fieldName, "__") {
 					rval = resolveMetaFields(ctx, fs, ot)
@@ -206,11 +252,13 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 				mu.Lock()
 				resMap[rkey] = rval
 				mu.Unlock()
-				<-ctx.sem
 				wg.Done()
-			}()
-		default:
-			fieldName := fields[0].Name
+			}
+		}
+		wg.Wait()
+	} else {
+		for rkey, fs := range gfields {
+			fieldName := fs[0].Name
 			var rval interface{}
 			if strings.HasPrefix(fieldName, "__") {
 				rval = resolveMetaFields(ctx, fs, ot)
@@ -218,13 +266,9 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 				fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
 				rval = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
 			}
-			mu.Lock()
 			resMap[rkey] = rval
-			mu.Unlock()
-			wg.Done()
 		}
 	}
-	wg.Wait()
 	return resMap
 }
 

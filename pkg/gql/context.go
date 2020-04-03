@@ -19,22 +19,22 @@ const (
 )
 
 type eCtx struct {
-	ctx   context.Context
-	store map[string]interface{}
-	mu    sync.Mutex
-	res   *Result
-	sem   chan struct{}
-	runC  bool
-	errMu sync.Mutex
+	ctx              context.Context
+	store            map[string]interface{}
+	mu               sync.Mutex
+	res              *Result
+	sem              chan struct{}
+	enableGoroutines bool
+	errMu            sync.Mutex
 }
 
-func newCtx(ctx context.Context, store map[string]interface{}, semLimit int, runConcurrently bool) *eCtx {
+func newCtx(ctx context.Context, store map[string]interface{}, semLimit int, enableGoroutines bool) *eCtx {
 	return &eCtx{
-		ctx:   ctx,
-		store: store,
-		sem:   make(chan struct{}, semLimit),
-		runC:  runConcurrently,
-		res:   &Result{},
+		ctx:              ctx,
+		store:            store,
+		sem:              make(chan struct{}, semLimit),
+		enableGoroutines: enableGoroutines,
+		res:              &Result{},
 	}
 }
 

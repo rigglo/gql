@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql/pkg/handler"
 )
 
 func init() {
@@ -15,7 +16,18 @@ func init() {
 }
 
 func main() {
-	res := PetStore.Exec(context.Background(), gql.Params{
+	h := handler.New(handler.Config{
+		Executor: gql.DefaultExecutor(PetStore),
+	})
+	http.Handle("/graphql", h)
+	if err := http.ListenAndServe(":9999", nil); err != nil {
+		log.Println(err)
+	}
+}
+
+/*
+func main() {
+	res := gql.Execute(context.Background(), PetStore, gql.Params{
 		OperationName: "getDogName",
 		Query: `
 		fragment fragmentOne on Dog {
@@ -48,7 +60,7 @@ func main() {
 	})
 	bs, _ := json.MarshalIndent(res, "", "  ")
 	log.Printf("%s\n", string(bs))
-}
+} */
 
 type Dog struct {
 	Name            string `json:"name"`
