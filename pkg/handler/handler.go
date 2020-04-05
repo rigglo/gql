@@ -21,9 +21,9 @@ func New(c Config) http.Handler {
 }
 
 type postParams struct {
-	Query         string          `json:"query"`
-	Variables     json.RawMessage `json:"variables"`
-	OperationName string          `json:"operationName"`
+	Query         string                 `json:"query"`
+	Variables     map[string]interface{} `json:"variables"`
+	OperationName string                 `json:"operationName"`
 }
 
 type handler struct {
@@ -37,7 +37,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		{
 			params = &gql.Params{
 				Query:         html.UnescapeString(r.URL.Query().Get("query")),
-				Variables:     html.UnescapeString(r.URL.Query().Get("variables")),
+				Variables:     nil, // TODO: find a way of doing this..
 				OperationName: r.URL.Query().Get("operationName"),
 			}
 		}
@@ -57,7 +57,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			params = &gql.Params{
 				Query:         html.UnescapeString(p.Query),
-				Variables:     string(p.Variables),
+				Variables:     p.Variables,
 				OperationName: p.OperationName,
 			}
 		}

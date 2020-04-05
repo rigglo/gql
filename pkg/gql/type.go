@@ -82,3 +82,23 @@ func (l *NonNull) Unwrap() Type {
 }
 
 // var _ schema.NonNull = &NonNull{}
+
+func isInputType(t Type) bool {
+	if t.GetKind() == ListKind || t.GetKind() == NonNullKind {
+		return isInputType(t.(WrappingType).Unwrap())
+	}
+	if t.GetKind() == ScalarKind || t.GetKind() == EnumKind || t.GetKind() == InputObjectKind {
+		return true
+	}
+	return false
+}
+
+func isOutputType(t Type) bool {
+	if t.GetKind() == ListKind || t.GetKind() == NonNullKind {
+		return isOutputType(t.(WrappingType).Unwrap())
+	}
+	if t.GetKind() == ScalarKind || t.GetKind() == ObjectKind || t.GetKind() == InterfaceKind || t.GetKind() == UnionKind || t.GetKind() == EnumKind {
+		return true
+	}
+	return false
+}

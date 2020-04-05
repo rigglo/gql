@@ -77,6 +77,7 @@ var (
 					},
 				},
 				Resolver: func(ctx gql.Context) (interface{}, error) {
+					log.Printf("%v", ctx.Args())
 					return ctx.Args()["asd"].(map[string]interface{})["asd"], nil
 				},
 			},

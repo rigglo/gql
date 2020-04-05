@@ -3,6 +3,7 @@ package gql
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -66,6 +67,9 @@ var String *Scalar = &Scalar{
 				}
 				return strings.TrimPrefix(strings.TrimSuffix(string(bs), "\""), "\""), nil
 			}
+		case string:
+			log.Printf("%v", i)
+			return i, nil
 		}
 		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
 
