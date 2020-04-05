@@ -9,7 +9,7 @@ import (
 )
 
 type CoerceResultFunc func(interface{}) (interface{}, error)
-type CoerceInputFunc func([]byte) (interface{}, error)
+type CoerceInputFunc func(interface{}) (interface{}, error)
 
 type Scalar struct {
 	Name             string
@@ -39,7 +39,7 @@ func (s *Scalar) CoerceResult(i interface{}) (interface{}, error) {
 	return s.CoerceResultFunc(i)
 }
 
-func (s *Scalar) CoerceInput(bs []byte) (interface{}, error) {
+func (s *Scalar) CoerceInput(bs interface{}) (interface{}, error) {
 	return s.CoerceInputFunc(bs)
 }
 
@@ -57,11 +57,18 @@ var String *Scalar = &Scalar{
 			return fmt.Sprintf("%v", i), nil
 		}
 	},
-	CoerceInputFunc: func(bs []byte) (interface{}, error) {
-		if !strings.HasPrefix(string(bs), "\"") || !strings.HasSuffix(string(bs), "\"") {
-			return nil, errors.New("Invalid input, could not coerce value")
+	CoerceInputFunc: func(i interface{}) (interface{}, error) {
+		switch i.(type) {
+		case []byte:
+			if bs, ok := i.([]byte); ok {
+				if !strings.HasPrefix(string(bs), "\"") || !strings.HasSuffix(string(bs), "\"") {
+					return nil, errors.New("Invalid input, could not coerce value")
+				}
+				return strings.TrimPrefix(strings.TrimSuffix(string(bs), "\""), "\""), nil
+			}
 		}
-		return strings.TrimPrefix(strings.TrimSuffix(string(bs), "\""), "\""), nil
+		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
+
 	},
 }
 
@@ -79,14 +86,17 @@ var ID *Scalar = &Scalar{
 			return fmt.Sprintf("%v", i), nil
 		}
 	},
-	CoerceInputFunc: func(bs []byte) (interface{}, error) {
-		if !strings.HasPrefix(string(bs), "\"") || !strings.HasSuffix(string(bs), "\"") {
-			if n, err := strconv.ParseInt(string(bs), 10, 32); err == nil {
-				return int(n), nil
+	CoerceInputFunc: func(i interface{}) (interface{}, error) {
+		switch i.(type) {
+		case []byte:
+			if bs, ok := i.([]byte); ok {
+				if !strings.HasPrefix(string(bs), "\"") || !strings.HasSuffix(string(bs), "\"") {
+					return nil, errors.New("Invalid input, could not coerce value")
+				}
+				return strings.TrimPrefix(strings.TrimSuffix(string(bs), "\""), "\""), nil
 			}
-			return nil, errors.New("Invalid input, could not coerce value")
 		}
-		return strings.TrimPrefix(strings.TrimSuffix(string(bs), "\""), "\""), nil
+		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
 	},
 }
 
@@ -178,11 +188,16 @@ var Int *Scalar = &Scalar{
 		}
 		return i, nil
 	},
-	CoerceInputFunc: func(bs []byte) (interface{}, error) {
-		if n, err := strconv.ParseInt(string(bs), 10, 32); err == nil {
-			return int(n), nil
+	CoerceInputFunc: func(i interface{}) (interface{}, error) {
+		switch i.(type) {
+		case []byte:
+			if bs, ok := i.([]byte); ok {
+				if n, err := strconv.ParseInt(string(bs), 10, 32); err == nil {
+					return int(n), nil
+				}
+			}
 		}
-		return errors.New("Invalid Input, could not coerce value to Int"), nil
+		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
 	},
 }
 
@@ -192,8 +207,16 @@ var Float *Scalar = &Scalar{
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
 		return i, nil
 	},
-	CoerceInputFunc: func(bs []byte) (interface{}, error) {
-		return string(bs), nil
+	CoerceInputFunc: func(i interface{}) (interface{}, error) {
+		switch i.(type) {
+		case []byte:
+			if bs, ok := i.([]byte); ok {
+				if n, err := strconv.ParseFloat(string(bs), 32); err == nil {
+					return float32(n), nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
 	},
 }
 
@@ -203,12 +226,17 @@ var Boolean *Scalar = &Scalar{
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
 		return i, nil
 	},
-	CoerceInputFunc: func(bs []byte) (interface{}, error) {
-		if string(bs) == "true" {
-			return true, nil
-		} else if string(bs) == "false" {
-			return false, nil
+	CoerceInputFunc: func(i interface{}) (interface{}, error) {
+		switch i.(type) {
+		case []byte:
+			if bs, ok := i.([]byte); ok {
+				if string(bs) == "true" {
+					return true, nil
+				} else if string(bs) == "false" {
+					return false, nil
+				}
+			}
 		}
-		return nil, errors.New("couldn't coerce value to boolean")
+		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
 	},
 }
