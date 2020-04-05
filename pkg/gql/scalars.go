@@ -198,6 +198,10 @@ var Int *Scalar = &Scalar{
 					return int(n), nil
 				}
 			}
+		case float64:
+			if i == float64(int(i.(float64))) {
+				return int(i.(float64)), nil
+			}
 		}
 		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
 	},
@@ -213,10 +217,12 @@ var Float *Scalar = &Scalar{
 		switch i.(type) {
 		case []byte:
 			if bs, ok := i.([]byte); ok {
-				if n, err := strconv.ParseFloat(string(bs), 32); err == nil {
-					return float32(n), nil
+				if n, err := strconv.ParseFloat(string(bs), 64); err == nil {
+					return float64(n), nil
 				}
 			}
+		case float64:
+			return i, nil
 		}
 		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
 	},
@@ -238,6 +244,8 @@ var Boolean *Scalar = &Scalar{
 					return false, nil
 				}
 			}
+		case bool:
+			return i, nil
 		}
 		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
 	},
