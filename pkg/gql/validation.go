@@ -61,18 +61,18 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
 func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 	types := ctx.Get(keyTypes).(map[string]Type)
 
-	fieldsForName := collectFields(ctx, t.(*Object), set, []string{})
+	fieldsForName := collectFieldsForValidation(ctx, t, set, []string{})
 	for _, fields := range fieldsForName {
 		if len(fields) > 1 {
 			for i := 1; i < len(fields); i++ {
-				if !sameResponseShape(ctx, fields[0], fields[i], t) {
-					// TODO: raise error for selection set can not be merged
-					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
-				}
-
 				var pa, pb Type
 				pa = types[fields[0].ParentType]
 				pb = types[fields[i].ParentType]
+
+				if !sameResponseShape(ctx, fields[0], fields[i], pa, pb) {
+					// TODO: raise error for selection set can not be merged
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
+				}
 
 				// this is bad, we should check the PARENT TYPE..
 				if reflect.DeepEqual(pa, pb) || (pa.GetKind() != ObjectKind || pb.GetKind() != ObjectKind) {
@@ -92,12 +92,14 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 	}
 }
 
-func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, t Type) bool {
+func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, pa Type, pb Type) bool {
 	var typeA, typeB Type
-	for _, f := range t.(hasFields).GetFields() {
+	for _, f := range pa.(hasFields).GetFields() {
 		if f.GetName() == fa.Name {
 			typeA = f.GetType()
 		}
+	}
+	for _, f := range pb.(hasFields).GetFields() {
 		if f.GetName() == fb.Name {
 			typeB = f.GetType()
 		}
@@ -140,13 +142,97 @@ func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, t Type) bool {
 	for _, fields := range fieldsForName {
 		if len(fields) > 1 {
 			for i := 1; i < len(fields); i++ {
-				if !sameResponseShape(ctx, fields[0], fields[i], typeA) {
+				if !sameResponseShape(ctx, fields[0], fields[i], pa, pb) {
 					return false
 				}
 			}
 		}
 	}
 	return true
+}
+
+func collectFieldsForValidation(ctx *eCtx, t Type, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
+	types := ctx.Get(keyTypes).(map[string]Type)
+
+	if vFrags == nil {
+		vFrags = []string{}
+	}
+	gfields := map[string]ast.Fields{}
+
+	for _, sel := range ss {
+		skip := false
+		for _, d := range sel.GetDirectives() {
+			if d.Name == "skip" {
+				skip = skipDirective.Skip(d.Arguments)
+			} else if d.Name == "include" {
+				skip = !includeDirective.Include(d.Arguments)
+			}
+		}
+		if skip {
+			continue
+		}
+
+		switch sel.Kind() {
+		case ast.FieldSelectionKind:
+			{
+				f := sel.(*ast.Field)
+				f.ParentType = t.GetName()
+				if _, ok := gfields[f.Alias]; ok {
+					gfields[f.Alias] = append(gfields[f.Alias], f)
+				} else {
+					gfields[f.Alias] = ast.Fields{f}
+				}
+			}
+		case ast.FragmentSpreadSelectionKind:
+			{
+				fSpread := sel.(*ast.FragmentSpread)
+				skip := false
+				for _, fragName := range vFrags {
+					if fSpread.Name == fragName {
+						skip = true
+					}
+				}
+				if skip {
+					continue
+				}
+
+				vFrags = append(vFrags, fSpread.Name)
+
+				fragment, ok := ctx.Get(keyQuery).(*ast.Document).Fragments[fSpread.Name]
+				if !ok {
+					continue
+				}
+
+				fgfields := collectFieldsForValidation(ctx, types[fragment.TypeCondition], fragment.SelectionSet, vFrags)
+				for rkey, fg := range fgfields {
+					if _, ok := gfields[rkey]; ok {
+						gfields[rkey] = append(gfields[rkey], fg...)
+					} else {
+						gfields[rkey] = fg
+					}
+				}
+			}
+		case ast.InlineFragmentSelectionKind:
+			{
+				f := sel.(*ast.InlineFragment)
+
+				fragmentType := t
+				if f.TypeCondition != "" {
+					fragmentType = types[f.TypeCondition]
+				}
+
+				fgfields := collectFieldsForValidation(ctx, fragmentType, f.SelectionSet, vFrags)
+				for rkey, fg := range fgfields {
+					if _, ok := gfields[rkey]; ok {
+						gfields[rkey] = append(gfields[rkey], fg...)
+					} else {
+						gfields[rkey] = fg
+					}
+				}
+			}
+		}
+	}
+	return gfields
 }
 
 func isCompositeType(t Type) bool {
