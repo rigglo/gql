@@ -1,17 +1,11 @@
 package gql
 
-import (
-	"context"
-)
-
 type Schema struct {
 	Query        *Object
 	Mutation     *Object
 	Subscription *Object
 	Directives   Directives
 }
-
-type Params ExecuteParams
 
 func (s *Schema) GetRootQuery() *Object {
 	return s.Query
@@ -27,8 +21,4 @@ func (s *Schema) GetRootSubsciption() *Object {
 
 func (s *Schema) GetDirectives() []Directive {
 	return s.Directives
-}
-
-func (s *Schema) Exec(ctx context.Context, p Params) *Result {
-	return Execute(ctx, s, ExecuteParams(p))
 }

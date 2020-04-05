@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -10,35 +11,8 @@ import (
 
 func main() {
 	h := handler.New(handler.Config{
-		Schema: BlockBusters,
+		Executor: gql.DefaultExecutor(BlockBusters),
 	})
-	/* res := BlockBusters.Exec(context.Background(), gql.Params{
-		OperationName: "introspection",
-		Query: `
-		query introspection {
-			__schema {
-				queryType {
-					name
-				}
-			}
-		}
-		query myOp($barVar: String = "foo") {
-			top_movies {
-				__typename
-				... {
-					title
-					... {
-						id
-					}
-				}
-			}
-			foo(asd: {asd: "bar"}, bar: $barVar)
-		}`,
-		Variables: "",
-	})
-	bs, _ := json.MarshalIndent(res, "", "  ")
-	fmt.Printf("%s\n", string(bs)) */
-	//fmt.Printf("%+v", res)
 	http.Handle("/graphql", h)
 	if err := http.ListenAndServe(":9999", nil); err != nil {
 		log.Println(err)
@@ -73,7 +47,7 @@ var (
 		Fields: gql.Fields{
 			&gql.Field{
 				Name:        "top_movies",
-				Type:        gql.NewList(MovieType),
+				Type:        gql.NewNonNull(gql.NewList(MovieType)),
 				Description: "",
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []Movie{
@@ -103,6 +77,7 @@ var (
 					},
 				},
 				Resolver: func(ctx gql.Context) (interface{}, error) {
+					log.Printf("%v", ctx.Args())
 					return ctx.Args()["asd"].(map[string]interface{})["asd"], nil
 				},
 			},
@@ -131,10 +106,13 @@ var (
 			},
 			&gql.Field{
 				Name:        "name",
-				Type:        gql.String,
+				Type:        gql.NewNonNull(gql.String),
 				Description: "name of the movie",
 				Directives: gql.Directives{
 					gql.Deprecate("It's just not implemented and movies have titles, not names"),
+				},
+				Resolver: func(ctx gql.Context) (interface{}, error) {
+					return "asd", errors.New("something bad happened")
 				},
 			},
 		},

@@ -2,7 +2,6 @@ package gql
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -14,42 +13,58 @@ import (
 )
 
 type Result struct {
-	ctx    context.Context
 	Data   map[string]interface{} `json:"data"`
 	Errors []*Error               `json:"errors,omitempty"`
-	errMu  sync.Mutex
 }
 
-func (r *Result) addErr(err *Error) {
-	r.errMu.Lock()
-	defer r.errMu.Unlock()
-	r.Errors = append(r.Errors, err)
+type Executor struct {
+	config *ExecutorConfig
 }
 
-type ExecuteParams struct {
-	Query         string `json:"query"`
-	Variables     string `json:"variables"`
-	OperationName string `json:"operationName"`
+type ExecutorConfig struct {
+	GoroutineLimit   int
+	EnableGoroutines bool
+	Schema           *Schema
 }
 
-func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
+func DefaultExecutor(s *Schema) *Executor {
+	return &Executor{
+		config: &ExecutorConfig{
+			EnableGoroutines: true,
+			GoroutineLimit:   100,
+			Schema:           s,
+		},
+	}
+}
+
+func NewExecutor(c ExecutorConfig) *Executor {
+	return &Executor{
+		config: &c,
+	}
+}
+
+func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 	_, doc, err := parser.Parse(p.Query)
 	if err != nil {
 		return &Result{
-			ctx:    ctx,
 			Errors: Errors{&Error{err.Error(), nil, nil, nil}},
 		}
 	}
-	types, directives := getTypes(s)
-	ectx := newCtx(ctx, map[string]interface{}{
-		keyQuery:         doc,
-		keyRawQuery:      p.Query,
-		keyOperationName: p.OperationName,
-		keyRawVariables:  p.Variables,
-		keySchema:        s,
-		keyTypes:         types,
-		keyDirectives:    directives,
-	})
+	types, directives := getTypes(e.config.Schema)
+	ectx := newCtx(
+		ctx,
+		map[string]interface{}{
+			keyQuery:         doc,
+			keyRawQuery:      p.Query,
+			keyOperationName: p.OperationName,
+			keyRawVariables:  p.Variables,
+			keySchema:        e.config.Schema,
+			keyTypes:         types,
+			keyDirectives:    directives,
+		},
+		e.config.GoroutineLimit,
+		e.config.EnableGoroutines,
+	)
 	validate(ectx)
 	if len(ectx.res.Errors) > 0 {
 		return ectx.res
@@ -67,6 +82,16 @@ func Execute(ctx context.Context, s *Schema, p ExecuteParams) *Result {
 	return resolveOperation(ectx)
 }
 
+type Params struct {
+	Query         string                 `json:"query"`
+	Variables     map[string]interface{} `json:"variables"`
+	OperationName string                 `json:"operationName"`
+}
+
+func Execute(ctx context.Context, s *Schema, p Params) *Result {
+	return DefaultExecutor(s).Execute(ctx, p)
+}
+
 func getOperation(ctx *eCtx) {
 	oname := ctx.Get(keyOperationName).(string)
 	doc := ctx.Get(keyQuery).(*ast.Document)
@@ -76,7 +101,7 @@ func getOperation(ctx *eCtx) {
 		if len(doc.Operations) == 1 {
 			op = doc.Operations[0]
 		} else {
-			ctx.res.addErr(&Error{
+			ctx.addErr(&Error{
 				Message:   "missing operationName",
 				Path:      []interface{}{},
 				Locations: []*ErrorLocation{},
@@ -93,7 +118,7 @@ func getOperation(ctx *eCtx) {
 		ctx.Set(keyOperation, op)
 		return
 	}
-	ctx.res.addErr(&Error{
+	ctx.addErr(&Error{
 		Message:   "operation not found",
 		Path:      []interface{}{},
 		Locations: []*ErrorLocation{},
@@ -102,36 +127,49 @@ func getOperation(ctx *eCtx) {
 }
 
 func coerceVariableValues(ctx *eCtx) {
-	/*
-		coercedValues := map[string]interface{}{}
+	coercedValues := map[string]interface{}{}
 
-		types := ctx.Get(keyTypes).(map[string]Type)
-		op := ctx.Get(keyOperation).(*ast.Operation)
-	*/
-	raw := ctx.Get(keyRawVariables).(string)
+	types := ctx.Get(keyTypes).(map[string]Type)
+	op := ctx.Get(keyOperation).(*ast.Operation)
 
-	if raw == "" {
-		ctx.Set(keyVariables, map[string]interface{}{})
-		return
-	}
+	raw := ctx.Get(keyRawVariables).(map[string]interface{})
 
-	rawVars := map[string]interface{}{}
-
-	err := json.Unmarshal([]byte(raw), &rawVars)
-	if err != nil {
-		ctx.res.addErr(&Error{
-			Message:   "invalid variables format",
-			Path:      []interface{}{},
-			Locations: []*ErrorLocation{},
-		})
-	}
-	ctx.Set(keyVariables, rawVars)
-	/*
-		for _, varDef := range op.Variables {
-			varType, err := resolveAstType(ctx, types, varDef.Type)
+	for _, varDef := range op.Variables {
+		varType, Err := resolveAstType(types, varDef.Type)
+		if Err != nil {
+			ctx.addErr(&Error{
+				Message: "invalid type for variable",
+				Path:    []interface{}{},
+				Locations: []*ErrorLocation{
+					&ErrorLocation{
+						Column: varDef.Location.Column,
+						Line:   varDef.Location.Line,
+					},
+				},
+			})
+			continue
+		}
+		if !isInputType(varType) {
+			ctx.addErr(&Error{
+				Message: "variable type is not input type",
+				Path:    []interface{}{},
+				Locations: []*ErrorLocation{
+					&ErrorLocation{
+						Column: varDef.Location.Column,
+						Line:   varDef.Location.Line,
+					},
+				},
+			})
+			continue
+		}
+		var defaultValue interface{} = nil
+		value, hasValue := raw[varDef.Name]
+		if !hasValue && varDef.DefaultValue != nil {
+			var err error
+			defaultValue, err = coerceAstValue(ctx, varDef.DefaultValue, varType)
 			if err != nil {
-				ctx.res.addErr(&Error{
-					Message: "operation not found",
+				ctx.addErr(&Error{
+					Message: "couldn't coerece default value of variable",
 					Path:    []interface{}{},
 					Locations: []*ErrorLocation{
 						&ErrorLocation{
@@ -140,21 +178,75 @@ func coerceVariableValues(ctx *eCtx) {
 						},
 					},
 				})
-				return
+				continue
 			}
-			hasValue := false
-			if val, ok := rawVars[varDef.Name]; ok {
-
+			coercedValues[varDef.Name] = defaultValue
+		} else if varType.GetKind() == NonNullKind && (!hasValue || value == nil) {
+			ctx.addErr(&Error{
+				Message: "null value or missing value for non null type",
+				Path:    []interface{}{},
+				Locations: []*ErrorLocation{
+					&ErrorLocation{
+						Column: varDef.Location.Column,
+						Line:   varDef.Location.Line,
+					},
+				},
+			})
+			continue
+		} else if hasValue {
+			if value == nil {
+				coercedValues[varDef.Name] = nil
+			} else if cv, err := coerceJsonValue(ctx, value, varType); err == nil {
+				coercedValues[varDef.Name] = cv
+			} else {
+				ctx.addErr(&Error{
+					Message: err.Error(),
+					Path:    []interface{}{},
+					Locations: []*ErrorLocation{
+						&ErrorLocation{
+							Column: varDef.Location.Column,
+							Line:   varDef.Location.Line,
+						},
+					},
+				})
+				continue
 			}
-			defVal := varDef.DefaultValue
-
 		}
-	*/
+	}
+	ctx.Set(keyVariables, coercedValues)
 }
 
-func resolveAstType(ctx *eCtx, types map[string]Type, t ast.Type) (Type, *Error) {
-
-	return nil, nil
+func resolveAstType(types map[string]Type, t ast.Type) (Type, *Error) {
+	switch t.Kind() {
+	case ast.List:
+		t, err := resolveAstType(types, t.GetValue().(ast.Type))
+		if err != nil {
+			return nil, err
+		}
+		return NewList(t), nil
+	case ast.NonNull:
+		t, err := resolveAstType(types, t.GetValue().(ast.Type))
+		if err != nil {
+			return nil, err
+		}
+		return NewNonNull(t), nil
+	case ast.Named:
+		if t, ok := types[t.GetValue().(string)]; ok {
+			return t, nil
+		}
+		return nil, &Error{
+			Message: "invalid type",
+			Locations: []*ErrorLocation{
+				{
+					Column: t.(*ast.NamedType).Location.Column,
+					Line:   t.(*ast.NamedType).Location.Line,
+				},
+			},
+		}
+	}
+	return nil, &Error{
+		Message: "couldn't resolve ast type",
+	}
 }
 
 func resolveOperation(ctx *eCtx) *Result {
@@ -169,42 +261,111 @@ func resolveOperation(ctx *eCtx) *Result {
 		break
 	}
 	return &Result{
-		ctx:    ctx,
 		Errors: Errors{&Error{"invalid operation", nil, nil, nil}},
 	}
 }
 
 func executeQuery(ctx *eCtx, op *ast.Operation) *Result {
 	schema := ctx.Get(keySchema).(*Schema)
-	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery(), nil)
-	ctx.res.Data = rmap
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery(), nil)
+	if hasNullErrs {
+		ctx.res.Data = nil
+	} else {
+		ctx.res.Data = rmap
+	}
 	return ctx.res
 }
 
 func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
 	schema := ctx.Get(keySchema).(*Schema)
-	rmap := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootMutation(), nil)
-	ctx.res.Data = rmap
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootMutation(), nil)
+	if hasNullErrs {
+		ctx.res.Data = nil
+	} else {
+		ctx.res.Data = rmap
+	}
 	return ctx.res
 }
 
-func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) map[string]interface{} {
+func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) (map[string]interface{}, bool) {
 	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
-	for rkey, fields := range gfields {
-
-		fieldName := fields[0].Name
-
-		if strings.HasPrefix(fieldName, "__") {
-			resolveMetaFields(ctx, fields, ot, resMap)
-			continue
+	hasNullErrs := false
+	if ctx.enableGoroutines && !reflect.DeepEqual(ot, ctx.Get(keySchema).(*Schema).GetRootMutation()) {
+		wg := sync.WaitGroup{}
+		wg.Add(len(gfields))
+		mu := sync.Mutex{}
+		for rkey, fields := range gfields {
+			fs := fields
+			rkey := rkey
+			select {
+			case ctx.sem <- struct{}{}:
+				go func() {
+					fieldName := fs[0].Name
+					var (
+						rval   interface{}
+						hasErr bool
+					)
+					if strings.HasPrefix(fieldName, "__") {
+						rval, hasErr = resolveMetaFields(ctx, fs, ot)
+					} else {
+						fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+						rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+					}
+					if hasErr {
+						hasNullErrs = true
+					}
+					mu.Lock()
+					resMap[rkey] = rval
+					mu.Unlock()
+					<-ctx.sem
+					wg.Done()
+				}()
+			default:
+				fieldName := fields[0].Name
+				var (
+					rval   interface{}
+					hasErr bool
+				)
+				if strings.HasPrefix(fieldName, "__") {
+					rval, hasErr = resolveMetaFields(ctx, fs, ot)
+				} else {
+					fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+					rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+				}
+				if hasErr {
+					hasNullErrs = true
+				}
+				mu.Lock()
+				resMap[rkey] = rval
+				mu.Unlock()
+				wg.Done()
+			}
 		}
-
-		fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
-		rval := executeField(ctx, append(path, fields[0].Alias), ot, ov, fieldType, fields)
-		resMap[rkey] = rval
+		wg.Wait()
+	} else {
+		for rkey, fs := range gfields {
+			fieldName := fs[0].Name
+			var (
+				rval   interface{}
+				hasErr bool
+			)
+			if strings.HasPrefix(fieldName, "__") {
+				rval, hasErr = resolveMetaFields(ctx, fs, ot)
+			} else {
+				fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+				rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
+			}
+			if hasErr {
+				hasNullErrs = true
+			}
+			resMap[rkey] = rval
+		}
 	}
-	return resMap
+	if hasNullErrs {
+		return nil, true
+	}
+	return resMap, false
 }
 
 func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
@@ -340,7 +501,7 @@ func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {
 	return nil, false
 }
 
-func executeField(ctx *eCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) interface{} {
+func executeField(ctx *eCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) (interface{}, bool) {
 	f := fs[0]
 	fn := f.Name
 	args := coerceArgumentValues(ctx, path, ot, f)
@@ -370,7 +531,7 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, ot *Object, f *ast.Fiel
 		if !hasValue && argDef.IsDefaultValueSet() {
 			coercedVals[argName] = defaultValue
 		} else if argType.GetKind() == NonNullKind && (!hasValue || value == nil) {
-			ctx.res.addErr(&Error{
+			ctx.addErr(&Error{
 				Message: fmt.Sprintf("Argument '%s' is a Non-Null field, but got null value", argName),
 				Path:    path,
 				Locations: []*ErrorLocation{
@@ -386,9 +547,9 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, ot *Object, f *ast.Fiel
 			} else if argVal.Value.Kind() == ast.VariableValueKind {
 				coercedVals[argName] = value
 			} else {
-				coercedVal, err := coerceValue(ctx, value, argType)
+				coercedVal, err := coerceAstValue(ctx, value, argType)
 				if err != nil {
-					ctx.res.addErr(&Error{
+					ctx.addErr(&Error{
 						Message: err.Error(),
 						Path:    path,
 						Locations: []*ErrorLocation{
@@ -408,19 +569,85 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, ot *Object, f *ast.Fiel
 	return coercedVals
 }
 
-func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
+func coerceJsonValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
+	switch {
+	case t.GetKind() == NonNullKind:
+		if val == nil {
+			return nil, errors.New("Null value on NonNull type")
+		}
+		return coerceJsonValue(ctx, val, t.(*NonNull).Unwrap())
+	case t.GetKind() == ListKind:
+		wt := t.(*List).Unwrap()
+		lv, ok := val.([]interface{})
+		if !ok {
+			return nil, errors.New("invalid list value")
+		}
+		res := make([]interface{}, len(lv))
+		for i := 0; i < len(res); i++ {
+			r, err := coerceJsonValue(ctx, lv[i], wt)
+			if err != nil {
+				return nil, err
+			}
+			res[i] = r
+		}
+		return res, nil
+	case t.GetKind() == ScalarKind:
+		s := t.(*Scalar)
+		return s.CoerceInput(val)
+	case t.GetKind() == EnumKind:
+		e := t.(*Enum)
+		if v, ok := val.(string); ok {
+			for _, ev := range e.Values {
+				if ev.Name == v {
+					return ev.Value, nil
+				}
+			}
+			return nil, fmt.Errorf("invalid value for an Enum type")
+		}
+		return nil, fmt.Errorf("invalid value for an Enum type")
+	case t.GetKind() == InputObjectKind:
+		res := map[string]interface{}{}
+		ov, ok := val.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("Invalid input object value")
+		}
+		o := t.(*InputObject)
+		for _, field := range o.GetFields() {
+			fv, ok := ov[field.Name]
+			if !ok && field.IsDefaultValueSet() {
+				res[field.Name] = field.GetDefaultValue()
+			} else if !ok && field.GetType().GetKind() == NonNullKind {
+				return nil, fmt.Errorf("No value provided for NonNull type")
+			}
+			if fv == nil && field.GetType().GetKind() != NonNullKind {
+				res[field.Name] = nil
+			}
+			if fv != nil {
+				if cv, err := coerceJsonValue(ctx, fv, field.GetType()); err == nil {
+					res[field.Name] = cv
+				} else {
+					return nil, err
+				}
+			}
+		}
+		return res, nil
+	}
+	return nil, errors.New("invalid value to coerce")
+}
+
+func coerceAstValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 	switch {
 	case t.GetKind() == NonNullKind:
 		if _, ok := val.(ast.NullValue); ok {
 			return nil, errors.New("Null value on NonNull type")
 		}
-		return coerceValue(ctx, val, t.(*NonNull).Unwrap())
+		return coerceAstValue(ctx, val, t.(*NonNull).Unwrap())
 	case t.GetKind() == ListKind:
 		wt := t.(*List).Unwrap()
 		lv := val.(ast.ListValue)
 		res := make([]interface{}, len(lv.Values))
 		for i := 0; i < len(res); i++ {
-			r, err := coerceValue(ctx, lv.Values[i].GetValue(), wt)
+			r, err := coerceAstValue(ctx, lv.Values[i].GetValue(), wt)
 			if err != nil {
 				return nil, err
 			}
@@ -434,6 +661,17 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 			return s.CoerceInput([]byte(v.GetValue().(string)))
 		}
 		return nil, fmt.Errorf("invalid value on a Scalar type")
+	case t.GetKind() == EnumKind:
+		e := t.(*Enum)
+		if v, ok := val.(ast.Value); ok {
+			for _, ev := range e.Values {
+				if ev.Name == v.GetValue().(string) {
+					return ev.Value, nil
+				}
+			}
+			return nil, fmt.Errorf("invalid value for an Enum type")
+		}
+		return nil, fmt.Errorf("invalid value for an Enum type")
 	case t.GetKind() == InputObjectKind:
 		res := map[string]interface{}{}
 		ov, ok := val.(*ast.ObjectValue)
@@ -452,7 +690,7 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 				res[field.Name] = nil
 			}
 			if astf.Value.Kind() != ast.VariableValueKind {
-				if fv, err := coerceValue(ctx, astf.Value, field.GetType()); err == nil {
+				if fv, err := coerceAstValue(ctx, astf.Value, field.GetType()); err == nil {
 					res[field.Name] = fv
 				} else {
 					return nil, err
@@ -463,14 +701,14 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 				if ok && varVal == nil && field.GetType().GetKind() == NonNullKind {
 					return nil, fmt.Errorf("null value on NonNull type")
 				} else if ok {
-					res[field.Name] = varVal
+					res[field.Name] = varVal[field.Name]
 				}
 				if !ok {
 					op := ctx.Get(keyOperation).(*ast.Operation)
 					vv := astf.Value.(*ast.VariableValue)
 					vDef := op.Variables[vv.Name]
 					if vDef.DefaultValue != nil {
-						defVal, err := coerceValue(ctx, vDef.DefaultValue, field.GetType())
+						defVal, err := coerceAstValue(ctx, vDef.DefaultValue, field.GetType())
 						if err != nil {
 							return nil, err
 						}
@@ -482,23 +720,22 @@ func coerceValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 					}
 				}
 			}
-
-			// TODO: resolve variable value
 		}
 		return res, nil
 	}
 	return nil, errors.New("invalid value to coerce")
 }
 
-func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type, res map[string]interface{}) {
+func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type) (interface{}, bool) {
 	switch fs[0].Name {
 	case "__typename":
-		res[fs[0].Alias] = t.GetName()
+		return t.GetName(), false
 	case "__schema":
-		res[fs[0].Alias] = completeValue(ctx, []interface{}{}, schemaIntrospection, fs, true)
+		return completeValue(ctx, []interface{}{}, schemaIntrospection, fs, true)
 	case "__type":
-		res[fs[0].Alias] = executeField(ctx, []interface{}{}, introspectionQuery, nil, typeIntrospection, fs)
+		return executeField(ctx, []interface{}{}, introspectionQuery, nil, typeIntrospection, fs)
 	}
+	return nil, true
 }
 
 func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
@@ -515,7 +752,7 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 	v, err := f.Resolve(rCtx)
 	if err != nil {
 		if e, ok := err.(CustomError); ok {
-			ctx.res.addErr(&Error{
+			ctx.addErr(&Error{
 				Message: e.GetMessage(),
 				Path:    path,
 				Locations: []*ErrorLocation{
@@ -527,7 +764,7 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 				Extensions: e.GetExtensions(),
 			})
 		} else {
-			ctx.res.addErr(&Error{
+			ctx.addErr(&Error{
 				Message: err.Error(),
 				Path:    path,
 				Locations: []*ErrorLocation{
@@ -539,46 +776,101 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 			})
 		}
 		v = nil
+	} else if f.GetType().GetKind() == NonNullKind && v == nil && err == nil {
+		ctx.addErr(&Error{Message: "null value on a NonNull field", Path: path})
 	}
 	return v
 }
 
-func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) interface{} {
+// returns the completed value and a bool value if there is a NonNull error
+func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) (interface{}, bool) {
 	if ft.GetKind() == NonNullKind {
 		// Step 1 - NonNull kinds
-		if result == nil {
-			ctx.res.addErr(&Error{Message: "null value on a NonNull field", Path: path})
-			return nil
+		rval, hasErr := completeValue(ctx, path, ft.(*NonNull).Unwrap(), fs, result)
+		if hasErr || rval == nil {
+			return nil, true
+		} else if ft.(*NonNull).Unwrap().GetKind() == ListKind {
+			v := reflect.ValueOf(rval)
+			for i := 0; i < v.Len(); i++ {
+				if v.Index(i).Interface() == nil {
+					return nil, true
+				}
+			}
 		}
-		return completeValue(ctx, path, ft.(*NonNull).Unwrap(), fs, result)
+		return rval, false
 	} else if result == nil {
 		// Step 2 - Return null if nil
-		return nil
+		return nil, false
 	} else if ft.GetKind() == ListKind {
 		// Step 3 - go through the list and complete each value, then return result
 		lt := ft.(*List)
 		v := reflect.ValueOf(result)
 		res := make([]interface{}, v.Len())
-		for i := 0; i < v.Len(); i++ {
-			res[i] = completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+		if ctx.enableGoroutines {
+			wg := sync.WaitGroup{}
+			wg.Add(v.Len())
+			mu := sync.Mutex{}
+			for i := 0; i < v.Len(); i++ {
+				select {
+				case ctx.sem <- struct{}{}:
+					i := i
+					go func() {
+						rval, hasErr := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+						if hasErr {
+							mu.Lock()
+							res[i] = nil
+							mu.Unlock()
+						} else {
+							mu.Lock()
+							res[i] = rval
+							mu.Unlock()
+						}
+						<-ctx.sem
+						wg.Done()
+					}()
+				default:
+					rval, hasErr := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+					if hasErr {
+						mu.Lock()
+						res[i] = nil
+						mu.Unlock()
+					} else {
+						mu.Lock()
+						res[i] = rval
+						mu.Unlock()
+					}
+					<-ctx.sem
+					wg.Done()
+				}
+			}
+			wg.Wait()
+		} else {
+			for i := 0; i < v.Len(); i++ {
+				rval, hasErr := completeValue(ctx, append(path, i), lt.Unwrap(), fs, v.Index(i).Interface())
+				if hasErr {
+					res[i] = nil
+				} else {
+					res[i] = rval
+				}
+			}
 		}
-		return res
+		return res, false
 	} else if ft.GetKind() == ScalarKind {
 		// Step 4.1 - coerce scalar value
 		res, err := ft.(*Scalar).CoerceResult(result)
 		if err != nil {
-			ctx.res.addErr(&Error{Message: err.Error(), Path: path})
+			ctx.addErr(&Error{Message: err.Error(), Path: path})
 		}
-		return res
+		return res, false
 	} else if ft.GetKind() == EnumKind {
 		// Step 4.2 - coerce Enum value
 		for _, ev := range ft.(*Enum).GetValues() {
 			if ev.GetValue() == result {
-				return ev.Name
+				return ev.Name, false
 			}
 		}
-		ctx.res.addErr(&Error{Message: "invalid result", Path: path})
-		return nil
+		ctx.addErr(&Error{Message: "invalid result", Path: path})
+		return nil, false
 	} else if ft.GetKind() == ObjectKind {
 		ot := ft.(*Object)
 		subSel := fs[0].SelectionSet
@@ -592,7 +884,7 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
 	}
-	return nil
+	return nil, true
 }
 
 func getTypes(s *Schema) (map[string]Type, map[string]Directive) {
@@ -631,6 +923,7 @@ func typeWalker(types map[string]Type, directives map[string]Directive, t Type) 
 	if _, ok := types[wt.GetName()]; !ok {
 		types[wt.GetName()] = wt
 	}
+	// TODO: directives are not checked and "walked" through
 	if hf, ok := t.(hasFields); ok {
 		for _, f := range hf.GetFields() {
 			for _, arg := range f.GetArguments() {

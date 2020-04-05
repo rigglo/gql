@@ -11,7 +11,7 @@ import (
 )
 
 type Config struct {
-	Schema *gql.Schema
+	Executor *gql.Executor
 }
 
 func New(c Config) http.Handler {
@@ -21,9 +21,9 @@ func New(c Config) http.Handler {
 }
 
 type postParams struct {
-	Query         string          `json:"query"`
-	Variables     json.RawMessage `json:"variables"`
-	OperationName string          `json:"operationName"`
+	Query         string                 `json:"query"`
+	Variables     map[string]interface{} `json:"variables"`
+	OperationName string                 `json:"operationName"`
 }
 
 type handler struct {
@@ -31,13 +31,13 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var params *gql.ExecuteParams
+	var params *gql.Params
 	switch r.Method {
 	case http.MethodGet:
 		{
-			params = &gql.ExecuteParams{
+			params = &gql.Params{
 				Query:         html.UnescapeString(r.URL.Query().Get("query")),
-				Variables:     html.UnescapeString(r.URL.Query().Get("variables")),
+				Variables:     nil, // TODO: find a way of doing this..
 				OperationName: r.URL.Query().Get("operationName"),
 			}
 		}
@@ -55,15 +55,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 
-			params = &gql.ExecuteParams{
+			params = &gql.Params{
 				Query:         html.UnescapeString(p.Query),
-				Variables:     string(p.Variables),
+				Variables:     p.Variables,
 				OperationName: p.OperationName,
 			}
 		}
 	}
 	if params != nil {
-		bs, err := json.MarshalIndent(gql.Execute(r.Context(), h.conf.Schema, *params), "", "\t")
+		bs, err := json.MarshalIndent(h.conf.Executor.Execute(r.Context(), *params), "", "\t")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
