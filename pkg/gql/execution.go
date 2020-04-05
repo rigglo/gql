@@ -395,6 +395,7 @@ func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) ma
 		case ast.FieldSelectionKind:
 			{
 				f := sel.(*ast.Field)
+				f.ParentType = t.Name
 				if _, ok := gfields[f.Alias]; ok {
 					gfields[f.Alias] = append(gfields[f.Alias], f)
 				} else {

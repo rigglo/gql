@@ -59,7 +59,7 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
 }
 
 func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
-	// types := ctx.Get(keyTypes).(map[string]Type)
+	types := ctx.Get(keyTypes).(map[string]Type)
 
 	fieldsForName := collectFields(ctx, t.(*Object), set, []string{})
 	for _, fields := range fieldsForName {
@@ -69,21 +69,10 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 					// TODO: raise error for selection set can not be merged
 					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
 				}
-				// var ta, tb = getFieldOfFields(fields[0].Name, fs).GetType(), getFieldOfFields(fields[i].Name, fs).GetType()
-				var pa, pb Type
-				/*
-					if fields[0].ParentType == "" {
-						pa = t
-					} else {
-						pa = types[fields[0].ParentType]
-					}
 
-					if fields[i].ParentType == "" {
-						pb = t
-					} else {
-						pb = types[fields[i].ParentType]
-					}
-				*/
+				var pa, pb Type
+				pa = types[fields[0].ParentType]
+				pb = types[fields[i].ParentType]
 
 				// this is bad, we should check the PARENT TYPE..
 				if reflect.DeepEqual(pa, pb) || (pa.GetKind() != ObjectKind || pb.GetKind() != ObjectKind) {
@@ -91,12 +80,12 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 						// TODO: raise error that selection set can not be merged
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "field names are not equal")), nil, nil, nil})
 					}
-					if !reflect.DeepEqual(fields[0].Arguments, fields[1].Arguments) {
+					if !reflect.DeepEqual(fields[0].Arguments, fields[i].Arguments) {
 						// TODO: raise error that selection set can not be merged (due to arguments don't match)
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "arguments don't match")), nil, nil, nil})
 					}
-					mergedSet := append(fields[0].SelectionSet, fields[1].SelectionSet...)
-					fieldsInSetCanMerge(ctx, mergedSet, getFieldOfFields(fields[0].Name, pa.(hasFields).GetFields()).GetType())
+					mergedSet := append(fields[0].SelectionSet, fields[i].SelectionSet...)
+					fieldsInSetCanMerge(ctx, mergedSet, t)
 				}
 			}
 		}
@@ -105,10 +94,11 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 
 func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, t Type) bool {
 	var typeA, typeB Type
-	for _, f := range []Field{} {
+	for _, f := range t.(hasFields).GetFields() {
 		if f.GetName() == fa.Name {
 			typeA = f.GetType()
-		} else if f.GetName() == fb.Name {
+		}
+		if f.GetName() == fb.Name {
 			typeB = f.GetType()
 		}
 	}
@@ -168,6 +158,7 @@ func isCompositeType(t Type) bool {
 
 func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 	//types := ctx.Get(keyTypes).(map[string]Type)
+	fieldsInSetCanMerge(ctx, set, t)
 	for _, s := range set {
 		if s.Kind() == ast.FieldSelectionKind {
 			f := s.(*ast.Field)
