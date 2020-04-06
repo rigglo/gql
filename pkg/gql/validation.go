@@ -70,19 +70,20 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 				pb = types[fields[i].ParentType]
 
 				if !sameResponseShape(ctx, fields[0], fields[i], pa, pb) {
-					// TODO: raise error for selection set can not be merged
 					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
+					continue
 				}
 
 				// this is bad, we should check the PARENT TYPE..
 				if reflect.DeepEqual(pa, pb) || (pa.GetKind() != ObjectKind || pb.GetKind() != ObjectKind) {
 					if fields[0].Name != fields[i].Name {
-						// TODO: raise error that selection set can not be merged
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "field names are not equal")), nil, nil, nil})
+						continue
 					}
-					if !reflect.DeepEqual(fields[0].Arguments, fields[i].Arguments) {
-						// TODO: raise error that selection set can not be merged (due to arguments don't match)
+
+					if !equalArguments(fields[0].Arguments, fields[i].Arguments) {
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "arguments don't match")), nil, nil, nil})
+						continue
 					}
 					mergedSet := append(fields[0].SelectionSet, fields[i].SelectionSet...)
 					fieldsInSetCanMerge(ctx, mergedSet, t)
@@ -90,6 +91,42 @@ func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
 			}
 		}
 	}
+}
+
+func equalArguments(a []*ast.Argument, b []*ast.Argument) bool {
+	if (a == nil && b != nil) || (a != nil && b == nil) {
+		return false
+	}
+	for _, fa := range a {
+		found := false
+		for _, fb := range b {
+			if fa.Name == fb.Name && equalValue(fa.Value, fb.Value) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func equalValue(a ast.Value, b ast.Value) bool {
+	if a.Kind() == b.Kind() {
+		switch a.Kind() {
+		case ast.VariableValueKind:
+			if a.GetValue() != b.GetValue() {
+				return false
+			}
+		default:
+			if a.GetValue() != b.GetValue() {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, pa Type, pb Type) bool {

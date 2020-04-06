@@ -3,7 +3,6 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/rigglo/gql/pkg/language/parser"
 )
 
@@ -20,11 +19,11 @@ query {
 	}
 }
 `
-	token, doc, err := parser.Parse(query)
+	token, _, err := parser.Parse(query)
 	if err != nil {
 		t.Errorf("error: %v, at Line: %v, Col: %v", err, token.Line, token.Col)
 		return
 	}
-	spew.Dump(doc)
+	// spew.Dump(doc)
 
 }

@@ -505,16 +505,16 @@ func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {
 func executeField(ctx *eCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) (interface{}, bool) {
 	f := fs[0]
 	fn := f.Name
-	args := coerceArgumentValues(ctx, path, ot, f)
+	args := coerceArgumentValues(ctx, path, ot.GetFields(), f)
 	resVal := resolveFieldValue(ctx, path, f, ot, ov, fn, args)
 	return completeValue(ctx, path, getFieldOfFields(fn, ot.GetFields()).GetType(), fs, resVal)
 }
 
-func coerceArgumentValues(ctx *eCtx, path []interface{}, ot *Object, f *ast.Field) map[string]interface{} {
+func coerceArgumentValues(ctx *eCtx, path []interface{}, fields Fields, f *ast.Field) map[string]interface{} {
 	vars := ctx.Get(keyVariables).(map[string]interface{})
 	coercedVals := map[string]interface{}{}
 	fieldName := f.Name
-	argDefs := getFieldOfFields(fieldName, ot.GetFields()).GetArguments()
+	argDefs := getFieldOfFields(fieldName, fields).GetArguments()
 	for _, argDef := range argDefs {
 		argName := argDef.GetName()
 		argType := argDef.GetType()

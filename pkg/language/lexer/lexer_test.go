@@ -2,7 +2,6 @@ package lexer_test
 
 import (
 	"bufio"
-	"log"
 	"strings"
 	"testing"
 
@@ -23,7 +22,7 @@ func TestLexer(t *testing.T) {
 	readr := bufio.NewReader(src)
 	go lexer.Lex(readr, tokens)
 	for token := range tokens {
-		log.Printf("token: %#v", token)
+		// log.Printf("token: %#v", token)
 		//log.Print(token.Value)
 		if token.Err != nil {
 			t.Error(token.Err.Error())
