@@ -59,56 +59,85 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
 }
 
 func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
-	// types := ctx.Get(keyTypes).(map[string]Type)
+	types := ctx.Get(keyTypes).(map[string]Type)
 
-	fieldsForName := collectFields(ctx, t.(*Object), set, []string{})
+	fieldsForName := collectFieldsForValidation(ctx, t, set, []string{})
 	for _, fields := range fieldsForName {
 		if len(fields) > 1 {
 			for i := 1; i < len(fields); i++ {
-				if !sameResponseShape(ctx, fields[0], fields[i], t) {
-					// TODO: raise error for selection set can not be merged
-					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
-				}
-				// var ta, tb = getFieldOfFields(fields[0].Name, fs).GetType(), getFieldOfFields(fields[i].Name, fs).GetType()
 				var pa, pb Type
-				/*
-					if fields[0].ParentType == "" {
-						pa = t
-					} else {
-						pa = types[fields[0].ParentType]
-					}
+				pa = types[fields[0].ParentType]
+				pb = types[fields[i].ParentType]
 
-					if fields[i].ParentType == "" {
-						pb = t
-					} else {
-						pb = types[fields[i].ParentType]
-					}
-				*/
+				if !sameResponseShape(ctx, fields[0], fields[i], pa, pb) {
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
+					continue
+				}
 
 				// this is bad, we should check the PARENT TYPE..
 				if reflect.DeepEqual(pa, pb) || (pa.GetKind() != ObjectKind || pb.GetKind() != ObjectKind) {
 					if fields[0].Name != fields[i].Name {
-						// TODO: raise error that selection set can not be merged
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "field names are not equal")), nil, nil, nil})
+						continue
 					}
-					if !reflect.DeepEqual(fields[0].Arguments, fields[1].Arguments) {
-						// TODO: raise error that selection set can not be merged (due to arguments don't match)
+
+					if !equalArguments(fields[0].Arguments, fields[i].Arguments) {
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "arguments don't match")), nil, nil, nil})
+						continue
 					}
-					mergedSet := append(fields[0].SelectionSet, fields[1].SelectionSet...)
-					fieldsInSetCanMerge(ctx, mergedSet, getFieldOfFields(fields[0].Name, pa.(hasFields).GetFields()).GetType())
+					mergedSet := append(fields[0].SelectionSet, fields[i].SelectionSet...)
+					fieldsInSetCanMerge(ctx, mergedSet, t)
 				}
 			}
 		}
 	}
 }
 
-func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, t Type) bool {
+func equalArguments(a []*ast.Argument, b []*ast.Argument) bool {
+	if (a == nil && b != nil) || (a != nil && b == nil) {
+		return false
+	}
+	for _, fa := range a {
+		found := false
+		for _, fb := range b {
+			if fa.Name == fb.Name && equalValue(fa.Value, fb.Value) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func equalValue(a ast.Value, b ast.Value) bool {
+	if a.Kind() == b.Kind() {
+		switch a.Kind() {
+		case ast.VariableValueKind:
+			if a.GetValue() != b.GetValue() {
+				return false
+			}
+		default:
+			if a.GetValue() != b.GetValue() {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, pa Type, pb Type) bool {
 	var typeA, typeB Type
-	for _, f := range []Field{} {
+	for _, f := range pa.(hasFields).GetFields() {
 		if f.GetName() == fa.Name {
 			typeA = f.GetType()
-		} else if f.GetName() == fb.Name {
+		}
+	}
+	for _, f := range pb.(hasFields).GetFields() {
+		if f.GetName() == fb.Name {
 			typeB = f.GetType()
 		}
 	}
@@ -150,13 +179,97 @@ func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, t Type) bool {
 	for _, fields := range fieldsForName {
 		if len(fields) > 1 {
 			for i := 1; i < len(fields); i++ {
-				if !sameResponseShape(ctx, fields[0], fields[i], typeA) {
+				if !sameResponseShape(ctx, fields[0], fields[i], pa, pb) {
 					return false
 				}
 			}
 		}
 	}
 	return true
+}
+
+func collectFieldsForValidation(ctx *eCtx, t Type, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
+	types := ctx.Get(keyTypes).(map[string]Type)
+
+	if vFrags == nil {
+		vFrags = []string{}
+	}
+	gfields := map[string]ast.Fields{}
+
+	for _, sel := range ss {
+		skip := false
+		for _, d := range sel.GetDirectives() {
+			if d.Name == "skip" {
+				skip = skipDirective.Skip(d.Arguments)
+			} else if d.Name == "include" {
+				skip = !includeDirective.Include(d.Arguments)
+			}
+		}
+		if skip {
+			continue
+		}
+
+		switch sel.Kind() {
+		case ast.FieldSelectionKind:
+			{
+				f := sel.(*ast.Field)
+				f.ParentType = t.GetName()
+				if _, ok := gfields[f.Alias]; ok {
+					gfields[f.Alias] = append(gfields[f.Alias], f)
+				} else {
+					gfields[f.Alias] = ast.Fields{f}
+				}
+			}
+		case ast.FragmentSpreadSelectionKind:
+			{
+				fSpread := sel.(*ast.FragmentSpread)
+				skip := false
+				for _, fragName := range vFrags {
+					if fSpread.Name == fragName {
+						skip = true
+					}
+				}
+				if skip {
+					continue
+				}
+
+				vFrags = append(vFrags, fSpread.Name)
+
+				fragment, ok := ctx.Get(keyQuery).(*ast.Document).Fragments[fSpread.Name]
+				if !ok {
+					continue
+				}
+
+				fgfields := collectFieldsForValidation(ctx, types[fragment.TypeCondition], fragment.SelectionSet, vFrags)
+				for rkey, fg := range fgfields {
+					if _, ok := gfields[rkey]; ok {
+						gfields[rkey] = append(gfields[rkey], fg...)
+					} else {
+						gfields[rkey] = fg
+					}
+				}
+			}
+		case ast.InlineFragmentSelectionKind:
+			{
+				f := sel.(*ast.InlineFragment)
+
+				fragmentType := t
+				if f.TypeCondition != "" {
+					fragmentType = types[f.TypeCondition]
+				}
+
+				fgfields := collectFieldsForValidation(ctx, fragmentType, f.SelectionSet, vFrags)
+				for rkey, fg := range fgfields {
+					if _, ok := gfields[rkey]; ok {
+						gfields[rkey] = append(gfields[rkey], fg...)
+					} else {
+						gfields[rkey] = fg
+					}
+				}
+			}
+		}
+	}
+	return gfields
 }
 
 func isCompositeType(t Type) bool {
@@ -167,7 +280,13 @@ func isCompositeType(t Type) bool {
 }
 
 func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
-	//types := ctx.Get(keyTypes).(map[string]Type)
+	fieldsInSetCanMerge(ctx, set, t)
+
+	if len(set) == 0 {
+		ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, t.GetName())), nil, nil, nil})
+		return
+	}
+
 	for _, s := range set {
 		if s.Kind() == ast.FieldSelectionKind {
 			f := s.(*ast.Field)
@@ -186,18 +305,14 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 
 							// 5.3.3 - Leaf Field Selections
 							selType := unwrapper(tf.GetType())
-							if selType.GetKind() == InterfaceKind || selType.GetKind() == UnionKind || selType.GetKind() == ObjectKind {
-								if len(f.SelectionSet) > 0 {
-									validateSelectionSet(ctx, f.SelectionSet, selType)
-								} else {
-									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, selType.GetName())), nil, nil, nil})
-								}
-							} else if selType.GetKind() == ScalarKind || selType.GetKind() == EnumKind {
+
+							if isCompositeType(selType) {
+								validateSelectionSet(ctx, f.SelectionSet, selType)
+							} else if !isCompositeType(selType) {
 								if len(f.SelectionSet) != 0 {
 									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 								}
 							}
-
 							ok = true
 						}
 					}
@@ -216,20 +331,16 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 
 							// 5.3.3 - Leaf Field Selections
 							selType := unwrapper(tf.GetType())
-							if selType.GetKind() == InterfaceKind || selType.GetKind() == UnionKind || selType.GetKind() == ObjectKind {
-								if len(f.SelectionSet) > 0 {
-									validateSelectionSet(ctx, f.SelectionSet, selType)
-								} else {
-									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, selType.GetName())), nil, nil, nil})
-								}
-							} else if selType.GetKind() == ScalarKind || selType.GetKind() == EnumKind {
+							if isCompositeType(selType) {
+								validateSelectionSet(ctx, f.SelectionSet, selType)
+							} else if !isCompositeType(selType) {
 								if len(f.SelectionSet) != 0 {
 									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 								}
 							}
-
 							ok = true
 						}
+
 					}
 
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
@@ -237,12 +348,26 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 					if !ok {
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					}
-				} else if _, ok := t.(*Union); ok {
-					// TODO: add error, that field selection on Union type does not supported (only fragments)
 				} else {
-					// TODO: add error ..
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("Invalid selection set on field '%s'", f.Name)), nil, nil, nil})
 				}
 			}
+		} else if s.Kind() == ast.FragmentSpreadSelectionKind {
+			f := s.(*ast.FragmentSpread)
+			doc := ctx.Get(keyQuery).(*ast.Document)
+			types := ctx.Get(keyTypes).(map[string]Type)
+			fDef := doc.Fragments[f.Name]
+			tCond := types[fDef.TypeCondition]
+			if !isPossibleSpread(t, tCond) {
+				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("cannot use '%s' spead on type '%s'", f.Name, t.GetName())), nil, nil, nil})
+				continue
+			}
+
+			validateSelectionSet(ctx, fDef.SelectionSet, tCond)
 		}
 	}
+}
+
+func isPossibleSpread(parentType Type, fragType Type) bool {
+	return true
 }

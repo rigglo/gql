@@ -139,6 +139,7 @@ type Fields []*Field
 type Field struct {
 	Alias        string
 	Name         string
+	ParentType   string
 	Arguments    []*Argument
 	Directives   []*Directive
 	SelectionSet []Selection
