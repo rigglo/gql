@@ -280,8 +280,13 @@ func isCompositeType(t Type) bool {
 }
 
 func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
-	//types := ctx.Get(keyTypes).(map[string]Type)
 	fieldsInSetCanMerge(ctx, set, t)
+
+	if len(set) == 0 {
+		ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, t.GetName())), nil, nil, nil})
+		return
+	}
+
 	for _, s := range set {
 		if s.Kind() == ast.FieldSelectionKind {
 			f := s.(*ast.Field)
@@ -300,18 +305,14 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 
 							// 5.3.3 - Leaf Field Selections
 							selType := unwrapper(tf.GetType())
-							if selType.GetKind() == InterfaceKind || selType.GetKind() == UnionKind || selType.GetKind() == ObjectKind {
-								if len(f.SelectionSet) > 0 {
-									validateSelectionSet(ctx, f.SelectionSet, selType)
-								} else {
-									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, selType.GetName())), nil, nil, nil})
-								}
-							} else if selType.GetKind() == ScalarKind || selType.GetKind() == EnumKind {
+
+							if isCompositeType(selType) {
+								validateSelectionSet(ctx, f.SelectionSet, selType)
+							} else if !isCompositeType(selType) {
 								if len(f.SelectionSet) != 0 {
 									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 								}
 							}
-
 							ok = true
 						}
 					}
@@ -330,20 +331,16 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 
 							// 5.3.3 - Leaf Field Selections
 							selType := unwrapper(tf.GetType())
-							if selType.GetKind() == InterfaceKind || selType.GetKind() == UnionKind || selType.GetKind() == ObjectKind {
-								if len(f.SelectionSet) > 0 {
-									validateSelectionSet(ctx, f.SelectionSet, selType)
-								} else {
-									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, selType.GetName())), nil, nil, nil})
-								}
-							} else if selType.GetKind() == ScalarKind || selType.GetKind() == EnumKind {
+							if isCompositeType(selType) {
+								validateSelectionSet(ctx, f.SelectionSet, selType)
+							} else if !isCompositeType(selType) {
 								if len(f.SelectionSet) != 0 {
 									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 								}
 							}
-
 							ok = true
 						}
+
 					}
 
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
@@ -351,12 +348,26 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 					if !ok {
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					}
-				} else if _, ok := t.(*Union); ok {
-					// TODO: add error, that field selection on Union type does not supported (only fragments)
 				} else {
-					// TODO: add error ..
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("Invalid selection set on field '%s'", f.Name)), nil, nil, nil})
 				}
 			}
+		} else if s.Kind() == ast.FragmentSpreadSelectionKind {
+			f := s.(*ast.FragmentSpread)
+			doc := ctx.Get(keyQuery).(*ast.Document)
+			types := ctx.Get(keyTypes).(map[string]Type)
+			fDef := doc.Fragments[f.Name]
+			tCond := types[fDef.TypeCondition]
+			if !isPossibleSpread(t, tCond) {
+				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("cannot use '%s' spead on type '%s'", f.Name, t.GetName())), nil, nil, nil})
+				continue
+			}
+
+			validateSelectionSet(ctx, fDef.SelectionSet, tCond)
 		}
 	}
+}
+
+func isPossibleSpread(parentType Type, fragType Type) bool {
+	return true
 }
