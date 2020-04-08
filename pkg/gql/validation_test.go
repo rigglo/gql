@@ -578,6 +578,81 @@ func Test_LeadFieldSelections(t *testing.T) {
 	}
 }
 
+func Test_FragmentNameUniqueness(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "uniqueFragments",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+							...fragmentOne
+							...fragmentTwo
+						}
+					}
+					  
+					fragment fragmentOne on Dog {
+						name
+					}
+					  
+					fragment fragmentTwo on Dog {
+						owner {
+						  	name
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "nonUniqueFragments",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+						  	...fragmentOne
+						}
+					}
+					  
+					fragment fragmentOne on Dog {
+						name
+					}
+					  
+					fragment fragmentOne on Dog {
+						owner {
+						  	name
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
 func Test_FragmentSpreadTargetDefined(t *testing.T) {
 	ctx := context.Background()
 	type args struct {

@@ -7,13 +7,13 @@ type Location struct {
 
 type Document struct {
 	Operations []*Operation
-	Fragments  map[string]*Fragment
+	Fragments  []*Fragment
 }
 
 func NewDocument() *Document {
 	return &Document{
 		Operations: []*Operation{},
-		Fragments:  map[string]*Fragment{},
+		Fragments:  []*Fragment{},
 	}
 }
 

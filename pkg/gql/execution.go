@@ -70,6 +70,7 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 	if len(ectx.res.Errors) > 0 {
 		return ectx.res
 	}
+
 	getOperation(ectx)
 	if len(ectx.res.Errors) > 0 {
 		return ectx.res
@@ -418,7 +419,7 @@ func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) ma
 
 				vFrags = append(vFrags, fSpread.Name)
 
-				fragment, ok := ctx.Get(keyQuery).(*ast.Document).Fragments[fSpread.Name]
+				fragment, ok := ctx.Get(keyFragments).(map[string]*ast.Fragment)[fSpread.Name]
 				if !ok {
 					continue
 				}

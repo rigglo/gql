@@ -46,10 +46,7 @@ func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) 
 			if err != nil {
 				return token, nil, err
 			}
-			if _, ok := doc.Fragments[f.Name]; ok {
-				return token, nil, fmt.Errorf("fragment is already exist")
-			}
-			doc.Fragments[f.Name] = f
+			doc.Fragments = append(doc.Fragments, f)
 			break
 		case token.Kind == lexer.NameToken:
 			op := new(ast.Operation)

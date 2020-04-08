@@ -10,8 +10,22 @@ import (
 
 func validate(ctx *eCtx) {
 	// TODO: parse type system definitions and return error that those are not supported in a query
+
 	ops := map[string]bool{}
-	for _, o := range ctx.Get(keyQuery).(*ast.Document).Operations {
+
+	doc := ctx.Get(keyQuery).(*ast.Document)
+
+	fragments := map[string]*ast.Fragment{}
+	for _, f := range doc.Fragments {
+		if _, ok := fragments[f.Name]; ok {
+			ctx.addErr(&Error{fmt.Sprintf("Fragment name '%s' is not unique, it's already used", f.Name), nil, nil, nil})
+			continue
+		}
+		fragments[f.Name] = f
+	}
+	ctx.Set(keyFragments, fragments)
+
+	for _, o := range doc.Operations {
 		// 5.2.1 - Named Operation Definitions
 		if _, ok := ops[o.Name]; ok && o.Name != "" {
 			ctx.addErr(&Error{fmt.Sprintf(ErrValidateOperationName, o.Name), nil, nil, nil})
@@ -20,7 +34,7 @@ func validate(ctx *eCtx) {
 		}
 
 		// 5.2.2 - Anonymous Operation Definitions
-		if o.Name == "" && len(ctx.Get(keyQuery).(*ast.Document).Operations) > 1 {
+		if o.Name == "" && len(doc.Operations) > 1 {
 			ctx.addErr(&Error{fmt.Sprintf(ErrAnonymousOperationDefinitions), nil, nil, nil})
 		}
 
@@ -235,7 +249,7 @@ func collectFieldsForValidation(ctx *eCtx, t Type, ss []ast.Selection, vFrags []
 
 				vFrags = append(vFrags, fSpread.Name)
 
-				fragment, ok := ctx.Get(keyQuery).(*ast.Document).Fragments[fSpread.Name]
+				fragment, ok := ctx.Get(keyFragments).(map[string]*ast.Fragment)[fSpread.Name]
 				if !ok {
 					continue
 				}
@@ -365,9 +379,8 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 				continue
 			}
 
-			doc := ctx.Get(keyQuery).(*ast.Document)
 			types := ctx.Get(keyTypes).(map[string]Type)
-			fDef, ok := doc.Fragments[f.Name]
+			fDef, ok := ctx.Get(keyFragments).(map[string]*ast.Fragment)[f.Name]
 			if !ok {
 				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("fragment '%s' is not defined in query", f.Name)), nil, nil, nil})
 				continue
