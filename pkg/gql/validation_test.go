@@ -653,6 +653,176 @@ func Test_FragmentNameUniqueness(t *testing.T) {
 	}
 }
 
+func Test_FragmentsOnCompositeTypes(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "fragOnObject",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+							...fragOnObject
+						}
+					}
+					  
+					fragment fragOnObject on Dog {
+						name
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "fragOnInterface",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+							...fragOnInterface
+						}
+					}
+					  
+					fragment fragOnInterface on Pet {
+						name
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "fragOnUnion",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+							...fragOnUnion
+						}
+					}
+					  
+					fragment fragOnUnion on CatOrDog {
+						... on Dog {
+						  	name
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "fragOnUnion",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+							...fragOnUnion
+						}
+					}
+					  
+					fragment fragOnUnion on CatOrDog {
+						... on Dog {
+						  	name
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "inlineFragOnScalar",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+							...inlineFragOnScalar
+						}
+					}
+					  
+					fragment inlineFragOnScalar on Dog {
+						... on Boolean {
+						  somethingElse
+						}
+					  }
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_FragmensMustBeUsed(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "unusedFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					fragment nameFragment on Dog { # unused
+						name
+					}
+					  
+					{
+						dog {
+						  	name
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
 func Test_FragmentSpreadTargetDefined(t *testing.T) {
 	ctx := context.Background()
 	type args struct {
