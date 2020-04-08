@@ -29,9 +29,9 @@ func validate(ctx *eCtx) {
 		// 5.3 - Fields
 		switch o.OperationType {
 		case ast.Query:
-			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootQuery())
+			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootQuery(), []string{})
 		case ast.Mutation:
-			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootMutation())
+			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootMutation(), []string{})
 		}
 		// validateSelectionSet(ctx, o)
 	}
@@ -279,7 +279,7 @@ func isCompositeType(t Type) bool {
 	return false
 }
 
-func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
+func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags []string) {
 	fieldsInSetCanMerge(ctx, set, t)
 
 	if len(set) == 0 {
@@ -307,7 +307,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 							selType := unwrapper(tf.GetType())
 
 							if isCompositeType(selType) {
-								validateSelectionSet(ctx, f.SelectionSet, selType)
+								validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
 							} else if !isCompositeType(selType) {
 								if len(f.SelectionSet) != 0 {
 									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
@@ -332,7 +332,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 							// 5.3.3 - Leaf Field Selections
 							selType := unwrapper(tf.GetType())
 							if isCompositeType(selType) {
-								validateSelectionSet(ctx, f.SelectionSet, selType)
+								validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
 							} else if !isCompositeType(selType) {
 								if len(f.SelectionSet) != 0 {
 									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
@@ -354,6 +354,17 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 			}
 		} else if s.Kind() == ast.FragmentSpreadSelectionKind {
 			f := s.(*ast.FragmentSpread)
+			cycle := false
+			for _, v := range visitedFrags {
+				if v == f.Name {
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("fragment cycle detected for fragment '%s'", f.Name)), nil, nil, nil})
+					cycle = true
+				}
+			}
+			if cycle {
+				continue
+			}
+
 			doc := ctx.Get(keyQuery).(*ast.Document)
 			types := ctx.Get(keyTypes).(map[string]Type)
 			fDef, ok := doc.Fragments[f.Name]
@@ -371,7 +382,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 				continue
 			}
 
-			validateSelectionSet(ctx, fDef.SelectionSet, tCond)
+			validateSelectionSet(ctx, fDef.SelectionSet, tCond, append(visitedFrags, f.Name))
 		} else if s.Kind() == ast.InlineFragmentSelectionKind {
 			fDef := s.(*ast.InlineFragment)
 			types := ctx.Get(keyTypes).(map[string]Type)
@@ -387,7 +398,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 				continue
 			}
 
-			validateSelectionSet(ctx, fDef.SelectionSet, tCond)
+			validateSelectionSet(ctx, fDef.SelectionSet, tCond, visitedFrags)
 		}
 	}
 }

@@ -578,6 +578,84 @@ func Test_LeadFieldSelections(t *testing.T) {
 	}
 }
 
+func Test_FragmentSpreadsMustNotFormCycles(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "nameFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+						  ...nameFragment
+						}
+					}
+					  
+					fragment nameFragment on Dog {
+						name
+						...barkVolumeFragment
+					}
+					  
+					fragment barkVolumeFragment on Dog {
+						barkVolume
+						...nameFragment
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+		{
+			name: "dogFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					{
+						dog {
+						  ...dogFragment
+						}
+					}
+					  
+					fragment dogFragment on Dog {
+						name
+						owner {
+						  	...ownerFragment
+						}
+					}
+					  
+					fragment ownerFragment on Dog {
+						name
+						pets {
+						  	...dogFragment
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
 func Test_FragmentSpreadIsPossible(t *testing.T) {
 	ctx := context.Background()
 	type args struct {
