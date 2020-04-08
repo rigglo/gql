@@ -226,7 +226,6 @@ func parseVariables(tokens chan lexer.Token) (lexer.Token, map[string]*ast.Varia
 
 		if token.Kind == lexer.PunctuatorToken && token.Value == "$" {
 			vs[v.Name] = v
-			token = <-tokens
 			continue
 		} else if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
 			vs[v.Name] = v

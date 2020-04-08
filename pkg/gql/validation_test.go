@@ -1144,3 +1144,76 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 		})
 	}
 }
+
+func Test_Directives(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "invalidSkipLocation",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query @skip(if: $foo) {
+						dog {
+							name
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+		{
+			name: "nonUniquePerLocation",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query ($foo: Boolean = true, $bar: Boolean = false) {
+						dog @skip(if: $foo) @skip(if: $bar) {
+							name
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+		{
+			name: "validDirectivesOnGoodLoc",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query ($foo: Boolean = true, $bar: Boolean = false) {
+						dog @skip(if: $foo) {
+							name
+						}
+						dog @skip(if: $bar) {
+							barkVolume
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
