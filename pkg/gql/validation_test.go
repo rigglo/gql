@@ -108,7 +108,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 				params: gql.Params{
 					Query: `
 					query {
-						dog {
+						pet {
 							...interfaceFieldSelection
 						}
 					}
@@ -127,7 +127,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 				params: gql.Params{
 					Query: `
 					query {
-						dog {
+						pet {
 							...definedOnImplementorsButNotInterface
 						}
 					}
@@ -146,7 +146,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 				params: gql.Params{
 					Query: `
 					query {
-						dog {
+						catOrDog {
 							...inDirectFieldSelectionOnUnion
 						}
 					}
@@ -171,7 +171,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 				params: gql.Params{
 					Query: `
 					query {
-						dog {
+						catOrDog {
 							...directFieldSelectionOnUnion
 						}
 					}
@@ -560,6 +560,212 @@ func Test_LeadFieldSelections(t *testing.T) {
 					Query: `
 					query directQueryOnUnionWithoutSubFields {
 						catOrDog
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_FragmentSpreadIsPossible(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "dogFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						dog {
+							...dogFragment
+						}
+					}
+					fragment dogFragment on Dog {
+						... on Dog {
+						  	barkVolume
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "catInDogFragmentInvalid",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						dog {
+							...catInDogFragmentInvalid
+						}
+					}
+					fragment catInDogFragmentInvalid on Dog {
+						... on Cat {
+						  	meowVolume
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+		{
+			name: "interfaceWithinObjectFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						dog {
+							...interfaceWithinObjectFragment
+						}
+					}
+					fragment petNameFragment on Pet {
+						name
+					}
+					fragment interfaceWithinObjectFragment on Dog {
+						...petNameFragment
+					  }
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "unionWithObjectFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						dog {
+							...unionWithObjectFragment
+						}
+					}
+
+					fragment catOrDogNameFragment on CatOrDog {
+						... on Cat {
+						  	meowVolume
+						}
+					}
+					  
+					fragment unionWithObjectFragment on Dog {
+						...catOrDogNameFragment
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "humanOrAlienFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						humanOrAlien {
+							...humanOrAlienFragment
+						}
+					}
+					  
+					fragment humanOrAlienFragment on HumanOrAlien {
+						... on Cat {
+						  	meowVolume
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+		{
+			name: "sentientFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						sentient {
+							...sentientFragment
+						}
+					}
+
+					fragment sentientFragment on Sentient {
+						... on Dog {
+						  	barkVolume
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+		{
+			name: "unionWithInterface",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						pet {
+							...unionWithInterface
+						}
+					}
+
+					fragment unionWithInterface on Pet {
+						...dogOrHumanFragment
+					}
+					  
+					fragment dogOrHumanFragment on DogOrHuman {
+						... on Dog {
+						  	barkVolume
+						}
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "nonIntersectingInterfaces",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						pet {
+							...nonIntersectingInterfaces
+						}
+					}
+
+					fragment nonIntersectingInterfaces on Pet {
+						...sentientFragment
+					}
+					  
+					fragment sentientFragment on Sentient {
+						name
 					}
 					`,
 				},

@@ -31,6 +31,11 @@ type Human struct {
 	Name string `json:"name"`
 }
 
+type Alien struct {
+	Name       string `json:"name"`
+	HomePlanet string `json:"homePlanet"`
+}
+
 var (
 	Catcy = Cat{
 		Name:            "Catcy",
@@ -48,6 +53,15 @@ var (
 		Owner: Human{
 			Name: "John Doe",
 		},
+	}
+
+	Bob = Human{
+		Name: "Bob",
+	}
+
+	Elon = Alien{
+		Name:       "Musk",
+		HomePlanet: "Teslaversum",
 	}
 
 	PetStore = &gql.Schema{
@@ -83,6 +97,27 @@ var (
 				Type: gql.NewList(CatOrDogUnion),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []interface{}{Catcy, Doggo}, nil
+				},
+			},
+			&gql.Field{
+				Name: "dogOrHuman",
+				Type: gql.NewList(DogOrHumanUnion),
+				Resolver: func(ctx gql.Context) (interface{}, error) {
+					return []interface{}{Doggo, Bob}, nil
+				},
+			},
+			&gql.Field{
+				Name: "humanOrAlian",
+				Type: gql.NewList(HumanOrAlienUnion),
+				Resolver: func(ctx gql.Context) (interface{}, error) {
+					return []interface{}{Bob, Elon}, nil
+				},
+			},
+			&gql.Field{
+				Name: "sentient",
+				Type: gql.NewList(SentientInterface),
+				Resolver: func(ctx gql.Context) (interface{}, error) {
+					return []interface{}{Bob, Elon}, nil
 				},
 			},
 			&gql.Field{

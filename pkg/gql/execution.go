@@ -50,7 +50,7 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 			Errors: Errors{&Error{err.Error(), nil, nil, nil}},
 		}
 	}
-	types, directives := getTypes(e.config.Schema)
+	types, directives, implementors := getTypes(e.config.Schema)
 	ectx := newCtx(
 		ctx,
 		map[string]interface{}{
@@ -61,6 +61,7 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 			keySchema:        e.config.Schema,
 			keyTypes:         types,
 			keyDirectives:    directives,
+			keyImplementors:  implementors,
 		},
 		e.config.GoroutineLimit,
 		e.config.EnableGoroutines,
@@ -877,30 +878,31 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
 	} else if ft.GetKind() == InterfaceKind {
-		ot := ft.(*Interface).Resolve(ctx, result)
+		ot := ft.(*Interface).Resolve(ctx.ctx, result)
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
 	} else if ft.GetKind() == UnionKind {
-		ot := ft.(*Union).Resolve(ctx, result)
+		ot := ft.(*Union).Resolve(ctx.ctx, result)
 		subSel := fs[0].SelectionSet
 		return executeSelectionSet(ctx, path, subSel, ot, result)
 	}
 	return nil, true
 }
 
-func getTypes(s *Schema) (map[string]Type, map[string]Directive) {
+func getTypes(s *Schema) (map[string]Type, map[string]Directive, map[string][]Type) {
 	types := map[string]Type{}
 	directives := map[string]Directive{
 		"skip":       skipDirective,
 		"include":    includeDirective,
 		"deprecated": deprecatedDirective,
 	}
+	implementors := map[string][]Type{}
 	addIntrospectionTypes(types)
-	typeWalker(types, directives, s.GetRootQuery())
+	typeWalker(types, directives, implementors, s.GetRootQuery())
 	if s.GetRootMutation() != nil {
-		typeWalker(types, directives, s.GetRootMutation())
+		typeWalker(types, directives, implementors, s.GetRootMutation())
 	}
-	return types, directives
+	return types, directives, implementors
 }
 
 type hasFields interface {
@@ -919,22 +921,32 @@ func unwrapper(t Type) Type {
 	return t
 }
 
-func typeWalker(types map[string]Type, directives map[string]Directive, t Type) {
+func typeWalker(types map[string]Type, directives map[string]Directive, implementors map[string][]Type, t Type) {
 	wt := unwrapper(t)
 	if _, ok := types[wt.GetName()]; !ok {
 		types[wt.GetName()] = wt
 	}
 	// TODO: directives are not checked and "walked" through
 	if hf, ok := t.(hasFields); ok {
+		if o, ok := t.(*Object); ok {
+			for _, i := range o.Implements {
+				if os, ok := implementors[i.Name]; ok {
+					os = append(os, o)
+					implementors[i.Name] = os
+				} else {
+					implementors[i.Name] = []Type{o}
+				}
+			}
+		}
 		for _, f := range hf.GetFields() {
 			for _, arg := range f.GetArguments() {
-				typeWalker(types, directives, arg.Type)
+				typeWalker(types, directives, implementors, arg.Type)
 			}
-			typeWalker(types, directives, f.GetType())
+			typeWalker(types, directives, implementors, f.GetType())
 		}
 	} else if u, ok := wt.(*Union); ok {
 		for _, m := range u.GetMembers() {
-			typeWalker(types, directives, m)
+			typeWalker(types, directives, implementors, m)
 		}
 	}
 }

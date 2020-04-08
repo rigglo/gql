@@ -349,17 +349,41 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					}
 				} else {
-					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("Invalid selection set on field '%s'", f.Name)), nil, nil, nil})
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("Invalid selection set on type '%s'", t.GetName())), nil, nil, nil})
 				}
 			}
 		} else if s.Kind() == ast.FragmentSpreadSelectionKind {
 			f := s.(*ast.FragmentSpread)
 			doc := ctx.Get(keyQuery).(*ast.Document)
 			types := ctx.Get(keyTypes).(map[string]Type)
-			fDef := doc.Fragments[f.Name]
-			tCond := types[fDef.TypeCondition]
-			if !isPossibleSpread(t, tCond) {
+			fDef, ok := doc.Fragments[f.Name]
+			if !ok {
+				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("fragment '%s' is not defined in query", f.Name)), nil, nil, nil})
+				continue
+			}
+			tCond, ok := types[fDef.TypeCondition]
+			if !ok {
+				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("fragment's (%s) target type (%s) is not defined in query", f.Name, fDef.TypeCondition)), nil, nil, nil})
+				continue
+			}
+			if !isPossibleSpread(ctx, t, tCond) {
 				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("cannot use '%s' spead on type '%s'", f.Name, t.GetName())), nil, nil, nil})
+				continue
+			}
+
+			validateSelectionSet(ctx, fDef.SelectionSet, tCond)
+		} else if s.Kind() == ast.InlineFragmentSelectionKind {
+			fDef := s.(*ast.InlineFragment)
+			types := ctx.Get(keyTypes).(map[string]Type)
+			tCond, ok := types[fDef.TypeCondition]
+			if !ok && fDef.TypeCondition != "" {
+				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("fragment's target type (%s) is not defined in query", fDef.TypeCondition)), nil, nil, nil})
+				continue
+			} else if fDef.TypeCondition == "" {
+				tCond = t
+			}
+			if !isPossibleSpread(ctx, t, tCond) {
+				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("invalid use of inline fragment on type '%s': target does not match", t.GetName())), nil, nil, nil})
 				continue
 			}
 
@@ -368,6 +392,28 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type) {
 	}
 }
 
-func isPossibleSpread(parentType Type, fragType Type) bool {
-	return true
+func isPossibleSpread(ctx *eCtx, parentType Type, fragType Type) bool {
+	pts := getPossibleTypes(ctx, parentType)
+	fts := getPossibleTypes(ctx, fragType)
+	for _, t := range pts {
+		for _, ft := range fts {
+			if t == ft {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func getPossibleTypes(ctx *eCtx, t Type) []Type {
+	switch t.GetKind() {
+	case ObjectKind:
+		return []Type{t}
+	case InterfaceKind:
+		implementors := ctx.Get(keyImplementors).(map[string][]Type)
+		return implementors[t.GetName()]
+	case UnionKind:
+		return t.(*Union).GetMembers()
+	}
+	return []Type{}
 }

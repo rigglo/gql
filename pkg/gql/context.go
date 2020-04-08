@@ -3,7 +3,6 @@ package gql
 import (
 	"context"
 	"sync"
-	"time"
 )
 
 const (
@@ -16,6 +15,7 @@ const (
 	keyOperation     string = "gql_operation"
 	keyTypes         string = "gql_types"
 	keyDirectives    string = "gql_directives"
+	keyImplementors  string = "gql_implementors"
 )
 
 type eCtx struct {
@@ -36,22 +36,6 @@ func newCtx(ctx context.Context, store map[string]interface{}, semLimit int, ena
 		enableGoroutines: enableGoroutines,
 		res:              &Result{},
 	}
-}
-
-func (c *eCtx) Deadline() (time.Time, bool) {
-	return c.ctx.Deadline()
-}
-
-func (c *eCtx) Value(key interface{}) interface{} {
-	return c.ctx.Value(key)
-}
-
-func (c *eCtx) Done() <-chan struct{} {
-	return c.ctx.Done()
-}
-
-func (c *eCtx) Err() error {
-	return c.ctx.Err()
 }
 
 func (c *eCtx) Get(key string) interface{} {
@@ -80,8 +64,6 @@ func (c *eCtx) addErr(err *Error) {
 	defer c.errMu.Unlock()
 	c.res.Errors = append(c.res.Errors, err)
 }
-
-var _ context.Context = (*eCtx)(nil)
 
 type Context interface {
 	Context() context.Context
