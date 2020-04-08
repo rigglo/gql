@@ -16,14 +16,27 @@ func validate(ctx *eCtx) {
 	doc := ctx.Get(keyQuery).(*ast.Document)
 
 	fragments := map[string]*ast.Fragment{}
+	types := ctx.Get(keyTypes).(map[string]Type)
+	fragUsage := map[string]bool{}
 	for _, f := range doc.Fragments {
 		if _, ok := fragments[f.Name]; ok {
 			ctx.addErr(&Error{fmt.Sprintf("Fragment name '%s' is not unique, it's already used", f.Name), nil, nil, nil})
 			continue
 		}
+		if t, ok := types[f.TypeCondition]; !ok {
+			ctx.addErr(&Error{fmt.Sprintf("Invalid fragment target '%s' for fragment '%s', type does not exist", f.TypeCondition, f.Name), nil, nil, nil})
+			continue
+		} else {
+			if !isCompositeType(t) {
+				ctx.addErr(&Error{fmt.Sprintf("Invalid fragment target '%s' for fragment '%s', type is not composite", f.TypeCondition, f.Name), nil, nil, nil})
+				continue
+			}
+		}
 		fragments[f.Name] = f
+		fragUsage[f.Name] = false
 	}
 	ctx.Set(keyFragments, fragments)
+	ctx.Set(keyFragmentUsage, fragUsage)
 
 	for _, o := range doc.Operations {
 		// 5.2.1 - Named Operation Definitions
@@ -48,6 +61,12 @@ func validate(ctx *eCtx) {
 			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootMutation(), []string{})
 		}
 		// validateSelectionSet(ctx, o)
+	}
+
+	for fragName, used := range fragUsage {
+		if !used {
+			ctx.addErr(&Error{fmt.Sprintf("fragment '%s' is not used", fragName), nil, nil, nil})
+		}
 	}
 }
 
@@ -395,6 +414,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 				continue
 			}
 
+			ctx.Get(keyFragmentUsage).(map[string]bool)[f.Name] = true
 			validateSelectionSet(ctx, fDef.SelectionSet, tCond, append(visitedFrags, f.Name))
 		} else if s.Kind() == ast.InlineFragmentSelectionKind {
 			fDef := s.(*ast.InlineFragment)
