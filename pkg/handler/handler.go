@@ -12,6 +12,7 @@ import (
 
 type Config struct {
 	Executor *gql.Executor
+	GraphiQL bool
 }
 
 func New(c Config) http.Handler {
@@ -39,6 +40,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Query:         html.UnescapeString(r.URL.Query().Get("query")),
 				Variables:     nil, // TODO: find a way of doing this..
 				OperationName: r.URL.Query().Get("operationName"),
+			}
+			if h.conf.GraphiQL {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				fmt.Fprint(w, graphiql)
+				return
 			}
 		}
 	case http.MethodPost:
@@ -68,6 +74,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, string(bs))
 		return
 	}
