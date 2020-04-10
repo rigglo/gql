@@ -842,7 +842,6 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 						res[i] = rval
 						mu.Unlock()
 					}
-					<-ctx.sem
 					wg.Done()
 				}
 			}
@@ -891,7 +890,13 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 }
 
 func getTypes(s *Schema) (map[string]Type, map[string]Directive, map[string][]Type) {
-	types := map[string]Type{}
+	types := map[string]Type{
+		"String":  String,
+		"Boolean": Boolean,
+		"Int":     Int,
+		"ID":      ID,
+		"Float":   Float,
+	}
 	directives := map[string]Directive{
 		"skip":       skipDirective,
 		"include":    includeDirective,
