@@ -85,19 +85,35 @@ func validate(ctx *eCtx) {
 	}
 }
 
-func validateMetaField(ctx *eCtx, f *ast.Field, t Type) {
+func validateMetaField(ctx *eCtx, f *ast.Field, t Type, visitedFrags []string) {
 	switch f.Name {
 	case "__typename":
 		{
-			// TODO: validate meta fields
+			// TODO: raise errors..
 		}
 	case "__schema":
 		{
-			// TODO: validate meta fields
+			if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
+				if rq == t {
+					validateSelectionSet(ctx, f.SelectionSet, schemaIntrospection, visitedFrags)
+				} else {
+					// TODO: raise errors
+				}
+			} else {
+				// TODO: raise errors
+			}
 		}
 	case "__type":
 		{
-			// TODO: validate meta fields
+			if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
+				if rq == t {
+					validateSelectionSet(ctx, f.SelectionSet, t, visitedFrags)
+				} else {
+					// TODO: raise errors
+				}
+			} else {
+				// TODO: raise errors
+			}
 		}
 	default:
 		{
@@ -338,75 +354,85 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 	for _, s := range set {
 		if s.Kind() == ast.FieldSelectionKind {
 			f := s.(*ast.Field)
+			t := t
 
 			// check if it's a meta field then check if that meta field can be queried on the specific type or does it even exists
 			if strings.HasPrefix(f.Name, "__") {
-				validateMetaField(ctx, f, t)
-			} else {
-				// check if the type 't' is an Object
-				if o, ok := t.(*Object); ok {
-					ok = false
-					for _, tf := range o.GetFields() {
-
-						// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
-						if tf.GetName() == f.Name {
-
-							// 5.3.3 - Leaf Field Selections
-							selType := unwrapper(tf.GetType())
-
-							if isCompositeType(selType) {
-
-								validateArguments(ctx, f.Arguments, tf.Arguments)
-								validateDirectives(ctx, f.Directives, FieldLoc)
-								validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
-							} else if !isCompositeType(selType) {
-								if len(f.SelectionSet) != 0 {
-									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
-								}
-							}
-							ok = true
-						}
+				if f.Name == "__typename" {
+					validateMetaField(ctx, f, t, visitedFrags)
+					continue
+				} else if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
+					if rq == t {
+						t = introspectionQuery
+					} else {
+						// TODO: INVALID META FIELD, FIELD DOES NOT EXIST ON TYPE
 					}
+				}
+			}
+
+			// check if the type 't' is an Object
+			if o, ok := t.(*Object); ok {
+				ok = false
+				for _, tf := range o.GetFields() {
 
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
-					// if field does NOT exist on type
-					if !ok {
-						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
-						continue
-					}
-				} else if i, ok := t.(*Interface); ok {
-					ok = false
-					for _, tf := range i.GetFields() {
+					if tf.GetName() == f.Name {
 
-						// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
-						if tf.GetName() == f.Name {
+						// 5.3.3 - Leaf Field Selections
+						selType := unwrapper(tf.GetType())
+
+						if isCompositeType(selType) {
+
 							validateArguments(ctx, f.Arguments, tf.Arguments)
 							validateDirectives(ctx, f.Directives, FieldLoc)
-
-							// 5.3.3 - Leaf Field Selections
-							selType := unwrapper(tf.GetType())
-							if isCompositeType(selType) {
-								validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
-							} else if !isCompositeType(selType) {
-								if len(f.SelectionSet) != 0 {
-									ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
-								}
+							validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
+						} else if !isCompositeType(selType) {
+							if len(f.SelectionSet) != 0 {
+								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 							}
-							ok = true
 						}
-
+						ok = true
 					}
+				}
 
-					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
-					// if field does NOT exist on type
-					if !ok {
-						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
-						continue
-					}
-				} else {
-					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("Invalid field selection on type '%s'", t.GetName())), nil, nil, nil})
+				// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
+				// if field does NOT exist on type
+				if !ok {
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					continue
 				}
+			} else if i, ok := t.(*Interface); ok {
+				ok = false
+				for _, tf := range i.GetFields() {
+
+					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
+					if tf.GetName() == f.Name {
+						validateArguments(ctx, f.Arguments, tf.Arguments)
+						validateDirectives(ctx, f.Directives, FieldLoc)
+
+						// 5.3.3 - Leaf Field Selections
+						selType := unwrapper(tf.GetType())
+						if isCompositeType(selType) {
+							validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
+						} else if !isCompositeType(selType) {
+							if len(f.SelectionSet) != 0 {
+								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
+							}
+						}
+						ok = true
+					}
+
+				}
+
+				// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
+				// if field does NOT exist on type
+				if !ok {
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
+					continue
+				}
+			} else {
+				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("Invalid field selection on type '%s'", t.GetName())), nil, nil, nil})
+				continue
 			}
 		} else if s.Kind() == ast.FragmentSpreadSelectionKind {
 			f := s.(*ast.FragmentSpread)
