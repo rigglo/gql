@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/rigglo/gql/pkg/testutils/arguments"
+
 	"github.com/rigglo/gql/pkg/testutils/pets"
 
 	"github.com/rigglo/gql/pkg/gql"
@@ -1302,6 +1304,161 @@ func Test_ArgumentNames(t *testing.T) {
 					`,
 				},
 				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+		{
+			name: "multipleArgs",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...multipleArgs
+						}
+					}
+					fragment multipleArgs on Arguments {
+						multipleReqs(x: 1, y: 2)
+					}
+					`,
+				},
+				schema: arguments.ArgumentsSchema,
+			},
+			valid: true,
+		},
+		{
+			name: "multipleArgsReverseOrder",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...multipleArgsReverseOrder
+						}
+					}
+					fragment multipleArgsReverseOrder on Arguments {
+						multipleReqs(y: 1, x: 2)
+					}
+					`,
+				},
+				schema: arguments.ArgumentsSchema,
+			},
+			valid: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_ArgumentUniqueness(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "goodBooleanArg",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...goodBooleanArg
+						}
+					}
+					fragment goodBooleanArg on Arguments {
+						booleanArgField(booleanArg: true)
+					}					  
+					`,
+				},
+				schema: arguments.ArgumentsSchema,
+			},
+			valid: true,
+		},
+		{
+			name: "goodNonNullArg",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...goodNonNullArg
+						}
+					}
+					fragment goodNonNullArg on Arguments {
+						nonNullBooleanArgField(nonNullBooleanArg: true)
+					}				  
+					`,
+				},
+				schema: arguments.ArgumentsSchema,
+			},
+			valid: true,
+		},
+		{
+			name: "goodBooleanArgDefault",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...goodBooleanArgDefault
+						}
+					}
+					fragment goodBooleanArgDefault on Arguments {
+						booleanArgField
+					}					  
+					`,
+				},
+				schema: arguments.ArgumentsSchema,
+			},
+			valid: true,
+		},
+		{
+			name: "missingRequiredArg",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...missingRequiredArg
+						}
+					}
+					fragment missingRequiredArg on Arguments {
+						nonNullBooleanArgField
+					}					  
+					`,
+				},
+				schema: arguments.ArgumentsSchema,
+			},
+			valid: false,
+		},
+		{
+			name: "missingRequiredArg",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...missingRequiredArg
+						}
+					}
+					fragment missingRequiredArg on Arguments {
+						nonNullBooleanArgField(nonNullBooleanArg: null)
+					}					  
+					`,
+				},
+				schema: arguments.ArgumentsSchema,
 			},
 			valid: false,
 		},
