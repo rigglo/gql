@@ -942,6 +942,7 @@ func typeWalker(types map[string]Type, directives map[string]Directive, implemen
 				} else {
 					implementors[i.Name] = []Type{o}
 				}
+				typeWalker(types, directives, implementors, i)
 			}
 		}
 		for _, f := range hf.GetFields() {

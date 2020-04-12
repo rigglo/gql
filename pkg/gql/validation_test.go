@@ -1217,3 +1217,101 @@ func Test_Directives(t *testing.T) {
 		})
 	}
 }
+
+func Test_ArgumentNames(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "argOnRequiredArg",
+			args: args{
+				params: gql.Params{
+					Query: `
+						query {
+							dog {
+								...argOnRequiredArg
+							}
+						}
+						fragment argOnRequiredArg on Dog {
+							doesKnowCommand(dogCommand: SIT)
+						}
+						`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "argOnOptional",
+			args: args{
+				params: gql.Params{
+					Query: `
+						query {
+							dog {
+								...argOnOptional
+							}
+						}
+						fragment argOnOptional on Dog {
+							isHousetrained(atOtherHomes: true) @include(if: true)
+						}
+						`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: true,
+		},
+		{
+			name: "invalidArgName",
+			args: args{
+				params: gql.Params{
+					Query: `
+						query {
+							dog {
+								...invalidArgName
+							}
+						}
+						fragment invalidArgName on Dog {
+							doesKnowCommand(command: CLEAN_UP_HOUSE)
+						}
+						`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+		{
+			name: "invalidArgName",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						dog {
+							...invalidArgName
+						}
+					}
+					fragment invalidArgName on Dog {
+						isHousetrained(atOtherHomes: true) @include(unless: false)
+					}
+					`,
+				},
+				schema: pets.PetStore,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}

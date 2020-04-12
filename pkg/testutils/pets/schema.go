@@ -188,6 +188,9 @@ var (
 					},
 				},
 				Type: gql.NewNonNull(gql.Boolean),
+				Resolver: func(ctx gql.Context) (interface{}, error) {
+					return true, nil
+				},
 			},
 			&gql.Field{
 				Name: "owner",

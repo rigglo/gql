@@ -377,14 +377,13 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
 					if tf.GetName() == f.Name {
-
 						// 5.3.3 - Leaf Field Selections
 						selType := unwrapper(tf.GetType())
 
-						if isCompositeType(selType) {
+						validateArguments(ctx, f.Arguments, tf.Arguments)
+						validateDirectives(ctx, f.Directives, FieldLoc)
 
-							validateArguments(ctx, f.Arguments, tf.Arguments)
-							validateDirectives(ctx, f.Directives, FieldLoc)
+						if isCompositeType(selType) {
 							validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
 						} else if !isCompositeType(selType) {
 							if len(f.SelectionSet) != 0 {
@@ -565,6 +564,7 @@ func validateDirectives(ctx *eCtx, ds []*ast.Directive, loc DirectiveLocation) {
 				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("directive '%s' is not unique per location", d.Name)), nil, nil, nil})
 				continue
 			}
+			validateArguments(ctx, d.Arguments, def.GetArguments())
 			visited[d.Name] = true
 		} else {
 			// NOT DEFINED
