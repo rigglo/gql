@@ -164,11 +164,9 @@ func coerceVariableValues(ctx *eCtx) {
 			})
 			continue
 		}
-		var defaultValue interface{} = nil
 		value, hasValue := raw[varDef.Name]
 		if !hasValue && varDef.DefaultValue != nil {
-			var err error
-			defaultValue, err = coerceAstValue(ctx, varDef.DefaultValue, varType)
+			defaultValue, err := coerceAstValue(ctx, varDef.DefaultValue, varType)
 			if err != nil {
 				ctx.addErr(&Error{
 					Message: "couldn't coerece default value of variable",
@@ -688,6 +686,8 @@ func coerceAstValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 				res[field.Name] = field.GetDefaultValue()
 			} else if !ok && field.GetType().GetKind() == NonNullKind {
 				return nil, fmt.Errorf("No value provided for NonNull type")
+			} else if !ok {
+				continue
 			}
 			if astf.Value.Kind() == ast.NullValueKind && field.GetType().GetKind() != NonNullKind {
 				res[field.Name] = nil

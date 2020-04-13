@@ -4,11 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/rigglo/gql/pkg/testutils/arguments"
-
-	"github.com/rigglo/gql/pkg/testutils/pets"
-
 	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql/pkg/testutils"
 )
 
 /*
@@ -39,7 +36,7 @@ func Test_SampleTest(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -81,7 +78,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -100,7 +97,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -119,7 +116,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -138,7 +135,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -163,7 +160,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -183,7 +180,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -225,7 +222,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -245,7 +242,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -265,7 +262,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -285,7 +282,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -305,7 +302,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -325,7 +322,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -345,7 +342,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -365,7 +362,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -389,7 +386,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -413,7 +410,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -437,7 +434,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -461,7 +458,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					  }
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -502,7 +499,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					  }
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -523,7 +520,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -537,7 +534,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -551,7 +548,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -565,7 +562,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -614,7 +611,7 @@ func Test_FragmentNameUniqueness(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -640,7 +637,7 @@ func Test_FragmentNameUniqueness(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -682,7 +679,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -702,7 +699,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -724,7 +721,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -746,7 +743,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -768,7 +765,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					  }
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -810,7 +807,7 @@ func Test_FragmensMustBeUsed(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -848,7 +845,7 @@ func Test_FragmentSpreadTargetDefined(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -896,7 +893,7 @@ func Test_FragmentSpreadsMustNotFormCycles(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -926,7 +923,7 @@ func Test_FragmentSpreadsMustNotFormCycles(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -969,7 +966,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -990,7 +987,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1012,7 +1009,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					  }
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1038,7 +1035,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1060,7 +1057,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1082,7 +1079,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1108,7 +1105,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1132,7 +1129,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1170,7 +1167,7 @@ func Test_Directives(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1186,7 +1183,7 @@ func Test_Directives(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1205,7 +1202,7 @@ func Test_Directives(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1246,7 +1243,7 @@ func Test_ArgumentNames(t *testing.T) {
 						}
 						`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1265,7 +1262,7 @@ func Test_ArgumentNames(t *testing.T) {
 						}
 						`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1284,7 +1281,7 @@ func Test_ArgumentNames(t *testing.T) {
 						}
 						`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1303,7 +1300,7 @@ func Test_ArgumentNames(t *testing.T) {
 					}
 					`,
 				},
-				schema: pets.PetStore,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1322,7 +1319,7 @@ func Test_ArgumentNames(t *testing.T) {
 					}
 					`,
 				},
-				schema: arguments.ArgumentsSchema,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1341,7 +1338,7 @@ func Test_ArgumentNames(t *testing.T) {
 					}
 					`,
 				},
-				schema: arguments.ArgumentsSchema,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1382,7 +1379,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: arguments.ArgumentsSchema,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1401,7 +1398,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}				  
 					`,
 				},
-				schema: arguments.ArgumentsSchema,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1420,7 +1417,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: arguments.ArgumentsSchema,
+				schema: testutils.Schema,
 			},
 			valid: true,
 		},
@@ -1439,7 +1436,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: arguments.ArgumentsSchema,
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},
@@ -1458,7 +1455,185 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: arguments.ArgumentsSchema,
+				schema: testutils.Schema,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_ValuesOfCorrectType(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "goodBooleanArg",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...goodBooleanArg
+						}
+					}
+					fragment goodBooleanArg on Arguments {
+						booleanArgField(booleanArg: true)
+					}					  
+					`,
+				},
+				schema: testutils.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "coercedIntIntoFloatArg",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...coercedIntIntoFloatArg
+						}
+					}
+					fragment coercedIntIntoFloatArg on Arguments {
+						# Note: The input coercion rules for Float allow Int literals.
+						floatArgField(floatArg: 123)
+					}									
+					`,
+				},
+				schema: testutils.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "goodComplexDefaultValue",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query goodComplexDefaultValue($search: ComplexInput = { name: "Fido" }) {
+						findDog(complex: $search) {
+							nickname
+						}
+					}				  
+					`,
+				},
+				schema: testutils.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "stringIntoInt",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...stringIntoInt
+						}
+					}
+					fragment stringIntoInt on Arguments {
+						intArgField(intArg: "123")
+					}					  
+					`,
+				},
+				schema: testutils.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "badComplexValue",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query {
+						arguments {
+							...badComplexValue
+						}
+					}
+					query badComplexValue {
+						findDog(complex: { name: 123 })
+					}					  
+					`,
+				},
+				schema: testutils.Schema,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_VariableUniqueness(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "houseTrainedQuery",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query houseTrainedQuery($atOtherHomes: Boolean, $atOtherHomes: Boolean) {
+						dog {
+						  	isHousetrained(atOtherHomes: $atOtherHomes)
+						}
+					}
+					`,
+				},
+				schema: testutils.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "HouseTrainedFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query A($atOtherHomes: Boolean) {
+						...HouseTrainedFragment
+					}
+					  
+					query B($atOtherHomes: Boolean) {
+						...HouseTrainedFragment
+					}
+					  
+					fragment HouseTrainedFragment on Query {
+						dog {
+						  	isHousetrained(atOtherHomes: $atOtherHomes)
+						}
+					}
+					`,
+					OperationName: "A",
+				},
+				schema: testutils.Schema,
 			},
 			valid: false,
 		},

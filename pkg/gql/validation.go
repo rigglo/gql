@@ -32,7 +32,7 @@ func validate(ctx *eCtx) {
 				continue
 			}
 		}
-		validateDirectives(ctx, f.Directives, FragmentDefinitionLoc)
+		// validateDirectives(ctx, o, f.Directives, FragmentDefinitionLoc)
 		fragments[f.Name] = f
 		fragUsage[f.Name] = false
 	}
@@ -60,20 +60,20 @@ func validate(ctx *eCtx) {
 			if ctx.Get(keySchema).(*Schema).GetRootQuery() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root query defined in schema"), nil, nil, nil})
 			}
-			validateDirectives(ctx, o.Directives, QueryLoc)
-			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootQuery(), []string{})
+			validateDirectives(ctx, o, o.Directives, QueryLoc)
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootQuery(), []string{})
 		case ast.Mutation:
 			if ctx.Get(keySchema).(*Schema).GetRootMutation() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root mutation defined in schema"), nil, nil, nil})
 			}
-			validateDirectives(ctx, o.Directives, MutationLoc)
-			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootMutation(), []string{})
+			validateDirectives(ctx, o, o.Directives, MutationLoc)
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootMutation(), []string{})
 		case ast.Subscription:
 			if ctx.Get(keySchema).(*Schema).GetRootSubsciption() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root subscription defined in schema"), nil, nil, nil})
 			}
-			validateDirectives(ctx, o.Directives, SubscriptionLoc)
-			validateSelectionSet(ctx, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootSubsciption(), []string{})
+			validateDirectives(ctx, o, o.Directives, SubscriptionLoc)
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootSubsciption(), []string{})
 		}
 		// validateSelectionSet(ctx, o)
 	}
@@ -85,7 +85,7 @@ func validate(ctx *eCtx) {
 	}
 }
 
-func validateMetaField(ctx *eCtx, f *ast.Field, t Type, visitedFrags []string) {
+func validateMetaField(ctx *eCtx, op *ast.Operation, f *ast.Field, t Type, visitedFrags []string) {
 	switch f.Name {
 	case "__typename":
 		{
@@ -95,7 +95,7 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type, visitedFrags []string) {
 		{
 			if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
 				if rq == t {
-					validateSelectionSet(ctx, f.SelectionSet, schemaIntrospection, visitedFrags)
+					validateSelectionSet(ctx, op, f.SelectionSet, schemaIntrospection, visitedFrags)
 				} else {
 					// TODO: raise errors
 				}
@@ -107,7 +107,7 @@ func validateMetaField(ctx *eCtx, f *ast.Field, t Type, visitedFrags []string) {
 		{
 			if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
 				if rq == t {
-					validateSelectionSet(ctx, f.SelectionSet, t, visitedFrags)
+					validateSelectionSet(ctx, op, f.SelectionSet, t, visitedFrags)
 				} else {
 					// TODO: raise errors
 				}
@@ -343,7 +343,7 @@ func isCompositeType(t Type) bool {
 	return false
 }
 
-func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags []string) {
+func validateSelectionSet(ctx *eCtx, op *ast.Operation, set []ast.Selection, t Type, visitedFrags []string) {
 	fieldsInSetCanMerge(ctx, set, t)
 
 	if len(set) == 0 {
@@ -359,7 +359,7 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 			// check if it's a meta field then check if that meta field can be queried on the specific type or does it even exists
 			if strings.HasPrefix(f.Name, "__") {
 				if f.Name == "__typename" {
-					validateMetaField(ctx, f, t, visitedFrags)
+					validateMetaField(ctx, op, f, t, visitedFrags)
 					continue
 				} else if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
 					if rq == t {
@@ -380,11 +380,11 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 						// 5.3.3 - Leaf Field Selections
 						selType := unwrapper(tf.GetType())
 
-						validateArguments(ctx, f.Arguments, tf.Arguments)
-						validateDirectives(ctx, f.Directives, FieldLoc)
+						validateArguments(ctx, op, f.Arguments, tf.Arguments)
+						validateDirectives(ctx, op, f.Directives, FieldLoc)
 
 						if isCompositeType(selType) {
-							validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
+							validateSelectionSet(ctx, op, f.SelectionSet, selType, visitedFrags)
 						} else if !isCompositeType(selType) {
 							if len(f.SelectionSet) != 0 {
 								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
@@ -406,13 +406,13 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
 					if tf.GetName() == f.Name {
-						validateArguments(ctx, f.Arguments, tf.Arguments)
-						validateDirectives(ctx, f.Directives, FieldLoc)
+						validateArguments(ctx, op, f.Arguments, tf.Arguments)
+						validateDirectives(ctx, op, f.Directives, FieldLoc)
 
 						// 5.3.3 - Leaf Field Selections
 						selType := unwrapper(tf.GetType())
 						if isCompositeType(selType) {
-							validateSelectionSet(ctx, f.SelectionSet, selType, visitedFrags)
+							validateSelectionSet(ctx, op, f.SelectionSet, selType, visitedFrags)
 						} else if !isCompositeType(selType) {
 							if len(f.SelectionSet) != 0 {
 								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
@@ -462,9 +462,9 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 				continue
 			}
 
-			validateDirectives(ctx, f.Directives, FragmentSpreadLoc)
+			validateDirectives(ctx, op, f.Directives, FragmentSpreadLoc)
 			ctx.Get(keyFragmentUsage).(map[string]bool)[f.Name] = true
-			validateSelectionSet(ctx, fDef.SelectionSet, tCond, append(visitedFrags, f.Name))
+			validateSelectionSet(ctx, op, fDef.SelectionSet, tCond, append(visitedFrags, f.Name))
 		} else if s.Kind() == ast.InlineFragmentSelectionKind {
 			fDef := s.(*ast.InlineFragment)
 			types := ctx.Get(keyTypes).(map[string]Type)
@@ -480,8 +480,8 @@ func validateSelectionSet(ctx *eCtx, set []ast.Selection, t Type, visitedFrags [
 				continue
 			}
 
-			validateDirectives(ctx, fDef.Directives, InlineFragmentLoc)
-			validateSelectionSet(ctx, fDef.SelectionSet, tCond, visitedFrags)
+			validateDirectives(ctx, op, fDef.Directives, InlineFragmentLoc)
+			validateSelectionSet(ctx, op, fDef.SelectionSet, tCond, visitedFrags)
 		}
 	}
 }
@@ -512,7 +512,7 @@ func getPossibleTypes(ctx *eCtx, t Type) []Type {
 	return []Type{}
 }
 
-func validateArguments(ctx *eCtx, astArgs []*ast.Argument, args []*Argument) {
+func validateArguments(ctx *eCtx, op *ast.Operation, astArgs []*ast.Argument, args []*Argument) {
 	visitesArgs := map[string]*ast.Argument{}
 	for _, a := range astArgs {
 		for _, ta := range args {
@@ -520,6 +520,7 @@ func validateArguments(ctx *eCtx, astArgs []*ast.Argument, args []*Argument) {
 				if _, visited := visitesArgs[a.Name]; visited {
 					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("argument '%s' is set multiple times", a.Name)), nil, nil, nil})
 				} else {
+					validateValue(ctx, op, ta.Type, a.Value)
 					visitesArgs[a.Name] = a
 				}
 				break
@@ -543,7 +544,7 @@ func validateArguments(ctx *eCtx, astArgs []*ast.Argument, args []*Argument) {
 	}
 }
 
-func validateDirectives(ctx *eCtx, ds []*ast.Directive, loc DirectiveLocation) {
+func validateDirectives(ctx *eCtx, op *ast.Operation, ds []*ast.Directive, loc DirectiveLocation) {
 	directives := ctx.Get(keyDirectives).(map[string]Directive)
 	visited := map[string]bool{}
 	for _, d := range ds {
@@ -564,11 +565,21 @@ func validateDirectives(ctx *eCtx, ds []*ast.Directive, loc DirectiveLocation) {
 				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("directive '%s' is not unique per location", d.Name)), nil, nil, nil})
 				continue
 			}
-			validateArguments(ctx, d.Arguments, def.GetArguments())
+			validateArguments(ctx, op, d.Arguments, def.GetArguments())
 			visited[d.Name] = true
 		} else {
 			// NOT DEFINED
 			ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("directive '%s' is not defined", d.Name)), nil, nil, nil})
 		}
 	}
+}
+
+func validateValue(ctx *eCtx, op *ast.Operation, t Type, v ast.Value) {
+	// TODO: argument value
+	// TODO: input object field value
+	// TODO: variable definition default value
+}
+
+func validateVariables(ctx *eCtx) {
+
 }
