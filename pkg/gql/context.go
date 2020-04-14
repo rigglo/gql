@@ -7,6 +7,7 @@ import (
 
 const (
 	keyOperationName string = "gql_operation_name"
+	keyVariableDefs  string = "gql_variable_defs"
 	keyRawVariables  string = "gql_raw_variables"
 	keyVariables     string = "gql_variables"
 	keyRawQuery      string = "gql_raw_query"

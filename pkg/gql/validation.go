@@ -38,6 +38,7 @@ func validate(ctx *eCtx) {
 	}
 	ctx.Set(keyFragments, fragments)
 	ctx.Set(keyFragmentUsage, fragUsage)
+	ctx.Set(keyVariableDefs, map[string]map[string]*ast.Variable{})
 
 	for _, o := range doc.Operations {
 		// 5.2.1 - Named Operation Definitions
@@ -54,23 +55,31 @@ func validate(ctx *eCtx) {
 
 		// TODO: 5.2.3 - Subscription Operation Definitions
 
+		// validate varibles
+		vm := ctx.Get(keyVariableDefs).(map[string]map[string]*ast.Variable)
+		vm[o.Name] = validateVariables(ctx, o)
+		ctx.Set(keyVariableDefs, vm)
+
 		// 5.3 - Fields
 		switch o.OperationType {
 		case ast.Query:
 			if ctx.Get(keySchema).(*Schema).GetRootQuery() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root query defined in schema"), nil, nil, nil})
+				break
 			}
 			validateDirectives(ctx, o, o.Directives, QueryLoc)
 			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootQuery(), []string{})
 		case ast.Mutation:
 			if ctx.Get(keySchema).(*Schema).GetRootMutation() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root mutation defined in schema"), nil, nil, nil})
+				break
 			}
 			validateDirectives(ctx, o, o.Directives, MutationLoc)
 			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootMutation(), []string{})
 		case ast.Subscription:
 			if ctx.Get(keySchema).(*Schema).GetRootSubsciption() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root subscription defined in schema"), nil, nil, nil})
+				break
 			}
 			validateDirectives(ctx, o, o.Directives, SubscriptionLoc)
 			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootSubsciption(), []string{})
@@ -580,6 +589,27 @@ func validateValue(ctx *eCtx, op *ast.Operation, t Type, v ast.Value) {
 	// TODO: variable definition default value
 }
 
-func validateVariables(ctx *eCtx) {
+func validateVariables(ctx *eCtx, op *ast.Operation) map[string]*ast.Variable {
+	visited := map[string]*ast.Variable{}
+	for _, v := range op.Variables {
+		// variable has to be unique
+		if _, ok := visited[v.Name]; ok {
+			ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("variable '%s' is used multiple times", v.Name)), nil, nil, nil})
+			continue
+		}
 
+		// variable has to be input type
+		if vt, err := resolveAstType(ctx.Get(keyTypes).(map[string]Type), v.Type); err != nil {
+			ctx.addErr(err)
+			continue
+		} else if !isInputType(vt) {
+			ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("variable '%s' is not an input type", v.Name)), nil, nil, nil})
+			continue
+		} else if v.DefaultValue != nil {
+			// default value has to be validated
+			validateValue(ctx, op, vt, v.DefaultValue)
+		}
+		visited[v.Name] = v
+	}
+	return visited
 }

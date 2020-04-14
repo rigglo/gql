@@ -1635,7 +1635,7 @@ func Test_VariableUniqueness(t *testing.T) {
 				},
 				schema: testutil.Schema,
 			},
-			valid: false,
+			valid: true,
 		},
 	}
 	for _, tt := range tests {

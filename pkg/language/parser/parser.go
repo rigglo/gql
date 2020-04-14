@@ -148,7 +148,7 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 			token = <-tokens
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "(":
-			vs := map[string]*ast.Variable{}
+			vs := []*ast.Variable{}
 			token, vs, err = parseVariables(tokens)
 			if err != nil {
 				return token, nil, err
@@ -176,9 +176,9 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 	}
 }
 
-func parseVariables(tokens chan lexer.Token) (lexer.Token, map[string]*ast.Variable, error) {
+func parseVariables(tokens chan lexer.Token) (lexer.Token, []*ast.Variable, error) {
 	token := <-tokens
-	vs := map[string]*ast.Variable{}
+	vs := []*ast.Variable{}
 	var err error
 
 	for {
@@ -221,14 +221,13 @@ func parseVariables(tokens chan lexer.Token) (lexer.Token, map[string]*ast.Varia
 				return token, nil, err
 			}
 			v.DefaultValue = dv
-			vs[v.Name] = v
 		}
 
 		if token.Kind == lexer.PunctuatorToken && token.Value == "$" {
-			vs[v.Name] = v
+			vs = append(vs, v)
 			continue
 		} else if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
-			vs[v.Name] = v
+			vs = append(vs, v)
 			return <-tokens, vs, nil
 		}
 	}

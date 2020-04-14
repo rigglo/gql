@@ -685,7 +685,7 @@ func coerceAstValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 			if !ok && field.IsDefaultValueSet() {
 				res[field.Name] = field.GetDefaultValue()
 			} else if !ok && field.GetType().GetKind() == NonNullKind {
-				return nil, fmt.Errorf("No value provided for NonNull type")
+				return nil, fmt.Errorf("Null value provided for NonNull type")
 			} else if !ok {
 				continue
 			}
@@ -701,15 +701,14 @@ func coerceAstValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 			}
 			if astf.Value.Kind() == ast.VariableValueKind {
 				varVal, ok := ctx.Get(keyVariables).(map[string]interface{})
+				vv := astf.Value.(*ast.VariableValue)
 				if ok && varVal == nil && field.GetType().GetKind() == NonNullKind {
 					return nil, fmt.Errorf("null value on NonNull type")
 				} else if ok {
-					res[field.Name] = varVal[field.Name]
-				}
-				if !ok {
-					op := ctx.Get(keyOperation).(*ast.Operation)
-					vv := astf.Value.(*ast.VariableValue)
-					vDef := op.Variables[vv.Name]
+					res[field.Name] = varVal[vv.Name]
+				} else {
+					op := ctx.Get(keyOperation).(*ast.Variable)
+					vDef := ctx.Get(keyVariableDefs).(map[string]map[string]*ast.Variable)[op.Name][vv.Name]
 					if vDef.DefaultValue != nil {
 						defVal, err := coerceAstValue(ctx, vDef.DefaultValue, field.GetType())
 						if err != nil {
