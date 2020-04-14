@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/rigglo/gql/pkg/gql"
-	"github.com/rigglo/gql/pkg/testutils"
+	"github.com/rigglo/gql/pkg/testutil"
 )
 
 /*
@@ -36,7 +36,7 @@ func Test_SampleTest(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -78,7 +78,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -97,7 +97,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -116,7 +116,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -135,7 +135,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -160,7 +160,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -180,7 +180,7 @@ func Test_FieldSelectionsOnObjectInterfacesAndUnions(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -222,7 +222,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -242,7 +242,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -262,7 +262,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -282,7 +282,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -302,7 +302,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -322,7 +322,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -342,7 +342,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -362,7 +362,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -386,7 +386,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -410,7 +410,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -434,7 +434,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -458,7 +458,7 @@ func Test_FieldSelectionMerging(t *testing.T) {
 					  }
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -499,7 +499,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					  }
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -520,7 +520,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -534,7 +534,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -548,7 +548,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -562,7 +562,7 @@ func Test_LeadFieldSelections(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -611,7 +611,7 @@ func Test_FragmentNameUniqueness(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -637,7 +637,7 @@ func Test_FragmentNameUniqueness(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -679,7 +679,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -699,7 +699,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -721,7 +721,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -743,7 +743,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -765,7 +765,7 @@ func Test_FragmentsOnCompositeTypes(t *testing.T) {
 					  }
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -807,7 +807,7 @@ func Test_FragmensMustBeUsed(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -845,7 +845,7 @@ func Test_FragmentSpreadTargetDefined(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -893,7 +893,7 @@ func Test_FragmentSpreadsMustNotFormCycles(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -923,7 +923,7 @@ func Test_FragmentSpreadsMustNotFormCycles(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -966,7 +966,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -987,7 +987,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1009,7 +1009,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					  }
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1035,7 +1035,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1057,7 +1057,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1079,7 +1079,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1105,7 +1105,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1129,7 +1129,7 @@ func Test_FragmentSpreadIsPossible(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1167,7 +1167,7 @@ func Test_Directives(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1183,7 +1183,7 @@ func Test_Directives(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1202,7 +1202,7 @@ func Test_Directives(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1243,7 +1243,7 @@ func Test_ArgumentNames(t *testing.T) {
 						}
 						`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1262,7 +1262,7 @@ func Test_ArgumentNames(t *testing.T) {
 						}
 						`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1281,7 +1281,7 @@ func Test_ArgumentNames(t *testing.T) {
 						}
 						`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1300,7 +1300,7 @@ func Test_ArgumentNames(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1319,7 +1319,7 @@ func Test_ArgumentNames(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1338,7 +1338,7 @@ func Test_ArgumentNames(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1379,7 +1379,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1398,7 +1398,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}				  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1417,7 +1417,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1436,7 +1436,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1455,7 +1455,7 @@ func Test_ArgumentUniqueness(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1496,7 +1496,7 @@ func Test_ValuesOfCorrectType(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1516,7 +1516,7 @@ func Test_ValuesOfCorrectType(t *testing.T) {
 					}									
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1532,7 +1532,7 @@ func Test_ValuesOfCorrectType(t *testing.T) {
 					}				  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: true,
 		},
@@ -1551,7 +1551,7 @@ func Test_ValuesOfCorrectType(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1570,7 +1570,7 @@ func Test_ValuesOfCorrectType(t *testing.T) {
 					}					  
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1608,7 +1608,7 @@ func Test_VariableUniqueness(t *testing.T) {
 					}
 					`,
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
@@ -1633,7 +1633,7 @@ func Test_VariableUniqueness(t *testing.T) {
 					`,
 					OperationName: "A",
 				},
-				schema: testutils.Schema,
+				schema: testutil.Schema,
 			},
 			valid: false,
 		},
