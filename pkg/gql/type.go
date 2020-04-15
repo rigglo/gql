@@ -41,15 +41,23 @@ func isOutputType(t Type) bool {
 	return false
 }
 
-// List in the GraphQL Type System
+/*
+List in the GraphQL Type System
+For creating a new List type, always use the `NewList` function
+
+	NewList(SomeType)
+*/
 type List struct {
 	Name        string
 	Description string
 	Wrapped     Type
 }
 
-// NewList returns a new List
-// In every case, you should use NewList function to create a new List, instead of creating on your own.
+/*
+NewList returns a new List
+
+In every case, you should use NewList function to create a new List, instead of creating on your own.
+*/
 func NewList(t Type) Type {
 	return &List{
 		Name:        "List",
@@ -85,8 +93,10 @@ type NonNull struct {
 	Wrapped     Type
 }
 
-// NewNonNull function helps create a new Non-Null type
-// It must be used, instead of creating a non null type "manually"
+/*
+NewNonNull function helps create a new Non-Null type
+It must be used, instead of creating a non null type "manually"
+*/
 func NewNonNull(t Type) Type {
 	return &NonNull{
 		Name:        "NonNull",
