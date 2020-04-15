@@ -19,16 +19,11 @@ func init() {
 				if ctx.Parent().(Type).GetKind() == UnionKind {
 					return ctx.Parent().(*Union).GetMembers(), nil
 				} else if ctx.Parent().(Type).GetKind() == InterfaceKind {
-					ectx := ctx.(*resolveContext).eCtx
-					ts := ectx.Get(keyTypes).(map[string]Type)
+					gqlctx := ctx.(*resolveContext).gqlCtx
 
-					out := []Type{}
-					for _, t := range ts {
-						if t.GetKind() == ObjectKind {
-							t.(*Object).DoesImplement(ctx.Parent().(*Interface))
-						}
-						out = append(out, t)
-					}
+					gqlctx.mu.Lock()
+					out := gqlctx.implementors[ctx.Parent().(*Interface).GetName()]
+					gqlctx.mu.Unlock()
 					return out, nil
 				}
 				return nil, nil
@@ -94,9 +89,7 @@ var (
 				Name: "__schema",
 				Type: NewNonNull(schemaIntrospection),
 				Resolver: func(ctx Context) (interface{}, error) {
-					ectx := ctx.(*resolveContext).eCtx
-					s := ectx.Get(keySchema).(*Schema)
-					return s, nil
+					return ctx.(*resolveContext).gqlCtx.schema, nil
 				},
 			},
 			&Field{
@@ -109,9 +102,11 @@ var (
 					},
 				},
 				Resolver: func(ctx Context) (interface{}, error) {
-					ectx := ctx.(*resolveContext).eCtx
-					ts := ectx.Get(keyTypes).(map[string]Type)
-					return ts[ctx.Args()["name"].(string)], nil
+					gqlctx := ctx.(*resolveContext).gqlCtx
+					gqlctx.mu.Lock()
+					t := gqlctx.types[ctx.Args()["name"].(string)]
+					gqlctx.mu.Unlock()
+					return t, nil
 				},
 			},
 		},
@@ -124,13 +119,14 @@ var (
 				Name: "types",
 				Type: NewNonNull(NewList(NewNonNull(typeIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {
-					ectx := ctx.(*resolveContext).eCtx
-					ts := ectx.Get(keyTypes).(map[string]Type)
+					gqlctx := ctx.(*resolveContext).gqlCtx
 
+					gqlctx.mu.Lock()
 					out := []Type{}
-					for _, t := range ts {
+					for _, t := range gqlctx.types {
 						out = append(out, t)
 					}
+					gqlctx.mu.Unlock()
 					return out, nil
 				},
 			},
@@ -138,45 +134,41 @@ var (
 				Name: "queryType",
 				Type: NewNonNull(typeIntrospection),
 				Resolver: func(ctx Context) (interface{}, error) {
-					ectx := ctx.(*resolveContext).eCtx
-					schema := ectx.Get(keySchema).(*Schema)
-					return schema.GetRootQuery(), nil
+					return ctx.(*resolveContext).gqlCtx.schema.GetRootQuery(), nil
 				},
 			},
 			&Field{
 				Name: "mutationType",
 				Type: typeIntrospection,
 				Resolver: func(ctx Context) (interface{}, error) {
-					ectx := ctx.(*resolveContext).eCtx
-					schema := ectx.Get(keySchema).(*Schema)
-					if schema.GetRootMutation() == nil {
+					if ctx.(*resolveContext).gqlCtx.schema.GetRootMutation() == nil {
 						return nil, nil
 					}
-					return schema.GetRootMutation(), nil
+					return ctx.(*resolveContext).gqlCtx.schema.GetRootMutation(), nil
 				},
 			},
 			&Field{
 				Name: "subscriptionType",
 				Type: typeIntrospection,
 				Resolver: func(ctx Context) (interface{}, error) {
-					ectx := ctx.(*resolveContext).eCtx
-					schema := ectx.Get(keySchema).(*Schema)
-					if schema.GetRootSubsciption() == nil {
+					if ctx.(*resolveContext).gqlCtx.schema.GetRootSubsciption() == nil {
 						return nil, nil
 					}
-					return schema.GetRootSubsciption(), nil
+					return ctx.(*resolveContext).gqlCtx.schema.GetRootSubsciption(), nil
 				},
 			},
 			&Field{
 				Name: "directives",
 				Type: NewNonNull(NewList(NewNonNull(directiveIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {
-					ectx := ctx.(*resolveContext).eCtx
-					ds := ectx.Get(keyDirectives).(map[string]Directive)
+					gqlctx := ctx.(*resolveContext).gqlCtx
+
 					out := []Directive{}
-					for _, d := range ds {
+					gqlctx.mu.Lock()
+					for _, d := range gqlctx.directives {
 						out = append(out, d)
 					}
+					gqlctx.mu.Unlock()
 					return out, nil
 				},
 			},

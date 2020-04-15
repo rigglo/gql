@@ -152,23 +152,6 @@ const (
 	InputFieldDefinitionLoc DirectiveLocation = "INPUT_FIELD_DEFINITION"
 )
 
-/* var DeprecatedDirective *Directive = &Directive{
-	Name: "deprecated",
-	Arguments: Arguments{
-		&Argument{
-			Name:        "reason",
-			Type:        String,
-			Description: "Reason of the deprecation",
-		},
-	},
-	Locations: []DirectiveLocation{
-		FieldDefinitionLoc,
-		EnumValueLoc,
-	},
-} */
-
-// var _ Directive = DeprecatedDirective
-
 type SchemaDirective interface {
 	visitSchema(context.Context, Schema) *Schema
 }
@@ -181,8 +164,8 @@ type ObjectDirective interface {
 	visitObject(context.Context, Object) *Object
 }
 
-type FieldDirective interface {
-	visitField(context.Context, Field) *Field
+type FieldDefinitionDirective interface {
+	visitFieldDefinition(context.Context, Field) *Field
 }
 
 type ArgumentDirective interface {

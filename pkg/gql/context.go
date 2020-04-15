@@ -3,6 +3,8 @@ package gql
 import (
 	"context"
 	"sync"
+
+	"github.com/rigglo/gql/pkg/language/ast"
 )
 
 const (
@@ -31,38 +33,48 @@ type eCtx struct {
 	errMu            sync.Mutex
 }
 
-func newCtx(ctx context.Context, store map[string]interface{}, semLimit int, enableGoroutines bool) *eCtx {
-	return &eCtx{
-		ctx:              ctx,
-		store:            store,
-		sem:              make(chan struct{}, semLimit),
-		enableGoroutines: enableGoroutines,
-		res:              &Result{},
+type gqlCtx struct {
+	ctx           context.Context
+	ectx          *eCtx
+	mu            sync.Mutex
+	sem           chan struct{}
+	concurrency   bool
+	res           *Result
+	errMu         sync.Mutex
+	schema        *Schema
+	doc           *ast.Document
+	params        *Params
+	operation     *ast.Operation
+	variables     map[string]interface{}
+	types         map[string]Type
+	implementors  map[string][]Type
+	directives    map[string]Directive
+	fragments     map[string]*ast.Fragment
+	fragmentUsage map[string]bool
+	variableDefs  map[string]map[string]*ast.Variable
+	fieldsCache   map[string]map[string]*Field
+}
+
+func newContext(ctx context.Context, schema *Schema, doc *ast.Document, params *Params, concurrencyLimit int, concurrency bool) *gqlCtx {
+	return &gqlCtx{
+		sem:           make(chan struct{}, concurrencyLimit),
+		concurrency:   concurrency,
+		res:           &Result{},
+		schema:        schema,
+		doc:           doc,
+		params:        params,
+		types:         map[string]Type{},
+		implementors:  map[string][]Type{},
+		directives:    map[string]Directive{},
+		fragments:     map[string]*ast.Fragment{},
+		fragmentUsage: map[string]bool{},
+		variables:     map[string]interface{}{},
+		variableDefs:  map[string]map[string]*ast.Variable{},
+		fieldsCache:   map[string]map[string]*Field{},
 	}
 }
 
-func (c *eCtx) Get(key string) interface{} {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if v, ok := c.store[key]; ok {
-		return v
-	}
-	return nil
-}
-
-func (c *eCtx) Set(key string, v interface{}) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.store[key] = v
-}
-
-func (c *eCtx) Delete(key string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	delete(c.store, key)
-}
-
-func (c *eCtx) addErr(err *Error) {
+func (c *gqlCtx) addErr(err *Error) {
 	c.errMu.Lock()
 	defer c.errMu.Unlock()
 	c.res.Errors = append(c.res.Errors, err)
@@ -78,7 +90,7 @@ type Context interface {
 
 type resolveContext struct {
 	ctx    context.Context
-	eCtx   *eCtx
+	gqlCtx *gqlCtx
 	path   []interface{}
 	fields []string
 	args   map[string]interface{}

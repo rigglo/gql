@@ -8,22 +8,17 @@ import (
 	"github.com/rigglo/gql/pkg/language/ast"
 )
 
-func validate(ctx *eCtx) {
+func validate(ctx *gqlCtx) {
 	// TODO: parse type system definitions and return error that those are not supported in a query
 
 	ops := map[string]bool{}
 
-	doc := ctx.Get(keyQuery).(*ast.Document)
-
-	fragments := map[string]*ast.Fragment{}
-	types := ctx.Get(keyTypes).(map[string]Type)
-	fragUsage := map[string]bool{}
-	for _, f := range doc.Fragments {
-		if _, ok := fragments[f.Name]; ok {
+	for _, f := range ctx.doc.Fragments {
+		if _, ok := ctx.fragments[f.Name]; ok {
 			ctx.addErr(&Error{fmt.Sprintf("Fragment name '%s' is not unique, it's already used", f.Name), nil, nil, nil})
 			continue
 		}
-		if t, ok := types[f.TypeCondition]; !ok {
+		if t, ok := ctx.types[f.TypeCondition]; !ok {
 			ctx.addErr(&Error{fmt.Sprintf("Invalid fragment target '%s' for fragment '%s', type does not exist", f.TypeCondition, f.Name), nil, nil, nil})
 			continue
 		} else {
@@ -33,14 +28,11 @@ func validate(ctx *eCtx) {
 			}
 		}
 		// validateDirectives(ctx, o, f.Directives, FragmentDefinitionLoc)
-		fragments[f.Name] = f
-		fragUsage[f.Name] = false
+		ctx.fragments[f.Name] = f
+		ctx.fragmentUsage[f.Name] = false
 	}
-	ctx.Set(keyFragments, fragments)
-	ctx.Set(keyFragmentUsage, fragUsage)
-	ctx.Set(keyVariableDefs, map[string]map[string]*ast.Variable{})
 
-	for _, o := range doc.Operations {
+	for _, o := range ctx.doc.Operations {
 		// 5.2.1 - Named Operation Definitions
 		if _, ok := ops[o.Name]; ok && o.Name != "" {
 			ctx.addErr(&Error{fmt.Sprintf(ErrValidateOperationName, o.Name), nil, nil, nil})
@@ -49,52 +41,49 @@ func validate(ctx *eCtx) {
 		}
 
 		// 5.2.2 - Anonymous Operation Definitions
-		if o.Name == "" && len(doc.Operations) > 1 {
+		if o.Name == "" && len(ctx.doc.Operations) > 1 {
 			ctx.addErr(&Error{fmt.Sprintf(ErrAnonymousOperationDefinitions), nil, nil, nil})
 		}
 
 		// TODO: 5.2.3 - Subscription Operation Definitions
 
 		// validate varibles
-		vm := ctx.Get(keyVariableDefs).(map[string]map[string]*ast.Variable)
-		vm[o.Name] = validateVariables(ctx, o)
-		ctx.Set(keyVariableDefs, vm)
+		ctx.variableDefs[o.Name] = validateVariables(ctx, o)
 
 		// 5.3 - Fields
 		switch o.OperationType {
 		case ast.Query:
-			if ctx.Get(keySchema).(*Schema).GetRootQuery() == nil {
+			if ctx.schema.GetRootQuery() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root query defined in schema"), nil, nil, nil})
 				break
 			}
 			validateDirectives(ctx, o, o.Directives, QueryLoc)
-			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootQuery(), []string{})
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.GetRootQuery(), []string{})
 		case ast.Mutation:
-			if ctx.Get(keySchema).(*Schema).GetRootMutation() == nil {
+			if ctx.schema.GetRootMutation() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root mutation defined in schema"), nil, nil, nil})
 				break
 			}
 			validateDirectives(ctx, o, o.Directives, MutationLoc)
-			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootMutation(), []string{})
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.GetRootMutation(), []string{})
 		case ast.Subscription:
-			if ctx.Get(keySchema).(*Schema).GetRootSubsciption() == nil {
+			if ctx.schema.GetRootSubsciption() == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root subscription defined in schema"), nil, nil, nil})
 				break
 			}
 			validateDirectives(ctx, o, o.Directives, SubscriptionLoc)
-			validateSelectionSet(ctx, o, o.SelectionSet, ctx.Get(keySchema).(*Schema).GetRootSubsciption(), []string{})
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.GetRootSubsciption(), []string{})
 		}
-		// validateSelectionSet(ctx, o)
 	}
 
-	for fragName, used := range fragUsage {
+	for fragName, used := range ctx.fragmentUsage {
 		if !used {
 			ctx.addErr(&Error{fmt.Sprintf("fragment '%s' is not used", fragName), nil, nil, nil})
 		}
 	}
 }
 
-func validateMetaField(ctx *eCtx, op *ast.Operation, f *ast.Field, t Type, visitedFrags []string) {
+func validateMetaField(ctx *gqlCtx, op *ast.Operation, f *ast.Field, t Type, visitedFrags []string) {
 	switch f.Name {
 	case "__typename":
 		{
@@ -102,7 +91,7 @@ func validateMetaField(ctx *eCtx, op *ast.Operation, f *ast.Field, t Type, visit
 		}
 	case "__schema":
 		{
-			if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
+			if rq := ctx.schema.GetRootQuery(); rq != nil {
 				if rq == t {
 					validateSelectionSet(ctx, op, f.SelectionSet, schemaIntrospection, visitedFrags)
 				} else {
@@ -114,7 +103,7 @@ func validateMetaField(ctx *eCtx, op *ast.Operation, f *ast.Field, t Type, visit
 		}
 	case "__type":
 		{
-			if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
+			if rq := ctx.schema.GetRootQuery(); rq != nil {
 				if rq == t {
 					validateSelectionSet(ctx, op, f.SelectionSet, t, visitedFrags)
 				} else {
@@ -131,16 +120,14 @@ func validateMetaField(ctx *eCtx, op *ast.Operation, f *ast.Field, t Type, visit
 	}
 }
 
-func fieldsInSetCanMerge(ctx *eCtx, set []ast.Selection, t Type) {
-	types := ctx.Get(keyTypes).(map[string]Type)
-
+func fieldsInSetCanMerge(ctx *gqlCtx, set []ast.Selection, t Type) {
 	fieldsForName := collectFieldsForValidation(ctx, t, set, []string{})
 	for _, fields := range fieldsForName {
 		if len(fields) > 1 {
 			for i := 1; i < len(fields); i++ {
 				var pa, pb Type
-				pa = types[fields[0].ParentType]
-				pb = types[fields[i].ParentType]
+				pa = ctx.types[fields[0].ParentType]
+				pb = ctx.types[fields[i].ParentType]
 
 				if !sameResponseShape(ctx, fields[0], fields[i], pa, pb) {
 					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
@@ -202,7 +189,7 @@ func equalValue(a ast.Value, b ast.Value) bool {
 	return false
 }
 
-func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, pa Type, pb Type) bool {
+func sameResponseShape(ctx *gqlCtx, fa *ast.Field, fb *ast.Field, pa Type, pb Type) bool {
 	var typeA, typeB Type
 	for _, f := range pa.(hasFields).GetFields() {
 		if f.GetName() == fa.Name {
@@ -261,9 +248,7 @@ func sameResponseShape(ctx *eCtx, fa *ast.Field, fb *ast.Field, pa Type, pb Type
 	return true
 }
 
-func collectFieldsForValidation(ctx *eCtx, t Type, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
-	types := ctx.Get(keyTypes).(map[string]Type)
-
+func collectFieldsForValidation(ctx *gqlCtx, t Type, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
 	if vFrags == nil {
 		vFrags = []string{}
 	}
@@ -308,12 +293,12 @@ func collectFieldsForValidation(ctx *eCtx, t Type, ss []ast.Selection, vFrags []
 
 				vFrags = append(vFrags, fSpread.Name)
 
-				fragment, ok := ctx.Get(keyFragments).(map[string]*ast.Fragment)[fSpread.Name]
+				fragment, ok := ctx.fragments[fSpread.Name]
 				if !ok {
 					continue
 				}
 
-				fgfields := collectFieldsForValidation(ctx, types[fragment.TypeCondition], fragment.SelectionSet, vFrags)
+				fgfields := collectFieldsForValidation(ctx, ctx.types[fragment.TypeCondition], fragment.SelectionSet, vFrags)
 				for rkey, fg := range fgfields {
 					if _, ok := gfields[rkey]; ok {
 						gfields[rkey] = append(gfields[rkey], fg...)
@@ -328,7 +313,7 @@ func collectFieldsForValidation(ctx *eCtx, t Type, ss []ast.Selection, vFrags []
 
 				fragmentType := t
 				if f.TypeCondition != "" {
-					fragmentType = types[f.TypeCondition]
+					fragmentType = ctx.types[f.TypeCondition]
 				}
 
 				fgfields := collectFieldsForValidation(ctx, fragmentType, f.SelectionSet, vFrags)
@@ -352,7 +337,7 @@ func isCompositeType(t Type) bool {
 	return false
 }
 
-func validateSelectionSet(ctx *eCtx, op *ast.Operation, set []ast.Selection, t Type, visitedFrags []string) {
+func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t Type, visitedFrags []string) {
 	fieldsInSetCanMerge(ctx, set, t)
 
 	if len(set) == 0 {
@@ -370,7 +355,7 @@ func validateSelectionSet(ctx *eCtx, op *ast.Operation, set []ast.Selection, t T
 				if f.Name == "__typename" {
 					validateMetaField(ctx, op, f, t, visitedFrags)
 					continue
-				} else if rq := ctx.Get(keySchema).(*Schema).GetRootQuery(); rq != nil {
+				} else if rq := ctx.schema.GetRootQuery(); rq != nil {
 					if rq == t {
 						t = introspectionQuery
 					} else {
@@ -455,13 +440,12 @@ func validateSelectionSet(ctx *eCtx, op *ast.Operation, set []ast.Selection, t T
 				continue
 			}
 
-			types := ctx.Get(keyTypes).(map[string]Type)
-			fDef, ok := ctx.Get(keyFragments).(map[string]*ast.Fragment)[f.Name]
+			fDef, ok := ctx.fragments[f.Name]
 			if !ok {
 				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("fragment '%s' is not defined in query", f.Name)), nil, nil, nil})
 				continue
 			}
-			tCond, ok := types[fDef.TypeCondition]
+			tCond, ok := ctx.types[fDef.TypeCondition]
 			if !ok {
 				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("fragment's (%s) target type (%s) is not defined in query", f.Name, fDef.TypeCondition)), nil, nil, nil})
 				continue
@@ -472,12 +456,11 @@ func validateSelectionSet(ctx *eCtx, op *ast.Operation, set []ast.Selection, t T
 			}
 
 			validateDirectives(ctx, op, f.Directives, FragmentSpreadLoc)
-			ctx.Get(keyFragmentUsage).(map[string]bool)[f.Name] = true
+			ctx.fragmentUsage[f.Name] = true
 			validateSelectionSet(ctx, op, fDef.SelectionSet, tCond, append(visitedFrags, f.Name))
 		} else if s.Kind() == ast.InlineFragmentSelectionKind {
 			fDef := s.(*ast.InlineFragment)
-			types := ctx.Get(keyTypes).(map[string]Type)
-			tCond, ok := types[fDef.TypeCondition]
+			tCond, ok := ctx.types[fDef.TypeCondition]
 			if !ok && fDef.TypeCondition != "" {
 				ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("fragment's target type (%s) is not defined in query", fDef.TypeCondition)), nil, nil, nil})
 				continue
@@ -495,7 +478,7 @@ func validateSelectionSet(ctx *eCtx, op *ast.Operation, set []ast.Selection, t T
 	}
 }
 
-func isPossibleSpread(ctx *eCtx, parentType Type, fragType Type) bool {
+func isPossibleSpread(ctx *gqlCtx, parentType Type, fragType Type) bool {
 	pts := getPossibleTypes(ctx, parentType)
 	fts := getPossibleTypes(ctx, fragType)
 	for _, t := range pts {
@@ -508,20 +491,19 @@ func isPossibleSpread(ctx *eCtx, parentType Type, fragType Type) bool {
 	return false
 }
 
-func getPossibleTypes(ctx *eCtx, t Type) []Type {
+func getPossibleTypes(ctx *gqlCtx, t Type) []Type {
 	switch t.GetKind() {
 	case ObjectKind:
 		return []Type{t}
 	case InterfaceKind:
-		implementors := ctx.Get(keyImplementors).(map[string][]Type)
-		return implementors[t.GetName()]
+		return ctx.implementors[t.GetName()]
 	case UnionKind:
 		return t.(*Union).GetMembers()
 	}
 	return []Type{}
 }
 
-func validateArguments(ctx *eCtx, op *ast.Operation, astArgs []*ast.Argument, args []*Argument) {
+func validateArguments(ctx *gqlCtx, op *ast.Operation, astArgs []*ast.Argument, args []*Argument) {
 	visitesArgs := map[string]*ast.Argument{}
 	for _, a := range astArgs {
 		for _, ta := range args {
@@ -553,11 +535,10 @@ func validateArguments(ctx *eCtx, op *ast.Operation, astArgs []*ast.Argument, ar
 	}
 }
 
-func validateDirectives(ctx *eCtx, op *ast.Operation, ds []*ast.Directive, loc DirectiveLocation) {
-	directives := ctx.Get(keyDirectives).(map[string]Directive)
+func validateDirectives(ctx *gqlCtx, op *ast.Operation, ds []*ast.Directive, loc DirectiveLocation) {
 	visited := map[string]bool{}
 	for _, d := range ds {
-		if def, ok := directives[d.Name]; ok {
+		if def, ok := ctx.directives[d.Name]; ok {
 			ok = false
 			for _, l := range def.GetLocations() {
 				if l == loc {
@@ -583,13 +564,13 @@ func validateDirectives(ctx *eCtx, op *ast.Operation, ds []*ast.Directive, loc D
 	}
 }
 
-func validateValue(ctx *eCtx, op *ast.Operation, t Type, v ast.Value) {
+func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, v ast.Value) {
 	// TODO: argument value
 	// TODO: input object field value
 	// TODO: variable definition default value
 }
 
-func validateVariables(ctx *eCtx, op *ast.Operation) map[string]*ast.Variable {
+func validateVariables(ctx *gqlCtx, op *ast.Operation) map[string]*ast.Variable {
 	visited := map[string]*ast.Variable{}
 	for _, v := range op.Variables {
 		// variable has to be unique
@@ -599,7 +580,7 @@ func validateVariables(ctx *eCtx, op *ast.Operation) map[string]*ast.Variable {
 		}
 
 		// variable has to be input type
-		if vt, err := resolveAstType(ctx.Get(keyTypes).(map[string]Type), v.Type); err != nil {
+		if vt, err := resolveAstType(ctx.types, v.Type); err != nil {
 			ctx.addErr(err)
 			continue
 		} else if !isInputType(vt) {

@@ -51,37 +51,28 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 		}
 	}
 	types, directives, implementors := getTypes(e.config.Schema)
-	ectx := newCtx(
-		ctx,
-		map[string]interface{}{
-			keyQuery:         doc,
-			keyRawQuery:      p.Query,
-			keyOperationName: p.OperationName,
-			keyRawVariables:  p.Variables,
-			keySchema:        e.config.Schema,
-			keyTypes:         types,
-			keyDirectives:    directives,
-			keyImplementors:  implementors,
-		},
-		e.config.GoroutineLimit,
-		e.config.EnableGoroutines,
-	)
-	validate(ectx)
-	if len(ectx.res.Errors) > 0 {
-		return ectx.res
+
+	gqlctx := newContext(ctx, e.config.Schema, doc, &p, e.config.GoroutineLimit, e.config.EnableGoroutines)
+	gqlctx.types = types
+	gqlctx.directives = directives
+	gqlctx.implementors = implementors
+
+	validate(gqlctx)
+	if len(gqlctx.res.Errors) > 0 {
+		return gqlctx.res
 	}
 
-	getOperation(ectx)
-	if len(ectx.res.Errors) > 0 {
-		return ectx.res
+	getOperation(gqlctx)
+	if len(gqlctx.res.Errors) > 0 {
+		return gqlctx.res
 	}
 
-	coerceVariableValues(ectx)
-	if len(ectx.res.Errors) > 0 {
-		return ectx.res
+	coerceVariableValues(gqlctx)
+	if len(gqlctx.res.Errors) > 0 {
+		return gqlctx.res
 	}
 
-	return resolveOperation(ectx)
+	return resolveOperation(gqlctx)
 }
 
 type Params struct {
@@ -94,14 +85,12 @@ func Execute(ctx context.Context, s *Schema, p Params) *Result {
 	return DefaultExecutor(s).Execute(ctx, p)
 }
 
-func getOperation(ctx *eCtx) {
-	oname := ctx.Get(keyOperationName).(string)
-	doc := ctx.Get(keyQuery).(*ast.Document)
+func getOperation(ctx *gqlCtx) {
 
 	var op *ast.Operation
-	if oname == "" {
-		if len(doc.Operations) == 1 {
-			op = doc.Operations[0]
+	if ctx.params.OperationName == "" {
+		if len(ctx.doc.Operations) == 1 {
+			op = ctx.doc.Operations[0]
 		} else {
 			ctx.addErr(&Error{
 				Message:   "missing operationName",
@@ -110,14 +99,14 @@ func getOperation(ctx *eCtx) {
 			})
 		}
 	} else {
-		for _, o := range doc.Operations {
-			if oname == o.Name {
+		for _, o := range ctx.doc.Operations {
+			if ctx.params.OperationName == o.Name {
 				op = o
 			}
 		}
 	}
 	if op != nil {
-		ctx.Set(keyOperation, op)
+		ctx.operation = op
 		return
 	}
 	ctx.addErr(&Error{
@@ -128,16 +117,11 @@ func getOperation(ctx *eCtx) {
 	return
 }
 
-func coerceVariableValues(ctx *eCtx) {
+func coerceVariableValues(ctx *gqlCtx) {
 	coercedValues := map[string]interface{}{}
 
-	types := ctx.Get(keyTypes).(map[string]Type)
-	op := ctx.Get(keyOperation).(*ast.Operation)
-
-	raw := ctx.Get(keyRawVariables).(map[string]interface{})
-
-	for _, varDef := range op.Variables {
-		varType, Err := resolveAstType(types, varDef.Type)
+	for _, varDef := range ctx.operation.Variables {
+		varType, Err := resolveAstType(ctx.types, varDef.Type)
 		if Err != nil {
 			ctx.addErr(&Error{
 				Message: "invalid type for variable",
@@ -164,7 +148,7 @@ func coerceVariableValues(ctx *eCtx) {
 			})
 			continue
 		}
-		value, hasValue := raw[varDef.Name]
+		value, hasValue := ctx.params.Variables[varDef.Name]
 		if !hasValue && varDef.DefaultValue != nil {
 			defaultValue, err := coerceAstValue(ctx, varDef.DefaultValue, varType)
 			if err != nil {
@@ -213,7 +197,7 @@ func coerceVariableValues(ctx *eCtx) {
 			}
 		}
 	}
-	ctx.Set(keyVariables, coercedValues)
+	ctx.variables = coercedValues
 }
 
 func resolveAstType(types map[string]Type, t ast.Type) (Type, *Error) {
@@ -249,13 +233,12 @@ func resolveAstType(types map[string]Type, t ast.Type) (Type, *Error) {
 	}
 }
 
-func resolveOperation(ctx *eCtx) *Result {
-	op := ctx.Get(keyOperation).(*ast.Operation)
-	switch op.OperationType {
+func resolveOperation(ctx *gqlCtx) *Result {
+	switch ctx.operation.OperationType {
 	case ast.Query:
-		return executeQuery(ctx, op)
+		return executeQuery(ctx, ctx.operation)
 	case ast.Mutation:
-		return executeMutation(ctx, op)
+		return executeMutation(ctx, ctx.operation)
 	case ast.Subscription:
 		// TODO: implement ExecuteSubscription
 		break
@@ -265,9 +248,8 @@ func resolveOperation(ctx *eCtx) *Result {
 	}
 }
 
-func executeQuery(ctx *eCtx, op *ast.Operation) *Result {
-	schema := ctx.Get(keySchema).(*Schema)
-	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootQuery(), nil)
+func executeQuery(ctx *gqlCtx, op *ast.Operation) *Result {
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.GetRootQuery(), nil)
 	if hasNullErrs {
 		ctx.res.Data = nil
 	} else {
@@ -276,9 +258,8 @@ func executeQuery(ctx *eCtx, op *ast.Operation) *Result {
 	return ctx.res
 }
 
-func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
-	schema := ctx.Get(keySchema).(*Schema)
-	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, schema.GetRootMutation(), nil)
+func executeMutation(ctx *gqlCtx, op *ast.Operation) *Result {
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.GetRootMutation(), nil)
 	if hasNullErrs {
 		ctx.res.Data = nil
 	} else {
@@ -287,11 +268,11 @@ func executeMutation(ctx *eCtx, op *ast.Operation) *Result {
 	return ctx.res
 }
 
-func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) (map[string]interface{}, bool) {
+func executeSelectionSet(ctx *gqlCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) (map[string]interface{}, bool) {
 	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
 	hasNullErrs := false
-	if ctx.enableGoroutines && !reflect.DeepEqual(ot, ctx.Get(keySchema).(*Schema).GetRootMutation()) {
+	if ctx.concurrency && !reflect.DeepEqual(ot, ctx.schema.GetRootMutation()) {
 		wg := sync.WaitGroup{}
 		wg.Add(len(gfields))
 		mu := sync.Mutex{}
@@ -309,7 +290,7 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 					if strings.HasPrefix(fieldName, "__") {
 						rval, hasErr = resolveMetaFields(ctx, fs, ot)
 					} else {
-						fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+						fieldType := getFieldOfFields(ctx, fieldName, ot).GetType()
 						rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
 					}
 					if hasErr {
@@ -330,7 +311,7 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 				if strings.HasPrefix(fieldName, "__") {
 					rval, hasErr = resolveMetaFields(ctx, fs, ot)
 				} else {
-					fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+					fieldType := getFieldOfFields(ctx, fieldName, ot).GetType()
 					rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
 				}
 				if hasErr {
@@ -353,7 +334,7 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 			if strings.HasPrefix(fieldName, "__") {
 				rval, hasErr = resolveMetaFields(ctx, fs, ot)
 			} else {
-				fieldType := getFieldOfFields(fieldName, ot.GetFields()).GetType()
+				fieldType := getFieldOfFields(ctx, fieldName, ot).GetType()
 				rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
 			}
 			if hasErr {
@@ -368,10 +349,7 @@ func executeSelectionSet(ctx *eCtx, path []interface{}, ss []ast.Selection, ot *
 	return resMap, false
 }
 
-func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
-	types := ctx.Get(keyTypes).(map[string]Type)
-	// log.Printf("types: %+v", types)
-
+func collectFields(ctx *gqlCtx, t *Object, ss []ast.Selection, vFrags []string) map[string]ast.Fields {
 	if vFrags == nil {
 		vFrags = []string{}
 	}
@@ -395,7 +373,6 @@ func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) ma
 		case ast.FieldSelectionKind:
 			{
 				f := sel.(*ast.Field)
-				f.ParentType = t.Name
 				if _, ok := gfields[f.Alias]; ok {
 					gfields[f.Alias] = append(gfields[f.Alias], f)
 				} else {
@@ -417,12 +394,18 @@ func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) ma
 
 				vFrags = append(vFrags, fSpread.Name)
 
-				fragment, ok := ctx.Get(keyFragments).(map[string]*ast.Fragment)[fSpread.Name]
+				ctx.mu.Lock()
+				fragment, ok := ctx.fragments[fSpread.Name]
+				ctx.mu.Unlock()
 				if !ok {
 					continue
 				}
 
-				if !doesFragmentTypeApply(ctx, t, types[fragment.TypeCondition]) {
+				ctx.mu.Lock()
+				tCond := ctx.types[fragment.TypeCondition]
+				ctx.mu.Unlock()
+
+				if !doesFragmentTypeApply(ctx, t, tCond) {
 					continue
 				}
 
@@ -439,7 +422,11 @@ func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) ma
 			{
 				f := sel.(*ast.InlineFragment)
 
-				if f.TypeCondition != "" && !doesFragmentTypeApply(ctx, t, types[f.TypeCondition]) {
+				ctx.mu.Lock()
+				tCond := ctx.types[f.TypeCondition]
+				ctx.mu.Unlock()
+
+				if f.TypeCondition != "" && !doesFragmentTypeApply(ctx, t, tCond) {
 					continue
 				}
 
@@ -457,7 +444,7 @@ func collectFields(ctx *eCtx, t *Object, ss []ast.Selection, vFrags []string) ma
 	return gfields
 }
 
-func doesFragmentTypeApply(ctx *eCtx, ot *Object, ft Type) bool {
+func doesFragmentTypeApply(ctx *gqlCtx, ot *Object, ft Type) bool {
 	if ft.GetKind() == ObjectKind && reflect.DeepEqual(ot, ft) {
 		return true
 	} else if ft.GetKind() == InterfaceKind {
@@ -484,9 +471,28 @@ func getFragmentSpread(ctx *eCtx, fragName string) (*ast.FragmentSpread, bool) {
 	return nil, false
 }
 
-func getFieldOfFields(fn string, fs []*Field) *Field {
-	for _, f := range fs {
-		if f.GetName() == fn {
+func getFieldOfFields(ctx *gqlCtx, fn string, ot *Object) *Field {
+	/*
+		ctx.mu.Lock()
+		fs, ok := ctx.fieldsCache[ot.Name]
+		ctx.mu.Unlock()
+
+		if !ok {
+			fs := map[string]*Field{}
+			for _, f := range ot.Fields {
+				fs[f.Name] = f
+			}
+			ctx.mu.Lock()
+			ctx.fieldsCache[ot.Name] = fs
+			ctx.mu.Unlock()
+
+			return fs[fn]
+		}
+
+		return fs[fn]
+	*/
+	for _, f := range ot.Fields {
+		if fn == f.Name {
 			return f
 		}
 	}
@@ -502,19 +508,18 @@ func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {
 	return nil, false
 }
 
-func executeField(ctx *eCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) (interface{}, bool) {
+func executeField(ctx *gqlCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) (interface{}, bool) {
 	f := fs[0]
 	fn := f.Name
-	args := coerceArgumentValues(ctx, path, ot.GetFields(), f)
+	args := coerceArgumentValues(ctx, path, ot, f)
 	resVal := resolveFieldValue(ctx, path, f, ot, ov, fn, args)
-	return completeValue(ctx, path, getFieldOfFields(fn, ot.GetFields()).GetType(), fs, resVal)
+	return completeValue(ctx, path, getFieldOfFields(ctx, fn, ot).GetType(), fs, resVal)
 }
 
-func coerceArgumentValues(ctx *eCtx, path []interface{}, fields Fields, f *ast.Field) map[string]interface{} {
-	vars := ctx.Get(keyVariables).(map[string]interface{})
+func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Field) map[string]interface{} {
 	coercedVals := map[string]interface{}{}
 	fieldName := f.Name
-	argDefs := getFieldOfFields(fieldName, fields).GetArguments()
+	argDefs := getFieldOfFields(ctx, fieldName, ot).GetArguments()
 	for _, argDef := range argDefs {
 		argName := argDef.GetName()
 		argType := argDef.GetType()
@@ -524,7 +529,10 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, fields Fields, f *ast.F
 		if argVal != nil {
 			if argVal.Value.Kind() == ast.VariableValueKind {
 				varName := argVal.Value.(*ast.VariableValue).Name
-				value, hasValue = vars[varName]
+
+				ctx.mu.Lock()
+				value, hasValue = ctx.params.Variables[varName]
+				ctx.mu.Unlock()
 			} else {
 				value = argVal.Value
 			}
@@ -570,7 +578,7 @@ func coerceArgumentValues(ctx *eCtx, path []interface{}, fields Fields, f *ast.F
 	return coercedVals
 }
 
-func coerceJsonValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
+func coerceJsonValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 	switch {
 	case t.GetKind() == NonNullKind:
 		if val == nil {
@@ -636,7 +644,7 @@ func coerceJsonValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 	return nil, errors.New("invalid value to coerce")
 }
 
-func coerceAstValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
+func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 	switch {
 	case t.GetKind() == NonNullKind:
 		if _, ok := val.(ast.NullValue); ok {
@@ -700,15 +708,21 @@ func coerceAstValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 				}
 			}
 			if astf.Value.Kind() == ast.VariableValueKind {
-				varVal, ok := ctx.Get(keyVariables).(map[string]interface{})
+				ctx.mu.Lock()
+				varVal := ctx.params.Variables
+				ctx.mu.Unlock()
+				ok := varVal == nil
+
 				vv := astf.Value.(*ast.VariableValue)
 				if ok && varVal == nil && field.GetType().GetKind() == NonNullKind {
 					return nil, fmt.Errorf("null value on NonNull type")
 				} else if ok {
 					res[field.Name] = varVal[vv.Name]
 				} else {
-					op := ctx.Get(keyOperation).(*ast.Variable)
-					vDef := ctx.Get(keyVariableDefs).(map[string]map[string]*ast.Variable)[op.Name][vv.Name]
+					ctx.mu.Lock()
+					vDef := ctx.variableDefs[ctx.operation.Name][vv.Name]
+					ctx.mu.Unlock()
+
 					if vDef.DefaultValue != nil {
 						defVal, err := coerceAstValue(ctx, vDef.DefaultValue, field.GetType())
 						if err != nil {
@@ -728,7 +742,7 @@ func coerceAstValue(ctx *eCtx, val interface{}, t Type) (interface{}, error) {
 	return nil, errors.New("invalid value to coerce")
 }
 
-func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type) (interface{}, bool) {
+func resolveMetaFields(ctx *gqlCtx, fs []*ast.Field, t Type) (interface{}, bool) {
 	switch fs[0].Name {
 	case "__typename":
 		return t.GetName(), false
@@ -740,11 +754,11 @@ func resolveMetaFields(ctx *eCtx, fs []*ast.Field, t Type) (interface{}, bool) {
 	return nil, true
 }
 
-func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
-	f := getFieldOfFields(fn, ot.GetFields())
+func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
+	f := getFieldOfFields(ctx, fn, ot)
 	rCtx := &resolveContext{
 		ctx:    ctx.ctx, // this is the original context
-		eCtx:   ctx,     // execution context
+		gqlCtx: ctx,     // execution context
 		args:   args,
 		parent: ov, // parent's value
 		path:   path,
@@ -785,7 +799,7 @@ func resolveFieldValue(ctx *eCtx, path []interface{}, fast *ast.Field, ot *Objec
 }
 
 // returns the completed value and a bool value if there is a NonNull error
-func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) (interface{}, bool) {
+func completeValue(ctx *gqlCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) (interface{}, bool) {
 	if ft.GetKind() == NonNullKind {
 		// Step 1 - NonNull kinds
 		rval, hasErr := completeValue(ctx, path, ft.(*NonNull).Unwrap(), fs, result)
@@ -808,7 +822,7 @@ func completeValue(ctx *eCtx, path []interface{}, ft Type, fs ast.Fields, result
 		lt := ft.(*List)
 		v := reflect.ValueOf(result)
 		res := make([]interface{}, v.Len())
-		if ctx.enableGoroutines {
+		if ctx.concurrency {
 			wg := sync.WaitGroup{}
 			wg.Add(v.Len())
 			mu := sync.Mutex{}
