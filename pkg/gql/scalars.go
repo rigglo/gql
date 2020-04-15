@@ -8,9 +8,17 @@ import (
 	"strings"
 )
 
+// CoerceResultFunc coerces the result of a field resolve to the final format
 type CoerceResultFunc func(interface{}) (interface{}, error)
+
+// CoerceInputFunc coerces the input value to a type which will be used during field resolve
 type CoerceInputFunc func(interface{}) (interface{}, error)
 
+/*
+Scalar types represent primitive leaf values in a GraphQL type system. GraphQL responses
+take the form of a hierarchical tree; the leaves of this tree are typically
+GraphQL Scalar types (but may also be Enum types or null values)
+*/
 type Scalar struct {
 	Name             string
 	Description      string
@@ -19,26 +27,32 @@ type Scalar struct {
 	CoerceInputFunc  CoerceInputFunc
 }
 
+// GetName returns the name of the scalar
 func (s *Scalar) GetName() string {
 	return s.Name
 }
 
+// GetDescription shows the description of the scalar
 func (s *Scalar) GetDescription() string {
 	return s.Description
 }
 
+// GetKind returns the kind of the type, ScalarKind
 func (s *Scalar) GetKind() TypeKind {
 	return ScalarKind
 }
 
+// GetDirectives returns the directives added to the scalar
 func (s *Scalar) GetDirectives() []Directive {
 	return s.Directives
 }
 
+// CoerceResult coerces a result into the final type
 func (s *Scalar) CoerceResult(i interface{}) (interface{}, error) {
 	return s.CoerceResultFunc(i)
 }
 
+// CoerceInput coerces the input value to the type used in execution
 func (s *Scalar) CoerceInput(i interface{}) (interface{}, error) {
 	return s.CoerceInputFunc(i)
 }
