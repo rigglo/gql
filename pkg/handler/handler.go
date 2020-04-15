@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Executor *gql.Executor
 	GraphiQL bool
+	Pretty   bool
 }
 
 func New(c Config) http.Handler {
@@ -69,10 +70,22 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if params != nil {
-		bs, err := json.MarshalIndent(h.conf.Executor.Execute(r.Context(), *params), "", "\t")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		var (
+			bs  []byte
+			err error
+		)
+		if h.conf.Pretty {
+			bs, err = json.MarshalIndent(h.conf.Executor.Execute(r.Context(), *params), "", "\t")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			bs, err = json.Marshal(h.conf.Executor.Execute(r.Context(), *params))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, string(bs))
