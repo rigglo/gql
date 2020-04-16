@@ -85,14 +85,14 @@ func addIntrospectionTypes(types map[string]Type) {
 var (
 	introspectionQuery = &Object{
 		Fields: Fields{
-			&Field{
+			"__schema": &Field{
 				Name: "__schema",
 				Type: NewNonNull(schemaIntrospection),
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.(*resolveContext).gqlCtx.schema, nil
 				},
 			},
-			&Field{
+			"__type": &Field{
 				Name: "__type",
 				Type: typeIntrospection,
 				Arguments: Arguments{
@@ -115,7 +115,7 @@ var (
 	schemaIntrospection = &Object{
 		Name: "__Schema",
 		Fields: Fields{
-			&Field{
+			"types": &Field{
 				Name: "types",
 				Type: NewNonNull(NewList(NewNonNull(typeIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -130,14 +130,14 @@ var (
 					return out, nil
 				},
 			},
-			&Field{
+			"queryType": &Field{
 				Name: "queryType",
 				Type: NewNonNull(typeIntrospection),
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.(*resolveContext).gqlCtx.schema.GetRootQuery(), nil
 				},
 			},
-			&Field{
+			"mutationType": &Field{
 				Name: "mutationType",
 				Type: typeIntrospection,
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -147,7 +147,7 @@ var (
 					return ctx.(*resolveContext).gqlCtx.schema.GetRootMutation(), nil
 				},
 			},
-			&Field{
+			"subscriptionType": &Field{
 				Name: "subscriptionType",
 				Type: typeIntrospection,
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -157,7 +157,7 @@ var (
 					return ctx.(*resolveContext).gqlCtx.schema.GetRootSubsciption(), nil
 				},
 			},
-			&Field{
+			"directives": &Field{
 				Name: "directives",
 				Type: NewNonNull(NewList(NewNonNull(directiveIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -178,14 +178,14 @@ var (
 	typeIntrospection = &Object{
 		Name: "__Type",
 		Fields: Fields{
-			&Field{
+			"kind": &Field{
 				Name: "kind",
 				Type: NewNonNull(typeKindIntrospection),
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(Type).GetKind(), nil
 				},
 			},
-			&Field{
+			"name": &Field{
 				Name: "name",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -195,7 +195,7 @@ var (
 					return ctx.Parent().(Type).GetName(), nil
 				},
 			},
-			&Field{
+			"description": &Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -205,7 +205,7 @@ var (
 					return ctx.Parent().(Type).GetDescription(), nil
 				},
 			},
-			&Field{
+			"fields": &Field{
 				Name: "fields",
 				Arguments: Arguments{
 					&Argument{
@@ -247,7 +247,7 @@ var (
 					return nil, nil
 				},
 			},
-			&Field{
+			"enumValues": &Field{
 				Name: "enumValues",
 				Arguments: Arguments{
 					&Argument{
@@ -276,7 +276,7 @@ var (
 					return nil, nil
 				},
 			},
-			&Field{
+			"inputFields": &Field{
 				Name: "inputFields",
 				Type: NewList(NewNonNull(inputValueIntrospection)),
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -296,28 +296,28 @@ var (
 	fieldIntrospection = &Object{
 		Name: "__Field",
 		Fields: Fields{
-			&Field{
+			"name": &Field{
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(*Field).GetName(), nil
 				},
 			},
-			&Field{
+			"description": &Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(*Field).GetDescription(), nil
 				},
 			},
-			&Field{
+			"args": &Field{
 				Name: "args",
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(*Field).GetArguments(), nil
 				},
 			},
-			&Field{
+			"isDeprecated": &Field{
 				Name: "isDeprecated",
 				Type: NewNonNull(Boolean),
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -329,7 +329,7 @@ var (
 					return false, nil
 				},
 			},
-			&Field{
+			"deprecationReason": &Field{
 				Name: "deprecationReason",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -347,7 +347,7 @@ var (
 	inputValueIntrospection = &Object{
 		Name: "__InputValue",
 		Fields: Fields{
-			&Field{
+			"deprecationReason": &Field{
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -363,7 +363,7 @@ var (
 					return nil, nil
 				},
 			},
-			&Field{
+			"description": &Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -373,7 +373,7 @@ var (
 					return nil, nil
 				},
 			},
-			&Field{
+			"defaultValue": &Field{
 				Name: "defaultValue",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -391,21 +391,21 @@ var (
 	enumValueIntrospection = &Object{
 		Name: "__EnumValue",
 		Fields: Fields{
-			&Field{
+			"name": &Field{
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(*EnumValue).Name, nil
 				},
 			},
-			&Field{
+			"description": &Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(*EnumValue).Description, nil
 				},
 			},
-			&Field{
+			"isDeprecated": &Field{
 				Name: "isDeprecated",
 				Type: NewNonNull(Boolean),
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -417,7 +417,7 @@ var (
 					return false, nil
 				},
 			},
-			&Field{
+			"deprecationReason": &Field{
 				Name: "deprecationReason",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
@@ -473,28 +473,28 @@ var (
 	directiveIntrospection = &Object{
 		Name: "__Directive",
 		Fields: Fields{
-			&Field{
+			"name": &Field{
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(Directive).GetName(), nil
 				},
 			},
-			&Field{
+			"description": &Field{
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(Directive).GetDescription(), nil
 				},
 			},
-			&Field{
+			"locations": &Field{
 				Name: "locations",
 				Type: NewNonNull(NewList(NewNonNull(directiveLocationIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {
 					return ctx.Parent().(Directive).GetLocations(), nil
 				},
 			},
-			&Field{
+			"args": &Field{
 				Name: "args",
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {

@@ -366,8 +366,7 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 
 			// check if the type 't' is an Object
 			if o, ok := t.(*Object); ok {
-				ok = false
-				for _, tf := range o.GetFields() {
+				if tf, ok := o.Fields[f.Name]; ok {
 
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
 					if tf.GetName() == f.Name {
@@ -384,19 +383,15 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 							}
 						}
-						ok = true
 					}
-				}
-
-				// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
-				// if field does NOT exist on type
-				if !ok {
+				} else {
+					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
+					// if field does NOT exist on type
 					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					continue
 				}
 			} else if i, ok := t.(*Interface); ok {
-				ok = false
-				for _, tf := range i.GetFields() {
+				if tf, ok := i.Fields[f.Name]; ok {
 
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
 					if tf.GetName() == f.Name {
@@ -412,14 +407,11 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 							}
 						}
-						ok = true
 					}
 
-				}
-
-				// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
-				// if field does NOT exist on type
-				if !ok {
+				} else {
+					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
+					// if field does NOT exist on type
 					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					continue
 				}

@@ -472,31 +472,32 @@ func getFragmentSpread(ctx *eCtx, fragName string) (*ast.FragmentSpread, bool) {
 }
 
 func getFieldOfFields(ctx *gqlCtx, fn string, ot *Object) *Field {
-	/*
+	/*ctx.mu.Lock()
+	fs, ok := ctx.fieldsCache[ot.Name]
+	ctx.mu.Unlock()
+
+	if !ok {
+		fs := map[string]*Field{}
+		for _, f := range ot.Fields {
+			fs[f.Name] = f
+		}
 		ctx.mu.Lock()
-		fs, ok := ctx.fieldsCache[ot.Name]
+		ctx.fieldsCache[ot.Name] = fs
 		ctx.mu.Unlock()
 
-		if !ok {
-			fs := map[string]*Field{}
-			for _, f := range ot.Fields {
-				fs[f.Name] = f
-			}
-			ctx.mu.Lock()
-			ctx.fieldsCache[ot.Name] = fs
-			ctx.mu.Unlock()
-
-			return fs[fn]
-		}
-
 		return fs[fn]
-	*/
-	for _, f := range ot.Fields {
-		if fn == f.Name {
-			return f
-		}
 	}
-	return nil
+
+	return fs[fn]
+	/*
+		for _, f := range ot.Fields {
+			if fn == f.Name {
+				return f
+			}
+		}
+		return nil
+	*/
+	return ot.Fields[fn]
 }
 
 func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {

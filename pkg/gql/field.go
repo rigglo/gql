@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-type Fields []*Field
+type Fields map[string]*Field
 
 func (fs Fields) Add(f *Field) {
-	fs = append(fs, f)
+	fs[f.Name] = f
 }
 
 type Resolver func(Context) (interface{}, error)

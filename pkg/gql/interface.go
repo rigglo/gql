@@ -34,7 +34,7 @@ func (i *Interface) GetDirectives() []Directive {
 	return i.Directives
 }
 
-func (i *Interface) GetFields() []*Field {
+func (i *Interface) GetFields() map[string]*Field {
 	return i.Fields
 }
 

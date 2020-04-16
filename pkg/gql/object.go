@@ -32,12 +32,14 @@ func (o *Object) GetDirectives() []Directive {
 	return o.Directives
 }
 
-func (o *Object) GetFields() []*Field {
+func (o *Object) GetFields() map[string]*Field {
 	return o.Fields
 }
 
 func (o *Object) AddFields(fs ...*Field) {
-	o.Fields = append(o.Fields, fs...)
+	for _, f := range fs {
+		o.Fields[f.Name] = f
+	}
 }
 
 func (o *Object) DoesImplement(i *Interface) bool {
