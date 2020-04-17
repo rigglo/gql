@@ -2,17 +2,17 @@ package parser
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/rigglo/gql/pkg/language/ast"
 	"github.com/rigglo/gql/pkg/language/lexer"
 )
 
 // Parse parses a gql query
-func Parse(query string) (lexer.Token, *ast.Document, error) {
+func Parse(query []byte) (lexer.Token, *ast.Document, error) {
 	tokens := make(chan lexer.Token)
-	src := strings.NewReader(query)
+	src := bytes.NewReader(query)
 	readr := bufio.NewReader(src)
 	go lexer.Lex(readr, tokens)
 	t, doc, err := parseDocument(tokens)
@@ -20,18 +20,6 @@ func Parse(query string) (lexer.Token, *ast.Document, error) {
 		return t, nil, fmt.Errorf("unexpected EOF")
 	}
 	return t, doc, err
-}
-
-func ParseValue(value string) (ast.Value, error) {
-	tokens := make(chan lexer.Token)
-	src := strings.NewReader(value)
-	readr := bufio.NewReader(src)
-	go lexer.Lex(readr, tokens)
-	t, val, err := parseValue(<-tokens, tokens)
-	if err != nil && t.Value == "" {
-		return nil, fmt.Errorf("unexpected EOF")
-	}
-	return val, err
 }
 
 func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) {
@@ -172,6 +160,8 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 			}
 			op.SelectionSet = sSet
 			return token, op, nil
+		default:
+			return token, nil, fmt.Errorf("invalid token value: %s", token.Value)
 		}
 	}
 }

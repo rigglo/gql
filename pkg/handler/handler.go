@@ -63,7 +63,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			params = &gql.Params{
-				Query:         html.UnescapeString(p.Query),
+				Query:         p.Query,
 				Variables:     p.Variables,
 				OperationName: p.OperationName,
 			}

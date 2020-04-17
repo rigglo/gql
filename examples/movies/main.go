@@ -46,7 +46,7 @@ var (
 		Name:        "Query",
 		Description: "Just the blockbusters root query",
 		Fields: gql.Fields{
-			&gql.Field{
+			"top_movies": &gql.Field{
 				Name:        "top_movies",
 				Type:        gql.NewNonNull(gql.NewList(MovieType)),
 				Description: "",
@@ -63,7 +63,7 @@ var (
 					}, nil
 				},
 			},
-			&gql.Field{
+			"foo": &gql.Field{
 				Name:        "foo",
 				Type:        gql.String,
 				Description: "",
@@ -89,7 +89,7 @@ var (
 		Name:        "Movie",
 		Description: "This is a movie from the BlockBusters",
 		Fields: gql.Fields{
-			&gql.Field{
+			"id": &gql.Field{
 				Name:        "id",
 				Type:        gql.String,
 				Description: "id of the movie",
@@ -100,12 +100,12 @@ var (
 					},
 				},
 			},
-			&gql.Field{
+			"title": &gql.Field{
 				Name:        "title",
 				Type:        gql.String,
 				Description: "title of the movie",
 			},
-			&gql.Field{
+			"name": &gql.Field{
 				Name:        "name",
 				Type:        gql.NewNonNull(gql.String),
 				Description: "name of the movie",

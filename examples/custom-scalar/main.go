@@ -38,7 +38,7 @@ var (
 		Name:        "Query",
 		Description: "a box..",
 		Fields: gql.Fields{
-			&gql.Field{
+			"server_time": &gql.Field{
 				Name:        "server_time",
 				Type:        UnixTimestampScalar,
 				Description: "",

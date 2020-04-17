@@ -44,22 +44,22 @@ var (
 	PizzaType = &gql.Object{
 		Name: "Pizza",
 		Fields: gql.Fields{
-			&gql.Field{
+			"id": &gql.Field{
 				Name:        "id",
 				Description: "id of the pizza",
 				Type:        gql.ID,
 			},
-			&gql.Field{
+			"name": &gql.Field{
 				Name:        "name",
 				Description: "name of the pizza",
 				Type:        gql.String,
 			},
-			&gql.Field{
+			"size": &gql.Field{
 				Name:        "size",
 				Description: "size of the pizza (in cm)",
 				Type:        gql.Int,
 			},
-			&gql.Field{
+			"is_spicy": &gql.Field{
 				Name:        "is_spicy",
 				Description: "is the pizza spicy or not",
 				Type:        gql.Boolean,
@@ -70,7 +70,7 @@ var (
 	RootQuery = &gql.Object{
 		Name: "Query",
 		Fields: gql.Fields{
-			&gql.Field{
+			"pizzas": &gql.Field{
 				Name: "pizzas",
 				Type: gql.NewList(PizzaType),
 				Resolver: func(c gql.Context) (interface{}, error) {
@@ -101,7 +101,7 @@ var (
 	RootMutation = &gql.Object{
 		Name: "Mutation",
 		Fields: gql.Fields{
-			&gql.Field{
+			"addPizza": &gql.Field{
 				Name: "addPizza",
 				Type: gql.NewNonNull(PizzaType),
 				Arguments: gql.Arguments{

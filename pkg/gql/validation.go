@@ -191,16 +191,8 @@ func equalValue(a ast.Value, b ast.Value) bool {
 
 func sameResponseShape(ctx *gqlCtx, fa *ast.Field, fb *ast.Field, pa Type, pb Type) bool {
 	var typeA, typeB Type
-	for _, f := range pa.(hasFields).GetFields() {
-		if f.GetName() == fa.Name {
-			typeA = f.GetType()
-		}
-	}
-	for _, f := range pb.(hasFields).GetFields() {
-		if f.GetName() == fb.Name {
-			typeB = f.GetType()
-		}
-	}
+	typeA = pa.(hasFields).GetFields()[fa.Name].Type
+	typeB = pb.(hasFields).GetFields()[fb.Name].Type
 
 	for {
 		if typeA.GetKind() == NonNullKind || typeB.GetKind() == NonNullKind {

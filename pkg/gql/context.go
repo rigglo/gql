@@ -34,43 +34,43 @@ type eCtx struct {
 }
 
 type gqlCtx struct {
-	ctx           context.Context
-	ectx          *eCtx
-	mu            sync.Mutex
-	sem           chan struct{}
-	concurrency   bool
-	res           *Result
-	errMu         sync.Mutex
-	schema        *Schema
-	doc           *ast.Document
-	params        *Params
-	operation     *ast.Operation
-	variables     map[string]interface{}
-	types         map[string]Type
-	implementors  map[string][]Type
-	directives    map[string]Directive
-	fragments     map[string]*ast.Fragment
-	fragmentUsage map[string]bool
-	variableDefs  map[string]map[string]*ast.Variable
-	fieldsCache   map[string]map[string]*Field
+	ctx              context.Context
+	ectx             *eCtx
+	mu               sync.Mutex
+	sem              chan struct{}
+	concurrency      bool
+	concurrencyLimit int
+	res              *Result
+	errMu            sync.Mutex
+	schema           *Schema
+	doc              *ast.Document
+	params           *Params
+	operation        *ast.Operation
+	variables        map[string]interface{}
+	types            map[string]Type
+	implementors     map[string][]Type
+	directives       map[string]Directive
+	fragments        map[string]*ast.Fragment
+	fragmentUsage    map[string]bool
+	variableDefs     map[string]map[string]*ast.Variable
 }
 
 func newContext(ctx context.Context, schema *Schema, doc *ast.Document, params *Params, concurrencyLimit int, concurrency bool) *gqlCtx {
 	return &gqlCtx{
-		sem:           make(chan struct{}, concurrencyLimit),
-		concurrency:   concurrency,
-		res:           &Result{},
-		schema:        schema,
-		doc:           doc,
-		params:        params,
-		types:         map[string]Type{},
-		implementors:  map[string][]Type{},
-		directives:    map[string]Directive{},
-		fragments:     map[string]*ast.Fragment{},
-		fragmentUsage: map[string]bool{},
-		variables:     map[string]interface{}{},
-		variableDefs:  map[string]map[string]*ast.Variable{},
-		fieldsCache:   map[string]map[string]*Field{},
+		sem:              make(chan struct{}, concurrencyLimit),
+		concurrency:      concurrency,
+		concurrencyLimit: concurrencyLimit,
+		res:              &Result{},
+		schema:           schema,
+		doc:              doc,
+		params:           params,
+		types:            map[string]Type{},
+		implementors:     map[string][]Type{},
+		directives:       map[string]Directive{},
+		fragments:        map[string]*ast.Fragment{},
+		fragmentUsage:    map[string]bool{},
+		variables:        map[string]interface{}{},
+		variableDefs:     map[string]map[string]*ast.Variable{},
 	}
 }
 
