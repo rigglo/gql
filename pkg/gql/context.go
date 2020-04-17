@@ -7,35 +7,8 @@ import (
 	"github.com/rigglo/gql/pkg/language/ast"
 )
 
-const (
-	keyOperationName string = "gql_operation_name"
-	keyVariableDefs  string = "gql_variable_defs"
-	keyRawVariables  string = "gql_raw_variables"
-	keyVariables     string = "gql_variables"
-	keyRawQuery      string = "gql_raw_query"
-	keyQuery         string = "gql_query"
-	keySchema        string = "gql_schema"
-	keyOperation     string = "gql_operation"
-	keyTypes         string = "gql_types"
-	keyDirectives    string = "gql_directives"
-	keyImplementors  string = "gql_implementors"
-	keyFragments     string = "gql_fragments"
-	keyFragmentUsage string = "gql_fragment_usage"
-)
-
-type eCtx struct {
-	ctx              context.Context
-	store            map[string]interface{}
-	mu               sync.Mutex
-	res              *Result
-	sem              chan struct{}
-	enableGoroutines bool
-	errMu            sync.Mutex
-}
-
 type gqlCtx struct {
 	ctx              context.Context
-	ectx             *eCtx
 	mu               sync.Mutex
 	sem              chan struct{}
 	concurrency      bool
@@ -80,11 +53,17 @@ func (c *gqlCtx) addErr(err *Error) {
 	c.res.Errors = append(c.res.Errors, err)
 }
 
+/*
+Context for the field resolver functions
+*/
 type Context interface {
+	// Context returns the original context that was given to the executor
 	Context() context.Context
+	// Path of the field
 	Path() []interface{}
-	// 	Fields() []string
+	// Args of the field
 	Args() map[string]interface{}
+	// Parent object's data
 	Parent() interface{}
 }
 

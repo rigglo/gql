@@ -35,14 +35,14 @@ func validate(ctx *gqlCtx) {
 	for _, o := range ctx.doc.Operations {
 		// 5.2.1 - Named Operation Definitions
 		if _, ok := ops[o.Name]; ok && o.Name != "" {
-			ctx.addErr(&Error{fmt.Sprintf(ErrValidateOperationName, o.Name), nil, nil, nil})
+			ctx.addErr(&Error{fmt.Sprintf(errValidateOperationName, o.Name), nil, nil, nil})
 		} else {
 			ops[o.Name] = true
 		}
 
 		// 5.2.2 - Anonymous Operation Definitions
 		if o.Name == "" && len(ctx.doc.Operations) > 1 {
-			ctx.addErr(&Error{fmt.Sprintf(ErrAnonymousOperationDefinitions), nil, nil, nil})
+			ctx.addErr(&Error{fmt.Sprintf(errAnonymousOperationDefinitions), nil, nil, nil})
 		}
 
 		// TODO: 5.2.3 - Subscription Operation Definitions
@@ -115,7 +115,7 @@ func validateMetaField(ctx *gqlCtx, op *ast.Operation, f *ast.Field, t Type, vis
 		}
 	default:
 		{
-			ctx.addErr(&Error{fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName()), nil, nil, nil})
+			ctx.addErr(&Error{fmt.Sprintf(errFieldDoesNotExist, f.Name, t.GetName()), nil, nil, nil})
 		}
 	}
 }
@@ -130,19 +130,19 @@ func fieldsInSetCanMerge(ctx *gqlCtx, set []ast.Selection, t Type) {
 				pb = ctx.types[fields[i].ParentType]
 
 				if !sameResponseShape(ctx, fields[0], fields[i], pa, pb) {
-					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(errResponseShapeMismatch, "response shape is not the same")), nil, nil, nil})
 					continue
 				}
 
 				// this is bad, we should check the PARENT TYPE..
 				if reflect.DeepEqual(pa, pb) || (pa.GetKind() != ObjectKind || pb.GetKind() != ObjectKind) {
 					if fields[0].Name != fields[i].Name {
-						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "field names are not equal")), nil, nil, nil})
+						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(errResponseShapeMismatch, "field names are not equal")), nil, nil, nil})
 						continue
 					}
 
 					if !equalArguments(fields[0].Arguments, fields[i].Arguments) {
-						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrResponseShapeMismatch, "arguments don't match")), nil, nil, nil})
+						ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(errResponseShapeMismatch, "arguments don't match")), nil, nil, nil})
 						continue
 					}
 					mergedSet := append(fields[0].SelectionSet, fields[i].SelectionSet...)
@@ -333,7 +333,7 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 	fieldsInSetCanMerge(ctx, set, t)
 
 	if len(set) == 0 {
-		ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionMissing, t.GetName())), nil, nil, nil})
+		ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(errLeafFieldSelectionsSelectionMissing, t.GetName())), nil, nil, nil})
 		return
 	}
 
@@ -372,14 +372,14 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 							validateSelectionSet(ctx, op, f.SelectionSet, selType, visitedFrags)
 						} else if !isCompositeType(selType) {
 							if len(f.SelectionSet) != 0 {
-								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
+								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(errLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 							}
 						}
 					}
 				} else {
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
 					// if field does NOT exist on type
-					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(errFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					continue
 				}
 			} else if i, ok := t.(*Interface); ok {
@@ -396,7 +396,7 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 							validateSelectionSet(ctx, op, f.SelectionSet, selType, visitedFrags)
 						} else if !isCompositeType(selType) {
 							if len(f.SelectionSet) != 0 {
-								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
+								ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(errLeafFieldSelectionsSelectionNotAllowed, selType.GetName())), nil, nil, nil})
 							}
 						}
 					}
@@ -404,7 +404,7 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 				} else {
 					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
 					// if field does NOT exist on type
-					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(ErrFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
+					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf(errFieldDoesNotExist, f.Name, t.GetName())), nil, nil, nil})
 					continue
 				}
 			} else {

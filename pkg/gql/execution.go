@@ -31,7 +31,7 @@ func DefaultExecutor(s *Schema) *Executor {
 	return &Executor{
 		config: &ExecutorConfig{
 			EnableGoroutines: true,
-			GoroutineLimit:   100,
+			GoroutineLimit:   10,
 			Schema:           s,
 		},
 	}
@@ -284,7 +284,11 @@ func executeSelectionSet(ctx *gqlCtx, path []interface{}, ss []ast.Selection, ot
 	gfields := collectFields(ctx, ot, ss, nil)
 	resMap := map[string]interface{}{}
 	hasNullErrs := false
-	if ctx.concurrency && !reflect.DeepEqual(ot, ctx.schema.GetRootMutation()) {
+	conc := ctx.concurrency
+	if ctx.schema.Mutation != nil {
+		conc = ot.Name == ctx.schema.Mutation.Name
+	}
+	if conc {
 		wg := sync.WaitGroup{}
 		wg.Add(len(gfields))
 		mu := sync.Mutex{}
@@ -478,10 +482,6 @@ func doesFragmentTypeApply(ctx *gqlCtx, ot *Object, ft Type) bool {
 	return false
 }
 
-func getFragmentSpread(ctx *eCtx, fragName string) (*ast.FragmentSpread, bool) {
-	return nil, false
-}
-
 func getFieldOfFields(ctx *gqlCtx, fn string, ot *Object) *Field {
 	/*ctx.mu.Lock()
 	fs, ok := ctx.fieldsCache[ot.Name]
@@ -530,9 +530,9 @@ func executeField(ctx *gqlCtx, path []interface{}, ot *Object, ov interface{}, f
 
 func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Field) map[string]interface{} {
 	coercedVals := map[string]interface{}{}
-	argDefs := ot.Fields[f.Name].GetArguments()
+	argDefs := ot.Fields[f.Name].Arguments
 	for _, argDef := range argDefs {
-		defaultValue := argDef.GetDefaultValue()
+		defaultValue := argDef.DefaultValue
 		argVal, hasValue := getArgOfArgs(argDef.Name, f.Arguments)
 		var value interface{}
 		if argVal != nil {
@@ -633,7 +633,7 @@ func coerceJsonValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) 
 		for _, field := range o.GetFields() {
 			fv, ok := ov[field.Name]
 			if !ok && field.IsDefaultValueSet() {
-				res[field.Name] = field.GetDefaultValue()
+				res[field.Name] = field.DefaultValue
 			} else if !ok && field.Type.GetKind() == NonNullKind {
 				return nil, fmt.Errorf("No value provided for NonNull type")
 			}
@@ -700,7 +700,7 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 		for _, field := range o.GetFields() {
 			astf, ok := ov.Fields[field.Name]
 			if !ok && field.IsDefaultValueSet() {
-				res[field.Name] = field.GetDefaultValue()
+				res[field.Name] = field.DefaultValue
 			} else if !ok && field.Type.GetKind() == NonNullKind {
 				return nil, fmt.Errorf("Null value provided for NonNull type")
 			} else if !ok {
@@ -740,7 +740,7 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 						res[field.Name] = defVal
 					} else {
 						if field.IsDefaultValueSet() {
-							res[field.Name] = field.GetDefaultValue()
+							res[field.Name] = field.DefaultValue
 						}
 					}
 				}
@@ -1033,7 +1033,7 @@ func gatherDirectives(directives map[string]Directive, t Type) {
 			}
 		}
 		for _, v := range t.(*InputObject).GetFields() {
-			for _, d := range v.GetDirectives() {
+			for _, d := range v.Directives {
 				if _, ok := directives[d.GetName()]; !ok {
 					directives[d.GetName()] = d
 				}

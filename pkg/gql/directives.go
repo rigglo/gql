@@ -15,6 +15,76 @@ type Directive interface {
 	GetLocations() []DirectiveLocation
 }
 
+type DirectiveLocation string
+
+const (
+	// Executable directive locations
+	QueryLoc              DirectiveLocation = "QUERY"
+	MutationLoc           DirectiveLocation = "MUTATION"
+	SubscriptionLoc       DirectiveLocation = "SUBSCRIPTION"
+	FieldLoc              DirectiveLocation = "FIELD"
+	FragmentDefinitionLoc DirectiveLocation = "FRAGMENT_DEFINITION"
+	FragmentSpreadLoc     DirectiveLocation = "FRAGMENT_SPREAD"
+	InlineFragmentLoc     DirectiveLocation = "INLINE_FRAGMENT"
+
+	// Type System directive locations
+	SchemaLoc               DirectiveLocation = "SCHEMA"
+	ScalarLoc               DirectiveLocation = "SCALAR"
+	ObjectLoc               DirectiveLocation = "OBJECT"
+	FieldDefinitionLoc      DirectiveLocation = "FIELD_DEFINITION"
+	ArgumentDefinitionLoc   DirectiveLocation = "ARGUMENT_DEFINITION"
+	InterfaceLoc            DirectiveLocation = "INTERFACE"
+	UnionLoc                DirectiveLocation = "UNION"
+	EnumLoc                 DirectiveLocation = "ENUM"
+	EnumValueLoc            DirectiveLocation = "ENUM_VALUE"
+	InputObjectLoc          DirectiveLocation = "INPUT_OBJECT"
+	InputFieldDefinitionLoc DirectiveLocation = "INPUT_FIELD_DEFINITION"
+)
+
+type SchemaDirective interface {
+	visitSchema(context.Context, Schema) *Schema
+}
+
+type ScalarDirective interface {
+	visitScalar(context.Context, Scalar) *Scalar
+}
+
+type ObjectDirective interface {
+	visitObject(context.Context, Object) *Object
+}
+
+type FieldDefinitionDirective interface {
+	visitFieldDefinition(context.Context, Field) *Field
+}
+
+type ArgumentDirective interface {
+	visitArgument(context.Context, Argument) *Argument
+}
+
+type InterfaceDirective interface {
+	visitInterface(context.Context, Interface) *Interface
+}
+
+type UnionDirective interface {
+	visitUnion(context.Context, Union) *Union
+}
+
+type EnumDirective interface {
+	visitEnum(context.Context, Enum) *Enum
+}
+
+type EnumValueDirective interface {
+	visitEnumValue(context.Context, EnumValue) *EnumValue
+}
+
+type InputObjectDirective interface {
+	visitInputObject(context.Context, InputObject) *InputObject
+}
+
+type InputFieldDirective interface {
+	visitInputField(context.Context, InputField) *InputField
+}
+
 type skip struct{}
 
 func (s *skip) GetName() string {
@@ -125,73 +195,3 @@ var (
 	includeDirective    = &include{}
 	deprecatedDirective = &deprecated{}
 )
-
-type DirectiveLocation string
-
-const (
-	// Executable directive locations
-	QueryLoc              DirectiveLocation = "QUERY"
-	MutationLoc           DirectiveLocation = "MUTATION"
-	SubscriptionLoc       DirectiveLocation = "SUBSCRIPTION"
-	FieldLoc              DirectiveLocation = "FIELD"
-	FragmentDefinitionLoc DirectiveLocation = "FRAGMENT_DEFINITION"
-	FragmentSpreadLoc     DirectiveLocation = "FRAGMENT_SPREAD"
-	InlineFragmentLoc     DirectiveLocation = "INLINE_FRAGMENT"
-
-	// Type System directive locations
-	SchemaLoc               DirectiveLocation = "SCHEMA"
-	ScalarLoc               DirectiveLocation = "SCALAR"
-	ObjectLoc               DirectiveLocation = "OBJECT"
-	FieldDefinitionLoc      DirectiveLocation = "FIELD_DEFINITION"
-	ArgumentDefinitionLoc   DirectiveLocation = "ARGUMENT_DEFINITION"
-	InterfaceLoc            DirectiveLocation = "INTERFACE"
-	UnionLoc                DirectiveLocation = "UNION"
-	EnumLoc                 DirectiveLocation = "ENUM"
-	EnumValueLoc            DirectiveLocation = "ENUM_VALUE"
-	InputObjectLoc          DirectiveLocation = "INPUT_OBJECT"
-	InputFieldDefinitionLoc DirectiveLocation = "INPUT_FIELD_DEFINITION"
-)
-
-type SchemaDirective interface {
-	visitSchema(context.Context, Schema) *Schema
-}
-
-type ScalarDirective interface {
-	visitScalar(context.Context, Scalar) *Scalar
-}
-
-type ObjectDirective interface {
-	visitObject(context.Context, Object) *Object
-}
-
-type FieldDefinitionDirective interface {
-	visitFieldDefinition(context.Context, Field) *Field
-}
-
-type ArgumentDirective interface {
-	visitArgument(context.Context, Argument) *Argument
-}
-
-type InterfaceDirective interface {
-	visitInterface(context.Context, Interface) *Interface
-}
-
-type UnionDirective interface {
-	visitUnion(context.Context, Union) *Union
-}
-
-type EnumDirective interface {
-	visitEnum(context.Context, Enum) *Enum
-}
-
-type EnumValueDirective interface {
-	visitEnumValue(context.Context, EnumValue) *EnumValue
-}
-
-type InputObjectDirective interface {
-	visitInputObject(context.Context, InputObject) *InputObject
-}
-
-type InputFieldDirective interface {
-	visitInputField(context.Context, InputField) *InputField
-}

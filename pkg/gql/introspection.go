@@ -51,9 +51,9 @@ func init() {
 			Type: NewNonNull(typeIntrospection),
 			Resolver: func(ctx Context) (interface{}, error) {
 				if v, ok := ctx.Parent().(*Argument); ok {
-					return v.GetType(), nil
+					return v.Type, nil
 				} else if v, ok := ctx.Parent().(*InputField); ok {
-					return v.GetType(), nil
+					return v.Type, nil
 				}
 				return nil, nil
 			},
