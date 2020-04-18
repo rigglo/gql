@@ -1,6 +1,6 @@
 # gql (WIP)
 
-![build](https://github.com/rigglo/gql/workflows/build/badge.svg)
+![tests](https://github.com/rigglo/gql/workflows/tests/badge.svg)
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/rigglo/gql)
 [![Coverage Status](https://coveralls.io/repos/github/rigglo/gql/badge.svg?branch=master)](https://coveralls.io/github/rigglo/gql?branch=master)
 
