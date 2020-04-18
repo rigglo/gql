@@ -4,7 +4,7 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql"
 )
 
 var (

@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql"
 )
 
 type Config struct {

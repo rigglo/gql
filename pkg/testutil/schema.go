@@ -3,7 +3,7 @@ package testutil
 import (
 	"context"
 
-	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql"
 )
 
 func init() {

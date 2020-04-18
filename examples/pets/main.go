@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql"
 	"github.com/rigglo/gql/pkg/handler"
 )
 

@@ -3,9 +3,8 @@ package main
 import (
 	"net/http"
 
+	"github.com/rigglo/gql"
 	"github.com/rigglo/gql/pkg/handler"
-
-	"github.com/rigglo/gql/pkg/gql"
 )
 
 func main() {

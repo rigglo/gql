@@ -3,7 +3,7 @@ package benchutil
 import (
 	"fmt"
 
-	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql"
 )
 
 type color struct {
