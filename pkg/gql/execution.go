@@ -261,7 +261,7 @@ func resolveOperation(ctx *gqlCtx) *Result {
 }
 
 func executeQuery(ctx *gqlCtx, op *ast.Operation) *Result {
-	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.GetRootQuery(), nil)
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.Query, nil)
 	if hasNullErrs {
 		ctx.res.Data = nil
 	} else {
@@ -271,7 +271,7 @@ func executeQuery(ctx *gqlCtx, op *ast.Operation) *Result {
 }
 
 func executeMutation(ctx *gqlCtx, op *ast.Operation) *Result {
-	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.GetRootMutation(), nil)
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.Mutation, nil)
 	if hasNullErrs {
 		ctx.res.Data = nil
 	} else {
@@ -920,9 +920,9 @@ func getTypes(s *Schema) (map[string]Type, map[string]Directive, map[string][]Ty
 	}
 	implementors := map[string][]Type{}
 	addIntrospectionTypes(types)
-	typeWalker(types, directives, implementors, s.GetRootQuery())
-	if s.GetRootMutation() != nil {
-		typeWalker(types, directives, implementors, s.GetRootMutation())
+	typeWalker(types, directives, implementors, s.Query)
+	if s.Mutation != nil {
+		typeWalker(types, directives, implementors, s.Mutation)
 	}
 	return types, directives, implementors
 }

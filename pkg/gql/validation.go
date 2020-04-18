@@ -53,26 +53,26 @@ func validate(ctx *gqlCtx) {
 		// 5.3 - Fields
 		switch o.OperationType {
 		case ast.Query:
-			if ctx.schema.GetRootQuery() == nil {
+			if ctx.schema.Query == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root query defined in schema"), nil, nil, nil})
 				break
 			}
 			validateDirectives(ctx, o, o.Directives, QueryLoc)
-			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.GetRootQuery(), []string{})
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.Query, []string{})
 		case ast.Mutation:
-			if ctx.schema.GetRootMutation() == nil {
+			if ctx.schema.Mutation == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root mutation defined in schema"), nil, nil, nil})
 				break
 			}
 			validateDirectives(ctx, o, o.Directives, MutationLoc)
-			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.GetRootMutation(), []string{})
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.Mutation, []string{})
 		case ast.Subscription:
-			if ctx.schema.GetRootSubsciption() == nil {
+			if ctx.schema.Subscription == nil {
 				ctx.addErr(&Error{fmt.Sprintf("No root subscription defined in schema"), nil, nil, nil})
 				break
 			}
 			validateDirectives(ctx, o, o.Directives, SubscriptionLoc)
-			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.GetRootSubsciption(), []string{})
+			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.Subscription, []string{})
 		}
 	}
 
@@ -91,7 +91,7 @@ func validateMetaField(ctx *gqlCtx, op *ast.Operation, f *ast.Field, t Type, vis
 		}
 	case "__schema":
 		{
-			if rq := ctx.schema.GetRootQuery(); rq != nil {
+			if rq := ctx.schema.Query; rq != nil {
 				if rq == t {
 					validateSelectionSet(ctx, op, f.SelectionSet, schemaIntrospection, visitedFrags)
 				} else {
@@ -103,7 +103,7 @@ func validateMetaField(ctx *gqlCtx, op *ast.Operation, f *ast.Field, t Type, vis
 		}
 	case "__type":
 		{
-			if rq := ctx.schema.GetRootQuery(); rq != nil {
+			if rq := ctx.schema.Query; rq != nil {
 				if rq == t {
 					validateSelectionSet(ctx, op, f.SelectionSet, t, visitedFrags)
 				} else {
@@ -347,7 +347,7 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 				if f.Name == "__typename" {
 					validateMetaField(ctx, op, f, t, visitedFrags)
 					continue
-				} else if rq := ctx.schema.GetRootQuery(); rq != nil {
+				} else if rq := ctx.schema.Query; rq != nil {
 					if rq == t {
 						t = introspectionQuery
 					} else {

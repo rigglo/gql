@@ -134,27 +134,27 @@ var (
 				Name: "queryType",
 				Type: NewNonNull(typeIntrospection),
 				Resolver: func(ctx Context) (interface{}, error) {
-					return ctx.(*resolveContext).gqlCtx.schema.GetRootQuery(), nil
+					return ctx.(*resolveContext).gqlCtx.schema.Query, nil
 				},
 			},
 			"mutationType": &Field{
 				Name: "mutationType",
 				Type: typeIntrospection,
 				Resolver: func(ctx Context) (interface{}, error) {
-					if ctx.(*resolveContext).gqlCtx.schema.GetRootMutation() == nil {
+					if ctx.(*resolveContext).gqlCtx.schema.Mutation == nil {
 						return nil, nil
 					}
-					return ctx.(*resolveContext).gqlCtx.schema.GetRootMutation(), nil
+					return ctx.(*resolveContext).gqlCtx.schema.Mutation, nil
 				},
 			},
 			"subscriptionType": &Field{
 				Name: "subscriptionType",
 				Type: typeIntrospection,
 				Resolver: func(ctx Context) (interface{}, error) {
-					if ctx.(*resolveContext).gqlCtx.schema.GetRootSubsciption() == nil {
+					if ctx.(*resolveContext).gqlCtx.schema.Subscription == nil {
 						return nil, nil
 					}
-					return ctx.(*resolveContext).gqlCtx.schema.GetRootSubsciption(), nil
+					return ctx.(*resolveContext).gqlCtx.schema.Subscription, nil
 				},
 			},
 			"directives": &Field{
