@@ -19,7 +19,7 @@ query {
 	}
 }
 `
-	token, _, err := parser.Parse(query)
+	token, _, err := parser.Parse([]byte(query))
 	if err != nil {
 		t.Errorf("error: %v, at Line: %v, Col: %v", err, token.Line, token.Col)
 		return

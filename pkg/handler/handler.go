@@ -7,11 +7,13 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql"
 )
 
 type Config struct {
 	Executor *gql.Executor
+	GraphiQL bool
+	Pretty   bool
 }
 
 func New(c Config) http.Handler {
@@ -40,6 +42,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Variables:     nil, // TODO: find a way of doing this..
 				OperationName: r.URL.Query().Get("operationName"),
 			}
+			if h.conf.GraphiQL {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				fmt.Fprint(w, graphiql)
+				return
+			}
 		}
 	case http.MethodPost:
 		{
@@ -56,18 +63,31 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			params = &gql.Params{
-				Query:         html.UnescapeString(p.Query),
+				Query:         p.Query,
 				Variables:     p.Variables,
 				OperationName: p.OperationName,
 			}
 		}
 	}
 	if params != nil {
-		bs, err := json.MarshalIndent(h.conf.Executor.Execute(r.Context(), *params), "", "\t")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		var (
+			bs  []byte
+			err error
+		)
+		if h.conf.Pretty {
+			bs, err = json.MarshalIndent(h.conf.Executor.Execute(r.Context(), *params), "", "\t")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			bs, err = json.Marshal(h.conf.Executor.Execute(r.Context(), *params))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, string(bs))
 		return
 	}

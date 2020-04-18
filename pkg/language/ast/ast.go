@@ -7,13 +7,13 @@ type Location struct {
 
 type Document struct {
 	Operations []*Operation
-	Fragments  map[string]*Fragment
+	Fragments  []*Fragment
 }
 
 func NewDocument() *Document {
 	return &Document{
 		Operations: []*Operation{},
-		Fragments:  map[string]*Fragment{},
+		Fragments:  []*Fragment{},
 	}
 }
 
@@ -36,7 +36,7 @@ const (
 type Operation struct {
 	OperationType OperationType
 	Name          string
-	Variables     map[string]*Variable
+	Variables     []*Variable
 	Directives    []*Directive
 	SelectionSet  []Selection
 	Location      Location

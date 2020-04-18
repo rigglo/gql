@@ -2,17 +2,17 @@ package parser
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/rigglo/gql/pkg/language/ast"
 	"github.com/rigglo/gql/pkg/language/lexer"
 )
 
 // Parse parses a gql query
-func Parse(query string) (lexer.Token, *ast.Document, error) {
+func Parse(query []byte) (lexer.Token, *ast.Document, error) {
 	tokens := make(chan lexer.Token)
-	src := strings.NewReader(query)
+	src := bytes.NewReader(query)
 	readr := bufio.NewReader(src)
 	go lexer.Lex(readr, tokens)
 	t, doc, err := parseDocument(tokens)
@@ -20,18 +20,6 @@ func Parse(query string) (lexer.Token, *ast.Document, error) {
 		return t, nil, fmt.Errorf("unexpected EOF")
 	}
 	return t, doc, err
-}
-
-func ParseValue(value string) (ast.Value, error) {
-	tokens := make(chan lexer.Token)
-	src := strings.NewReader(value)
-	readr := bufio.NewReader(src)
-	go lexer.Lex(readr, tokens)
-	t, val, err := parseValue(<-tokens, tokens)
-	if err != nil && t.Value == "" {
-		return nil, fmt.Errorf("unexpected EOF")
-	}
-	return val, err
 }
 
 func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) {
@@ -46,10 +34,7 @@ func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) 
 			if err != nil {
 				return token, nil, err
 			}
-			if _, ok := doc.Fragments[f.Name]; ok {
-				return token, nil, fmt.Errorf("fragment is already exist")
-			}
-			doc.Fragments[f.Name] = f
+			doc.Fragments = append(doc.Fragments, f)
 			break
 		case token.Kind == lexer.NameToken:
 			op := new(ast.Operation)
@@ -151,7 +136,7 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 			token = <-tokens
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "(":
-			vs := map[string]*ast.Variable{}
+			vs := []*ast.Variable{}
 			token, vs, err = parseVariables(tokens)
 			if err != nil {
 				return token, nil, err
@@ -175,13 +160,15 @@ func parseOperation(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *a
 			}
 			op.SelectionSet = sSet
 			return token, op, nil
+		default:
+			return token, nil, fmt.Errorf("invalid token value: %s", token.Value)
 		}
 	}
 }
 
-func parseVariables(tokens chan lexer.Token) (lexer.Token, map[string]*ast.Variable, error) {
+func parseVariables(tokens chan lexer.Token) (lexer.Token, []*ast.Variable, error) {
 	token := <-tokens
-	vs := map[string]*ast.Variable{}
+	vs := []*ast.Variable{}
 	var err error
 
 	for {
@@ -224,15 +211,13 @@ func parseVariables(tokens chan lexer.Token) (lexer.Token, map[string]*ast.Varia
 				return token, nil, err
 			}
 			v.DefaultValue = dv
-			vs[v.Name] = v
 		}
 
 		if token.Kind == lexer.PunctuatorToken && token.Value == "$" {
-			vs[v.Name] = v
-			token = <-tokens
+			vs = append(vs, v)
 			continue
 		} else if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
-			vs[v.Name] = v
+			vs = append(vs, v)
 			return <-tokens, vs, nil
 		}
 	}

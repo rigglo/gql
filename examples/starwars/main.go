@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql"
 	"github.com/rigglo/gql/pkg/handler"
 )
 

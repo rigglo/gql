@@ -4,7 +4,7 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/rigglo/gql/pkg/gql"
+	"github.com/rigglo/gql"
 )
 
 var (
@@ -117,15 +117,15 @@ func init() {
 		Name:        "Character",
 		Description: "A character in the Star Wars Trilogy",
 		Fields: gql.Fields{
-			&gql.Field{
+			"id": &gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
 			},
-			&gql.Field{
+			"name": &gql.Field{
 				Name: "name",
 				Type: gql.String,
 			},
-			&gql.Field{
+			"appearsIn": &gql.Field{
 				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
 			},
@@ -152,7 +152,7 @@ func init() {
 			characterInterface,
 		},
 		Fields: gql.Fields{
-			&gql.Field{
+			"id": &gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -162,7 +162,7 @@ func init() {
 					return nil, nil
 				},
 			},
-			&gql.Field{
+			"name": &gql.Field{
 				Name: "name",
 				Type: gql.String,
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -172,7 +172,7 @@ func init() {
 					return nil, nil
 				},
 			},
-			&gql.Field{
+			"friends": &gql.Field{
 				Name: "friends",
 				Type: gql.NewList(characterInterface),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -182,7 +182,7 @@ func init() {
 					return nil, nil
 				},
 			},
-			&gql.Field{
+			"appearsIn": &gql.Field{
 				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -192,7 +192,7 @@ func init() {
 					return nil, nil
 				},
 			},
-			&gql.Field{
+			"homePlanet": &gql.Field{
 				Name: "homePlanet",
 				Type: gql.String,
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -208,7 +208,7 @@ func init() {
 	droidType = &gql.Object{
 		Name: "Droid",
 		Fields: gql.Fields{
-			&gql.Field{
+			"id": &gql.Field{
 				Name: "id",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -218,7 +218,7 @@ func init() {
 					return nil, nil
 				},
 			},
-			&gql.Field{
+			"name": &gql.Field{
 				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -228,7 +228,7 @@ func init() {
 					return nil, nil
 				},
 			},
-			&gql.Field{
+			"friends": &gql.Field{
 				Name: "friends",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -245,7 +245,7 @@ func init() {
 					return []interface{}{}, nil
 				},
 			},
-			&gql.Field{
+			"appearsIn": &gql.Field{
 				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -255,7 +255,7 @@ func init() {
 					return nil, nil
 				},
 			},
-			&gql.Field{
+			"primaryFunction": &gql.Field{
 				Name: "primaryFunction",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -271,7 +271,7 @@ func init() {
 	queryType := &gql.Object{
 		Name: "Query",
 		Fields: gql.Fields{
-			&gql.Field{
+			"hero": &gql.Field{
 				Name: "hero",
 				Type: characterInterface,
 				Arguments: gql.Arguments{
@@ -284,7 +284,7 @@ func init() {
 					return GetHero(ctx.Args()["episode"]), nil
 				},
 			},
-			&gql.Field{
+			"human": &gql.Field{
 				Name: "human",
 				Type: humanType,
 				Arguments: gql.Arguments{

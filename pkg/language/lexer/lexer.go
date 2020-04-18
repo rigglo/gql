@@ -52,7 +52,7 @@ type lexFn func(src *bufio.Reader, tokens chan<- Token, line, col int) (lexFn, i
 // Lex converts a source into a stream of tokens.
 func Lex(src *bufio.Reader, tokens chan<- Token) {
 	state := eatSpace
-	line, col := 0, 0
+	line, col := 1, 0
 	for state != nil {
 		state, line, col = state(src, tokens, line, col)
 	}
@@ -117,7 +117,6 @@ func eatSpace(src *bufio.Reader, tokens chan<- Token, line, col int) (lexFn, int
 			Line:  line,
 			Col:   col,
 		}
-		line++
 		col = 1
 		return eatSpace, line, col
 	// Check for LineTerminator
@@ -161,7 +160,6 @@ func eatSpace(src *bufio.Reader, tokens chan<- Token, line, col int) (lexFn, int
 			Line:  line,
 			Col:   col,
 		}
-		line++
 		col = 1
 		return eatSpace, line, col
 	case '0' <= r && r <= '9', r == '-':

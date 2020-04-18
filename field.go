@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-type Fields []*Field
+type Fields map[string]*Field
 
 func (fs Fields) Add(f *Field) {
-	fs = append(fs, f)
+	fs[f.Name] = f
 }
 
 type Resolver func(Context) (interface{}, error)
@@ -58,8 +58,6 @@ func (f *Field) IsDeprecated() bool {
 	return false
 }
 
-// var _ schema.Field = &Field{}
-
 func defaultResolver(fname string) Resolver {
 	return func(ctx Context) (interface{}, error) {
 		t := reflect.TypeOf(ctx.Parent())
@@ -69,8 +67,6 @@ func defaultResolver(fname string) Resolver {
 			field := t.Field(i)
 			// Get the field tag value
 			// TODO: check 'gql' tag first and if that does not exist, check 'json'
-			// TODO: json tags need to be checked for additional options
-			// 			like `,omitempty`, so can NOT use simple "==" op on them
 			tag := field.Tag.Get("json")
 			if strings.Split(tag, ",")[0] == fname {
 				return v.FieldByName(field.Name).Interface(), nil

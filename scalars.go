@@ -8,41 +8,6 @@ import (
 	"strings"
 )
 
-type CoerceResultFunc func(interface{}) (interface{}, error)
-type CoerceInputFunc func(interface{}) (interface{}, error)
-
-type Scalar struct {
-	Name             string
-	Description      string
-	Directives       Directives
-	CoerceResultFunc CoerceResultFunc
-	CoerceInputFunc  CoerceInputFunc
-}
-
-func (s *Scalar) GetName() string {
-	return s.Name
-}
-
-func (s *Scalar) GetDescription() string {
-	return s.Description
-}
-
-func (s *Scalar) GetKind() TypeKind {
-	return ScalarKind
-}
-
-func (s *Scalar) GetDirectives() []Directive {
-	return s.Directives
-}
-
-func (s *Scalar) CoerceResult(i interface{}) (interface{}, error) {
-	return s.CoerceResultFunc(i)
-}
-
-func (s *Scalar) CoerceInput(i interface{}) (interface{}, error) {
-	return s.CoerceInputFunc(i)
-}
-
 var String *Scalar = &Scalar{
 	Name:        "String",
 	Description: "This is the built-in 'String' scalar type",
