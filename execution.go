@@ -698,23 +698,11 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 		}
 		o := t.(*InputObject)
 		for _, astf := range ov.Fields {
-			var field *InputField
-			for _, f := range o.Fields {
-				if f.Name == astf.Name {
-					field = f
-					break
-				}
-			}
-			if field == nil {
+			field, ok := o.Fields[astf.Name]
+			if !ok {
 				return nil, fmt.Errorf("field '%s' is not defined on '%s'", astf.Name, o.Name)
 			}
-			if !ok && field.IsDefaultValueSet() {
-				res[field.Name] = field.DefaultValue
-			} else if !ok && field.Type.GetKind() == NonNullKind {
-				return nil, fmt.Errorf("Null value provided for NonNull type")
-			} else if !ok {
-				continue
-			}
+
 			if astf.Value.Kind() == ast.NullValueKind && field.Type.GetKind() != NonNullKind {
 				res[field.Name] = nil
 			}

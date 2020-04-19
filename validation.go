@@ -645,25 +645,12 @@ func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) {
 		o := t.(*InputObject)
 		visitedFields := map[string]struct{}{}
 		for _, astf := range ov.Fields {
-			var field *InputField
-			for _, f := range o.Fields {
-				if f.Name == astf.Name {
-					field = f
-					break
-				}
-			}
-			if field == nil {
+			field, ok := o.Fields[astf.Name]
+			if !ok {
 				ctx.addErr(&Error{fmt.Sprintf("field '%s' is not defined", astf.Name), []*ErrorLocation{{Line: astf.GetLocation().Line, Column: astf.GetLocation().Column}}, nil, nil})
 				continue
 			}
-			if !ok && field.IsDefaultValueSet() {
-				continue
-			} else if !ok && field.Type.GetKind() == NonNullKind {
-				ctx.addErr(&Error{fmt.Sprintf("missing value for '%s'", field.Name), nil, nil, nil})
-				continue
-			} else if !ok {
-				continue
-			}
+
 			if _, ok := visitedFields[field.Name]; ok {
 				ctx.addErr(&Error{fmt.Sprintf("field '%s' was set multiple times", field.Name), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
 				continue
@@ -700,6 +687,14 @@ func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) {
 				}
 				if !ok {
 					ctx.addErr(&Error{fmt.Sprintf("variable '%s' is defined", vv.Name), []*ErrorLocation{{Line: vv.Location.Line, Column: vv.Location.Column}}, nil, nil})
+				}
+			}
+		}
+
+		for _, field := range o.Fields {
+			if _, ok := visitedFields[field.Name]; !ok {
+				if !field.IsDefaultValueSet() && field.Type.GetKind() == NonNullKind {
+					ctx.addErr(&Error{fmt.Sprintf("no value provided for field '%s' with NonNull type", field.Name), []*ErrorLocation{{Line: ov.Location.Line, Column: ov.Location.Column}}, nil, nil})
 				}
 			}
 		}
