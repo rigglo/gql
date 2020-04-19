@@ -1,6 +1,7 @@
 package gql
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -45,10 +46,9 @@ func validate(ctx *gqlCtx) {
 			ctx.addErr(&Error{fmt.Sprintf(errAnonymousOperationDefinitions), nil, nil, nil})
 		}
 
-		// TODO: 5.2.3 - Subscription Operation Definitions
-
 		// validate varibles
 		ctx.variableDefs[o.Name] = validateVariables(ctx, o)
+		ctx.variableUsages[o.Name] = map[string]struct{}{}
 
 		// 5.3 - Fields
 		switch o.OperationType {
@@ -71,8 +71,17 @@ func validate(ctx *gqlCtx) {
 				ctx.addErr(&Error{fmt.Sprintf("No root subscription defined in schema"), nil, nil, nil})
 				break
 			}
+			if len(o.SelectionSet) != 1 {
+				ctx.addErr(&Error{fmt.Sprintf("Subscriptions must have only one root field in the selection set"), nil, nil, nil})
+				break
+			}
 			validateDirectives(ctx, o, o.Directives, SubscriptionLoc)
 			validateSelectionSet(ctx, o, o.SelectionSet, ctx.schema.Subscription, []string{})
+		}
+		for _, vDef := range ctx.variableDefs[o.Name] {
+			if _, ok := ctx.variableUsages[o.Name][vDef.Name]; !ok {
+				ctx.addErr(&Error{fmt.Sprintf("Variable defined but not used"), nil, nil, nil})
+			}
 		}
 	}
 
@@ -187,6 +196,16 @@ func equalValue(a ast.Value, b ast.Value) bool {
 		return true
 	}
 	return false
+}
+
+func equalType(a Type, b Type) bool {
+	if a.GetName() != b.GetName() {
+		return false
+	}
+	if wa, ok := a.(WrappingType); ok {
+		return equalType(wa.Unwrap(), b.(WrappingType).Unwrap())
+	}
+	return true
 }
 
 func sameResponseShape(ctx *gqlCtx, fa *ast.Field, fb *ast.Field, pa Type, pb Type) bool {
@@ -495,7 +514,13 @@ func validateArguments(ctx *gqlCtx, op *ast.Operation, astArgs []*ast.Argument, 
 				if _, visited := visitesArgs[a.Name]; visited {
 					ctx.addErr(&Error{fmt.Sprintf(fmt.Sprintf("argument '%s' is set multiple times", a.Name)), nil, nil, nil})
 				} else {
-					validateValue(ctx, op, ta.Type, a.Value)
+					if ta.IsDefaultValueSet() && ta.Type.GetKind() == NonNullKind {
+
+					}
+					err := validateValue(ctx, op, ta.Type, a.Value)
+					if err != nil {
+						ctx.addErr(&Error{err.Error(), nil, nil, nil})
+					}
 					visitesArgs[a.Name] = a
 				}
 				break
@@ -548,10 +573,108 @@ func validateDirectives(ctx *gqlCtx, op *ast.Operation, ds []*ast.Directive, loc
 	}
 }
 
-func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, v ast.Value) {
-	// TODO: argument value
-	// TODO: input object field value
-	// TODO: variable definition default value
+func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) error {
+	switch {
+	case val.Kind() == ast.VariableValueKind:
+		vv := val.(*ast.VariableValue)
+		for _, vDef := range op.Variables {
+			if vDef.Name == vv.Name {
+				ctx.variableUsages[op.Name][vv.Name] = struct{}{}
+				vdefType, err := resolveAstType(ctx.types, vDef.Type)
+				if err != nil {
+					return err
+				}
+
+				if equalType(vdefType, t) {
+					return nil
+				} else if t.GetKind() == NonNullKind {
+					if equalType(t.(*NonNull).Unwrap(), vdefType) && vDef.DefaultValue != nil && vDef.DefaultValue.Kind() != ast.NullValueKind {
+						return nil
+					}
+				}
+				return errors.New("Invalid variable type for input field")
+			}
+		}
+		return errors.New("variable is not defined")
+	case t.GetKind() == NonNullKind:
+		if _, ok := val.(*ast.NullValue); ok {
+			return errors.New("Null value on NonNull type")
+		}
+		return validateValue(ctx, op, t.(*NonNull).Unwrap(), val)
+	case val.Kind() == ast.NullValueKind:
+		return nil
+	case t.GetKind() == ListKind:
+		lv := val.(*ast.ListValue)
+		for i := 0; i < len(lv.Values); i++ {
+			if err := validateValue(ctx, op, t.(*List).Unwrap(), val); err != nil {
+				return err
+			}
+		}
+		return nil
+	case t.GetKind() == ScalarKind:
+		s := t.(*Scalar)
+		if v, ok := val.GetValue().(string); ok {
+			if _, err := s.CoerceInput([]byte(v)); err != nil {
+				return err
+			}
+			return nil
+		}
+		return fmt.Errorf("invalid value on a Scalar type")
+	case t.GetKind() == EnumKind:
+		if val.Kind() != ast.EnumValueKind {
+			return fmt.Errorf("invalid value for an Enum type")
+		}
+		e := t.(*Enum)
+		if v, ok := val.GetValue().(string); ok {
+			for _, ev := range e.Values {
+				if ev.Name == v {
+					return nil
+				}
+			}
+			return fmt.Errorf("invalid value for an Enum type")
+		}
+		return fmt.Errorf("invalid value for an Enum type")
+	case t.GetKind() == InputObjectKind:
+		ov, ok := val.(*ast.ObjectValue)
+		if !ok {
+			return fmt.Errorf("Invalid input object value")
+		}
+		o := t.(*InputObject)
+		for _, field := range o.GetFields() {
+			astf, ok := ov.Fields[field.Name]
+			if !ok && field.IsDefaultValueSet() {
+				return nil
+			} else if !ok && field.Type.GetKind() == NonNullKind {
+				return fmt.Errorf("No value provided for NonNull type")
+			} else if !ok {
+				continue
+			}
+			if astf.Value.Kind() == ast.NullValueKind && field.Type.GetKind() != NonNullKind {
+				return nil
+			}
+			if astf.Value.Kind() != ast.VariableValueKind {
+				return validateValue(ctx, op, field.Type, astf.Value)
+			}
+			if astf.Value.Kind() == ast.VariableValueKind {
+				vv := astf.Value.(*ast.VariableValue)
+				for _, vDef := range op.Variables {
+					if vDef.Name == vv.Name {
+						ctx.variableUsages[op.Name][vv.Name] = struct{}{}
+						vdefType, err := resolveAstType(ctx.types, vDef.Type)
+						if err != nil {
+							return err
+						}
+						if equalType(vdefType, field.Type) {
+							return nil
+						}
+						return errors.New("Invalid variable type for input field")
+					}
+				}
+			}
+		}
+		return nil
+	}
+	return errors.New("invalid value to coerce")
 }
 
 func validateVariables(ctx *gqlCtx, op *ast.Operation) map[string]*ast.Variable {
@@ -572,7 +695,10 @@ func validateVariables(ctx *gqlCtx, op *ast.Operation) map[string]*ast.Variable 
 			continue
 		} else if v.DefaultValue != nil {
 			// default value has to be validated
-			validateValue(ctx, op, vt, v.DefaultValue)
+			err := validateValue(ctx, op, vt, v.DefaultValue)
+			if err != nil {
+				ctx.addErr(&Error{err.Error(), nil, nil, nil})
+			}
 		}
 		visited[v.Name] = v
 	}

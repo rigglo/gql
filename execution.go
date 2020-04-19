@@ -717,16 +717,16 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 				}
 			}
 			if astf.Value.Kind() == ast.VariableValueKind {
-				ctx.mu.Lock()
-				varVal := ctx.params.Variables
-				ctx.mu.Unlock()
-				ok := varVal == nil
-
 				vv := astf.Value.(*ast.VariableValue)
+
+				ctx.mu.Lock()
+				varVal, ok := ctx.params.Variables[vv.Name]
+				ctx.mu.Unlock()
+
 				if ok && varVal == nil && field.Type.GetKind() == NonNullKind {
 					return nil, fmt.Errorf("null value on NonNull type")
 				} else if ok {
-					res[field.Name] = varVal[vv.Name]
+					res[field.Name] = varVal
 				} else {
 					ctx.mu.Lock()
 					vDef := ctx.variableDefs[ctx.operation.Name][vv.Name]

@@ -232,7 +232,7 @@ var (
 					},
 				},
 				Resolver: func(c gql.Context) (interface{}, error) {
-					return 42, nil
+					return []bool{true, false}, nil
 				},
 			},
 			"optionalNonNullBooleanArgField": &gql.Field{
