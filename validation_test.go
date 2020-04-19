@@ -1561,13 +1561,10 @@ func Test_ValuesOfCorrectType(t *testing.T) {
 				params: gql.Params{
 					Query: `
 					query {
-						arguments {
-							...badComplexValue
+						findDog(complex: { name: 123 }) {
+							name
 						}
 					}
-					query badComplexValue {
-						findDog(complex: { name: 123 })
-					}					  
 					`,
 				},
 				schema: testutil.Schema,
@@ -1636,6 +1633,454 @@ func Test_VariableUniqueness(t *testing.T) {
 				schema: testutil.Schema,
 			},
 			valid: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_VariablesAreInputTypes(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "takesBoolean",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query takesBoolean($atOtherHomes: Boolean) {
+						dog {
+						  isHousetrained(atOtherHomes: $atOtherHomes)
+						}
+					  }
+					`,
+					OperationName: "takesBoolean",
+				},
+				schema: testutil.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "takesComplexInput",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query takesComplexInput($complexInput: ComplexInput) {
+						findDog(complex: $complexInput) {
+						  	name
+						}
+					}
+					`,
+					OperationName: "takesComplexInput",
+				},
+				schema: testutil.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "takesDogBang",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query takesDogBang($dog: Dog!) {
+						# ...
+					}
+					`,
+					OperationName: "takesDogBang",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "takesListOfPet",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query takesListOfPet($pets: [Pet]) {
+						# ...
+					}
+					`,
+					OperationName: "takesListOfPet",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "takesCat",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query takesCat($cat: Cat) {
+						# ...
+					}
+					`,
+					OperationName: "takesCat",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_AllVariableUsesDefined(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "variableIsDefined",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query variableIsDefined($atOtherHomes: Boolean) {
+						dog {
+						  isHousetrained(atOtherHomes: $atOtherHomes)
+						}
+					}					  
+					`,
+					OperationName: "variableIsDefined",
+				},
+				schema: testutil.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "variableIsNotDefined",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query variableIsNotDefined {
+						dog {
+						  	isHousetrained(atOtherHomes: $atOtherHomes)
+						}
+					}
+					`,
+					OperationName: "variableIsNotDefined",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "variableIsDefinedUsedInSingleFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query variableIsDefinedUsedInSingleFragment($atOtherHomes: Boolean) {
+						dog {
+						  	...isHousetrainedFragment
+						}
+					}
+					  
+					fragment isHousetrainedFragment on Dog {
+						isHousetrained(atOtherHomes: $atOtherHomes)
+					}
+					`,
+					OperationName: "variableIsDefinedUsedInSingleFragment",
+				},
+				schema: testutil.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "variableIsNotDefinedUsedInSingleFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query variableIsNotDefinedUsedInSingleFragment {
+						dog {
+						  	...isHousetrainedFragment
+						}
+					}
+					  
+					fragment isHousetrainedFragment on Dog {
+						isHousetrained(atOtherHomes: $atOtherHomes)
+					}
+					`,
+					OperationName: "variableIsNotDefinedUsedInSingleFragment",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "variableIsNotDefinedUsedInNestedFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query variableIsNotDefinedUsedInNestedFragment {
+						dog {
+						  	...outerHousetrainedFragment
+						}
+					}
+					  
+					fragment outerHousetrainedFragment on Dog {
+						...isHousetrainedFragment
+					}
+					  
+					fragment isHousetrainedFragment on Dog {
+						isHousetrained(atOtherHomes: $atOtherHomes)
+					}
+					`,
+					OperationName: "variableIsNotDefinedUsedInNestedFragment",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "housetrainedQueryOneAndTwoValid",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query housetrainedQueryOne($atOtherHomes: Boolean) {
+						dog {
+						  	...isHousetrainedFragment
+						}
+					}
+					  
+					query housetrainedQueryTwo($atOtherHomes: Boolean) {
+						dog {
+						  	...isHousetrainedFragment
+						}
+					}
+					  
+					fragment isHousetrainedFragment on Dog {
+						isHousetrained(atOtherHomes: $atOtherHomes)
+					}
+					`,
+					OperationName: "housetrainedQueryOne",
+				},
+				schema: testutil.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "housetrainedQueryOneAndTwoInvalid",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query housetrainedQueryOne($atOtherHomes: Boolean) {
+						dog {
+						  	...isHousetrainedFragment
+						}
+					}
+					  
+					query housetrainedQueryTwoNotDefined {
+						dog {
+						  	...isHousetrainedFragment
+						}
+					}
+					  
+					fragment isHousetrainedFragment on Dog {
+						isHousetrained(atOtherHomes: $atOtherHomes)
+					}
+					`,
+					OperationName: "housetrainedQueryOne",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_AllVariablesUsed(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "variableUnused",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query variableUnused($atOtherHomes: Boolean) {
+						dog {
+						  	isHousetrained
+						}
+					}
+					`,
+					OperationName: "variableUnused",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "variableUsedInFragment",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query variableUsedInFragment($atOtherHomes: Boolean) {
+						dog {
+						  	...isHousetrainedFragment
+						}
+					}
+					  
+					fragment isHousetrainedFragment on Dog {
+						isHousetrained(atOtherHomes: $atOtherHomes)
+					}					  
+					`,
+					OperationName: "variableUsedInFragment",
+				},
+				schema: testutil.Schema,
+			},
+			valid: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gql.Execute(ctx, tt.args.schema, tt.args.params)
+			if (tt.valid && len(r.Errors) != 0) || (!tt.valid && len(r.Errors) == 0) {
+				t.Fatalf("%+v, %v", r.Errors, len(r.Errors))
+			}
+		})
+	}
+}
+
+func Test_AllVariableUsegesAreAllowed(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		params gql.Params
+		schema *gql.Schema
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "intCannotGoIntoBoolean",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query intCannotGoIntoBoolean($intArg: Int) {
+						arguments {
+						  	booleanArgField(booleanArg: $intArg)
+						}
+					}
+					`,
+					OperationName: "intCannotGoIntoBoolean",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "booleanListCannotGoIntoBoolean",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query booleanListCannotGoIntoBoolean($booleanListArg: [Boolean]) {
+						arguments {
+							booleanArgField(booleanArg: $booleanListArg)
+						}
+					}
+					`,
+					OperationName: "booleanListCannotGoIntoBoolean",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "booleanArgQuery",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query booleanArgQuery($booleanArg: Boolean) {
+						arguments {
+						  	nonNullBooleanArgField(nonNullBooleanArg: $booleanArg)
+						}
+					}
+					`,
+					OperationName: "booleanArgQuery",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
+		},
+		{
+			name: "nonNullListToList",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query nonNullListToList($nonNullBooleanList: [Boolean]!) {
+						arguments {
+						  	booleanListArgField(booleanListArg: $nonNullBooleanList)
+						}
+					}
+					`,
+					OperationName: "nonNullListToList",
+					Variables: map[string]interface{}{
+						"nonNullBooleanList": []interface{}{true, true},
+					},
+				},
+				schema: testutil.Schema,
+			},
+			valid: true,
+		},
+		{
+			name: "listToNonNullList",
+			args: args{
+				params: gql.Params{
+					Query: `
+					query listToNonNullList($booleanList: [Boolean]) {
+						arguments {
+						  	nonNullBooleanListField(nonNullBooleanListArg: $booleanList)
+						}
+					}
+					`,
+					OperationName: "listToNonNullList",
+				},
+				schema: testutil.Schema,
+			},
+			valid: false,
 		},
 	}
 	for _, tt := range tests {

@@ -203,6 +203,7 @@ const (
 type Value interface {
 	GetValue() interface{}
 	Kind() ValueKind
+	GetLocation() Location
 }
 
 type VariableValue struct {
@@ -218,6 +219,10 @@ func (v *VariableValue) Kind() ValueKind {
 	return VariableValueKind
 }
 
+func (v *VariableValue) GetLocation() Location {
+	return v.Location
+}
+
 type IntValue struct {
 	Value    string
 	Location Location
@@ -229,6 +234,10 @@ func (v *IntValue) GetValue() interface{} {
 
 func (v *IntValue) Kind() ValueKind {
 	return IntValueKind
+}
+
+func (v *IntValue) GetLocation() Location {
+	return v.Location
 }
 
 type FloatValue struct {
@@ -244,6 +253,10 @@ func (v *FloatValue) Kind() ValueKind {
 	return FloatValueKind
 }
 
+func (v *FloatValue) GetLocation() Location {
+	return v.Location
+}
+
 type StringValue struct {
 	Value    string
 	Location Location
@@ -255,6 +268,10 @@ func (v *StringValue) GetValue() interface{} {
 
 func (v *StringValue) Kind() ValueKind {
 	return StringValueKind
+}
+
+func (v *StringValue) GetLocation() Location {
+	return v.Location
 }
 
 type BooleanValue struct {
@@ -270,6 +287,10 @@ func (v *BooleanValue) Kind() ValueKind {
 	return BooleanValueKind
 }
 
+func (v *BooleanValue) GetLocation() Location {
+	return v.Location
+}
+
 type NullValue struct {
 	Value    string
 	Location Location
@@ -281,6 +302,10 @@ func (v *NullValue) GetValue() interface{} {
 
 func (v *NullValue) Kind() ValueKind {
 	return NullValueKind
+}
+
+func (v *NullValue) GetLocation() Location {
+	return v.Location
 }
 
 type EnumValue struct {
@@ -296,6 +321,10 @@ func (v *EnumValue) Kind() ValueKind {
 	return EnumValueKind
 }
 
+func (v *EnumValue) GetLocation() Location {
+	return v.Location
+}
+
 type ListValue struct {
 	Values   []Value
 	Location Location
@@ -309,8 +338,12 @@ func (v *ListValue) Kind() ValueKind {
 	return ListValueKind
 }
 
+func (v *ListValue) GetLocation() Location {
+	return v.Location
+}
+
 type ObjectValue struct {
-	Fields   map[string]*ObjectFieldValue
+	Fields   []*ObjectFieldValue
 	Location Location
 }
 
@@ -320,6 +353,10 @@ func (v *ObjectValue) GetValue() interface{} {
 
 func (v *ObjectValue) Kind() ValueKind {
 	return ObjectValueKind
+}
+
+func (v *ObjectValue) GetLocation() Location {
+	return v.Location
 }
 
 type ObjectFieldValue struct {
@@ -334,4 +371,8 @@ func (v *ObjectFieldValue) GetValue() interface{} {
 
 func (v *ObjectFieldValue) Kind() ValueKind {
 	return ObjectFieldValueKind
+}
+
+func (v *ObjectFieldValue) GetLocation() Location {
+	return v.Location
 }

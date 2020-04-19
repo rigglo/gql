@@ -39,7 +39,6 @@ var (
 		Description: "a box..",
 		Fields: gql.Fields{
 			"server_time": &gql.Field{
-				Name:        "server_time",
 				Type:        UnixTimestampScalar,
 				Description: "",
 				Resolver: func(ctx gql.Context) (interface{}, error) {

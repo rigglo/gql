@@ -630,19 +630,19 @@ func coerceJsonValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) 
 			return nil, fmt.Errorf("Invalid input object value")
 		}
 		o := t.(*InputObject)
-		for _, field := range o.GetFields() {
-			fv, ok := ov[field.Name]
+		for fn, field := range o.GetFields() {
+			fv, ok := ov[fn]
 			if !ok && field.IsDefaultValueSet() {
-				res[field.Name] = field.DefaultValue
+				res[fn] = field.DefaultValue
 			} else if !ok && field.Type.GetKind() == NonNullKind {
 				return nil, fmt.Errorf("No value provided for NonNull type")
 			}
 			if fv == nil && field.Type.GetKind() != NonNullKind {
-				res[field.Name] = nil
+				res[fn] = nil
 			}
 			if fv != nil {
 				if cv, err := coerceJsonValue(ctx, fv, field.Type); err == nil {
-					res[field.Name] = cv
+					res[fn] = cv
 				} else {
 					return nil, err
 				}
@@ -697,36 +697,33 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 			return nil, fmt.Errorf("Invalid input object value")
 		}
 		o := t.(*InputObject)
-		for _, field := range o.GetFields() {
-			astf, ok := ov.Fields[field.Name]
-			if !ok && field.IsDefaultValueSet() {
-				res[field.Name] = field.DefaultValue
-			} else if !ok && field.Type.GetKind() == NonNullKind {
-				return nil, fmt.Errorf("Null value provided for NonNull type")
-			} else if !ok {
-				continue
+		for _, astf := range ov.Fields {
+			field, ok := o.Fields[astf.Name]
+			if !ok {
+				return nil, fmt.Errorf("field '%s' is not defined on '%s'", astf.Name, o.Name)
 			}
+
 			if astf.Value.Kind() == ast.NullValueKind && field.Type.GetKind() != NonNullKind {
-				res[field.Name] = nil
+				res[astf.Name] = nil
 			}
 			if astf.Value.Kind() != ast.VariableValueKind {
 				if fv, err := coerceAstValue(ctx, astf.Value, field.Type); err == nil {
-					res[field.Name] = fv
+					res[astf.Name] = fv
 				} else {
 					return nil, err
 				}
 			}
 			if astf.Value.Kind() == ast.VariableValueKind {
-				ctx.mu.Lock()
-				varVal := ctx.params.Variables
-				ctx.mu.Unlock()
-				ok := varVal == nil
-
 				vv := astf.Value.(*ast.VariableValue)
+
+				ctx.mu.Lock()
+				varVal, ok := ctx.params.Variables[vv.Name]
+				ctx.mu.Unlock()
+
 				if ok && varVal == nil && field.Type.GetKind() == NonNullKind {
 					return nil, fmt.Errorf("null value on NonNull type")
 				} else if ok {
-					res[field.Name] = varVal[vv.Name]
+					res[astf.Name] = varVal
 				} else {
 					ctx.mu.Lock()
 					vDef := ctx.variableDefs[ctx.operation.Name][vv.Name]
@@ -737,10 +734,10 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 						if err != nil {
 							return nil, err
 						}
-						res[field.Name] = defVal
+						res[astf.Name] = defVal
 					} else {
 						if field.IsDefaultValueSet() {
-							res[field.Name] = field.DefaultValue
+							res[astf.Name] = field.DefaultValue
 						}
 					}
 				}
@@ -763,8 +760,30 @@ func resolveMetaFields(ctx *gqlCtx, fs []*ast.Field, t Type) (interface{}, bool)
 	return nil, true
 }
 
+func defaultResolver(fname string) Resolver {
+	return func(ctx Context) (interface{}, error) {
+		t := reflect.TypeOf(ctx.Parent())
+		v := reflect.ValueOf(ctx.Parent())
+		for i := 0; i < t.NumField(); i++ {
+			// Get the field, returns https://golang.org/pkg/reflect/#StructField
+			field := t.Field(i)
+			// Get the field tag value
+			// TODO: check 'gql' tag first and if that does not exist, check 'json'
+			tag := field.Tag.Get("json")
+			if strings.Split(tag, ",")[0] == fname {
+				return v.FieldByName(field.Name).Interface(), nil
+			}
+		}
+		return nil, nil
+	}
+}
+
 func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
-	v, err := ot.Fields[fn].Resolve(&resolveContext{
+	var r Resolver
+	if r = ot.Fields[fn].Resolver; r == nil {
+		r = defaultResolver(fn)
+	}
+	v, err := r(&resolveContext{
 		ctx:    ctx.ctx, // this is the original context
 		gqlCtx: ctx,     // execution context
 		args:   args,

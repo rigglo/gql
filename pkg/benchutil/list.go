@@ -22,7 +22,6 @@ func ListSchemaWithXItems(x int) *gql.Schema {
 		Description: "A color",
 		Fields: gql.Fields{
 			"hex": &gql.Field{
-				Name:        "hex",
 				Type:        gql.NewNonNull(gql.String),
 				Description: "Hex color code.",
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -33,7 +32,6 @@ func ListSchemaWithXItems(x int) *gql.Schema {
 				},
 			},
 			"r": &gql.Field{
-				Name:        "r",
 				Type:        gql.NewNonNull(gql.Int),
 				Description: "Red value.",
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -44,7 +42,6 @@ func ListSchemaWithXItems(x int) *gql.Schema {
 				},
 			},
 			"g": &gql.Field{
-				Name:        "g",
 				Type:        gql.NewNonNull(gql.Int),
 				Description: "Green value.",
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -55,7 +52,6 @@ func ListSchemaWithXItems(x int) *gql.Schema {
 				},
 			},
 			"b": &gql.Field{
-				Name:        "b",
 				Type:        gql.NewNonNull(gql.Int),
 				Description: "Blue value.",
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -72,7 +68,6 @@ func ListSchemaWithXItems(x int) *gql.Schema {
 		Name: "Query",
 		Fields: gql.Fields{
 			"colors": {
-				Name: "colors",
 				Type: gql.NewList(color),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return list, nil

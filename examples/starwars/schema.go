@@ -118,15 +118,12 @@ func init() {
 		Description: "A character in the Star Wars Trilogy",
 		Fields: gql.Fields{
 			"id": &gql.Field{
-				Name: "id",
 				Type: gql.NewNonNull(gql.String),
 			},
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.String,
 			},
 			"appearsIn": &gql.Field{
-				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
 			},
 		},
@@ -141,8 +138,7 @@ func init() {
 			return droidType
 		},
 	}
-	characterInterface.Fields.Add(&gql.Field{
-		Name: "friends",
+	characterInterface.Fields.Add("friends", &gql.Field{
 		Type: gql.NewList(characterInterface),
 	})
 
@@ -153,7 +149,6 @@ func init() {
 		},
 		Fields: gql.Fields{
 			"id": &gql.Field{
-				Name: "id",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if human, ok := ctx.Parent().(StarWarsChar); ok {
@@ -163,7 +158,6 @@ func init() {
 				},
 			},
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.String,
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if human, ok := ctx.Parent().(StarWarsChar); ok {
@@ -173,7 +167,6 @@ func init() {
 				},
 			},
 			"friends": &gql.Field{
-				Name: "friends",
 				Type: gql.NewList(characterInterface),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if human, ok := ctx.Parent().(StarWarsChar); ok {
@@ -183,7 +176,6 @@ func init() {
 				},
 			},
 			"appearsIn": &gql.Field{
-				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if human, ok := ctx.Parent().(StarWarsChar); ok {
@@ -193,7 +185,6 @@ func init() {
 				},
 			},
 			"homePlanet": &gql.Field{
-				Name: "homePlanet",
 				Type: gql.String,
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if human, ok := ctx.Parent().(StarWarsChar); ok {
@@ -209,7 +200,6 @@ func init() {
 		Name: "Droid",
 		Fields: gql.Fields{
 			"id": &gql.Field{
-				Name: "id",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if droid, ok := ctx.Parent().(StarWarsChar); ok {
@@ -219,7 +209,6 @@ func init() {
 				},
 			},
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if droid, ok := ctx.Parent().(StarWarsChar); ok {
@@ -229,7 +218,6 @@ func init() {
 				},
 			},
 			"friends": &gql.Field{
-				Name: "friends",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if droid, ok := ctx.Parent().(StarWarsChar); ok {
@@ -246,7 +234,6 @@ func init() {
 				},
 			},
 			"appearsIn": &gql.Field{
-				Name: "appearsIn",
 				Type: gql.NewList(episodeEnum),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if droid, ok := ctx.Parent().(StarWarsChar); ok {
@@ -256,7 +243,6 @@ func init() {
 				},
 			},
 			"primaryFunction": &gql.Field{
-				Name: "primaryFunction",
 				Type: gql.NewNonNull(gql.String),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					if droid, ok := ctx.Parent().(StarWarsChar); ok {
@@ -272,7 +258,6 @@ func init() {
 		Name: "Query",
 		Fields: gql.Fields{
 			"hero": &gql.Field{
-				Name: "hero",
 				Type: characterInterface,
 				Arguments: gql.Arguments{
 					&gql.Argument{
@@ -285,7 +270,6 @@ func init() {
 				},
 			},
 			"human": &gql.Field{
-				Name: "human",
 				Type: humanType,
 				Arguments: gql.Arguments{
 					&gql.Argument{
