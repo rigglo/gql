@@ -34,7 +34,7 @@ var (
 	FooInput = &gql.InputObject{
 		Name: "FooInput",
 		Fields: gql.InputFields{
-			&gql.InputField{
+			"asd": &gql.InputField{
 				Name:         "asd",
 				Type:         gql.NewNonNull(gql.String),
 				DefaultValue: "defoocska",

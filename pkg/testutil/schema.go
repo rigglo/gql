@@ -255,11 +255,11 @@ var (
 	ComplexInput = &gql.InputObject{
 		Name: "ComplexInput",
 		Fields: gql.InputFields{
-			&gql.InputField{
+			"name": &gql.InputField{
 				Name: "name",
 				Type: gql.String,
 			},
-			&gql.InputField{
+			"owner": &gql.InputField{
 				Name: "owner",
 				Type: gql.String,
 			},

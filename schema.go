@@ -661,7 +661,7 @@ func (o *InputObject) GetDirectives() []Directive {
 /*
 GetFields returns the fields of the input object
 */
-func (o *InputObject) GetFields() []*InputField {
+func (o *InputObject) GetFields() map[string]*InputField {
 	return o.Fields
 }
 
@@ -687,4 +687,4 @@ func (o *InputField) IsDefaultValueSet() bool {
 /*
 InputFields is just an alias for a bunch of "InputField"s
 */
-type InputFields []*InputField
+type InputFields map[string]*InputField
