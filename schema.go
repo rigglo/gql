@@ -508,6 +508,85 @@ func (i *Interface) Resolve(ctx context.Context, v interface{}) *Object {
 }
 
 /*
+ _____ ___ _____ _     ____  ____
+|  ___|_ _| ____| |   |  _ \/ ___|
+| |_   | ||  _| | |   | | | \___ \
+|  _|  | || |___| |___| |_| |___) |
+|_|   |___|_____|_____|____/|____/
+*/
+
+/*
+Fields is an alias for more Fields
+*/
+type Fields map[string]*Field
+
+/*
+Add a field to the Fields
+*/
+func (fs Fields) Add(name string, f *Field) {
+	fs[name] = f
+}
+
+/*
+Resolver function that can resolve a field using the Context from the executor
+*/
+type Resolver func(Context) (interface{}, error)
+
+/*
+Field for an object or interface
+
+For Object, you can provide a resolver if you want to return custom data or have a something to do with the data.
+For Interfaces, there's NO need for resolvers, since they will NOT be executed.
+*/
+type Field struct {
+	Description string
+	Arguments   Arguments
+	Type        Type
+	Directives  Directives
+	Resolver    Resolver
+}
+
+/*
+GetDescription of the field
+*/
+func (f *Field) GetDescription() string {
+	return f.Description
+}
+
+/*
+GetArguments of the field
+*/
+func (f *Field) GetArguments() []*Argument {
+	return f.Arguments
+}
+
+/*
+GetType returns the type of the field
+*/
+func (f *Field) GetType() Type {
+	return f.Type
+}
+
+/*
+GetDirectives returns the directives set for the field
+*/
+func (f *Field) GetDirectives() []Directive {
+	return f.Directives
+}
+
+/*
+IsDeprecated returns if the field is depricated
+*/
+func (f *Field) IsDeprecated() bool {
+	for _, d := range f.Directives {
+		if _, ok := d.(*deprecated); ok {
+			return true
+		}
+	}
+	return false
+}
+
+/*
  _   _ _   _ ___ ___  _   _ ____
 | | | | \ | |_ _/ _ \| \ | / ___|
 | | | |  \| || | | | |  \| \___ \
