@@ -630,19 +630,19 @@ func coerceJsonValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) 
 			return nil, fmt.Errorf("Invalid input object value")
 		}
 		o := t.(*InputObject)
-		for _, field := range o.GetFields() {
-			fv, ok := ov[field.Name]
+		for fn, field := range o.GetFields() {
+			fv, ok := ov[fn]
 			if !ok && field.IsDefaultValueSet() {
-				res[field.Name] = field.DefaultValue
+				res[fn] = field.DefaultValue
 			} else if !ok && field.Type.GetKind() == NonNullKind {
 				return nil, fmt.Errorf("No value provided for NonNull type")
 			}
 			if fv == nil && field.Type.GetKind() != NonNullKind {
-				res[field.Name] = nil
+				res[fn] = nil
 			}
 			if fv != nil {
 				if cv, err := coerceJsonValue(ctx, fv, field.Type); err == nil {
-					res[field.Name] = cv
+					res[fn] = cv
 				} else {
 					return nil, err
 				}
@@ -704,11 +704,11 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 			}
 
 			if astf.Value.Kind() == ast.NullValueKind && field.Type.GetKind() != NonNullKind {
-				res[field.Name] = nil
+				res[astf.Name] = nil
 			}
 			if astf.Value.Kind() != ast.VariableValueKind {
 				if fv, err := coerceAstValue(ctx, astf.Value, field.Type); err == nil {
-					res[field.Name] = fv
+					res[astf.Name] = fv
 				} else {
 					return nil, err
 				}
@@ -723,7 +723,7 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 				if ok && varVal == nil && field.Type.GetKind() == NonNullKind {
 					return nil, fmt.Errorf("null value on NonNull type")
 				} else if ok {
-					res[field.Name] = varVal
+					res[astf.Name] = varVal
 				} else {
 					ctx.mu.Lock()
 					vDef := ctx.variableDefs[ctx.operation.Name][vv.Name]
@@ -734,10 +734,10 @@ func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 						if err != nil {
 							return nil, err
 						}
-						res[field.Name] = defVal
+						res[astf.Name] = defVal
 					} else {
 						if field.IsDefaultValueSet() {
-							res[field.Name] = field.DefaultValue
+							res[astf.Name] = field.DefaultValue
 						}
 					}
 				}

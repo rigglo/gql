@@ -83,15 +83,12 @@ var (
 		Name: "PizzaInput",
 		Fields: gql.InputFields{
 			"name": &gql.InputField{
-				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 			},
 			"size": &gql.InputField{
-				Name: "size",
 				Type: gql.NewNonNull(gql.Int),
 			},
 			"is_spicy": &gql.InputField{
-				Name: "is_spicy",
 				Type: gql.NewNonNull(gql.Boolean),
 			},
 		},

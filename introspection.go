@@ -52,8 +52,11 @@ func init() {
 			Resolver: func(ctx Context) (interface{}, error) {
 				if v, ok := ctx.Parent().(*Argument); ok {
 					return v.Type, nil
-				} else if v, ok := ctx.Parent().(*InputField); ok {
-					return v.Type, nil
+				} else if v, ok := ctx.Parent().(struct {
+					field *InputField
+					name  string
+				}); ok {
+					return v.field.Type, nil
 				}
 				return nil, nil
 			},
@@ -289,9 +292,15 @@ var (
 				Type: NewList(NewNonNull(inputValueIntrospection)),
 				Resolver: func(ctx Context) (interface{}, error) {
 					if ctx.Parent().(Type).GetKind() == InputObjectKind {
-						fs := []*InputField{}
-						for _, f := range ctx.Parent().(*InputObject).GetFields() {
-							fs = append(fs, f)
+						fs := []struct {
+							field *InputField
+							name  string
+						}{}
+						for fn, f := range ctx.Parent().(*InputObject).GetFields() {
+							fs = append(fs, struct {
+								field *InputField
+								name  string
+							}{f, fn})
 						}
 						return fs, nil
 					}
@@ -365,8 +374,11 @@ var (
 						return v.Name, nil
 					} else if v, ok := ctx.Parent().(*Scalar); ok {
 						return v.Name, nil
-					} else if v, ok := ctx.Parent().(*InputField); ok {
-						return v.Name, nil
+					} else if v, ok := ctx.Parent().(struct {
+						field *InputField
+						name  string
+					}); ok {
+						return v.name, nil
 					}
 					return nil, nil
 				},
@@ -375,8 +387,11 @@ var (
 				Name: "description",
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
-					if f, ok := ctx.Parent().(*Field); ok {
-						return f.GetName(), nil
+					if f, ok := ctx.Parent().(struct {
+						field *InputField
+						name  string
+					}); ok {
+						return f.field.Description, nil
 					}
 					return nil, nil
 				},
@@ -387,8 +402,11 @@ var (
 				Resolver: func(ctx Context) (interface{}, error) {
 					if v, ok := ctx.Parent().(*Argument); ok && v.IsDefaultValueSet() {
 						return v.DefaultValue, nil
-					} else if v, ok := ctx.Parent().(*InputField); ok && v.IsDefaultValueSet() {
-						return v.DefaultValue, nil
+					} else if v, ok := ctx.Parent().(struct {
+						field *InputField
+						name  string
+					}); ok && v.field.IsDefaultValueSet() {
+						return v.field.DefaultValue, nil
 					}
 					return nil, nil
 				},

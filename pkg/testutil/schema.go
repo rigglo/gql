@@ -256,11 +256,9 @@ var (
 		Name: "ComplexInput",
 		Fields: gql.InputFields{
 			"name": &gql.InputField{
-				Name: "name",
 				Type: gql.String,
 			},
 			"owner": &gql.InputField{
-				Name: "owner",
 				Type: gql.String,
 			},
 		},

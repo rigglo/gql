@@ -671,7 +671,6 @@ can have a default value and must have an input type.
 */
 type InputField struct {
 	Description  string
-	Name         string
 	Type         Type
 	DefaultValue interface{}
 	Directives   Directives

@@ -651,11 +651,11 @@ func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) {
 				continue
 			}
 
-			if _, ok := visitedFields[field.Name]; ok {
-				ctx.addErr(&Error{fmt.Sprintf("field '%s' was set multiple times", field.Name), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
+			if _, ok := visitedFields[astf.Name]; ok {
+				ctx.addErr(&Error{fmt.Sprintf("field '%s' was set multiple times", astf.Name), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
 				continue
 			}
-			visitedFields[field.Name] = struct{}{}
+			visitedFields[astf.Name] = struct{}{}
 
 			if astf.Value.Kind() == ast.NullValueKind && field.Type.GetKind() != NonNullKind {
 				continue
@@ -680,7 +680,7 @@ func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) {
 							ok = true
 							break
 						}
-						ctx.addErr(&Error{fmt.Sprintf("invalid variable type for field '%s'", field.Name), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
+						ctx.addErr(&Error{fmt.Sprintf("invalid variable type for field '%s'", astf.Name), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
 						ok = true
 						break
 					}
@@ -691,10 +691,10 @@ func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) {
 			}
 		}
 
-		for _, field := range o.Fields {
-			if _, ok := visitedFields[field.Name]; !ok {
+		for fn, field := range o.Fields {
+			if _, ok := visitedFields[fn]; !ok {
 				if !field.IsDefaultValueSet() && field.Type.GetKind() == NonNullKind {
-					ctx.addErr(&Error{fmt.Sprintf("no value provided for field '%s' with NonNull type", field.Name), []*ErrorLocation{{Line: ov.Location.Line, Column: ov.Location.Column}}, nil, nil})
+					ctx.addErr(&Error{fmt.Sprintf("no value provided for field '%s' with NonNull type", fn), []*ErrorLocation{{Line: ov.Location.Line, Column: ov.Location.Column}}, nil, nil})
 				}
 			}
 		}

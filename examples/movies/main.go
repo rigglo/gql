@@ -35,9 +35,8 @@ var (
 		Name: "FooInput",
 		Fields: gql.InputFields{
 			"asd": &gql.InputField{
-				Name:         "asd",
 				Type:         gql.NewNonNull(gql.String),
-				DefaultValue: "defoocska",
+				DefaultValue: "bar",
 			},
 		},
 	}
