@@ -414,10 +414,8 @@ func (o *Object) GetFields() map[string]*Field {
 /*
 AddFields lets you add fields to the object
 */
-func (o *Object) AddFields(fs ...*Field) {
-	for _, f := range fs {
-		o.Fields[f.Name] = f
-	}
+func (o *Object) AddField(name string, f *Field) {
+	o.Fields[name] = f
 }
 
 /*

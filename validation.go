@@ -377,21 +377,17 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 			// check if the type 't' is an Object
 			if o, ok := t.(*Object); ok {
 				if tf, ok := o.Fields[f.Name]; ok {
+					// 5.3.3 - Leaf Field Selections
+					selType := unwrapper(tf.GetType())
 
-					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
-					if tf.GetName() == f.Name {
-						// 5.3.3 - Leaf Field Selections
-						selType := unwrapper(tf.GetType())
+					validateArguments(ctx, op, f.Arguments, tf.Arguments)
+					validateDirectives(ctx, op, f.Directives, FieldLoc)
 
-						validateArguments(ctx, op, f.Arguments, tf.Arguments)
-						validateDirectives(ctx, op, f.Directives, FieldLoc)
-
-						if isCompositeType(selType) {
-							validateSelectionSet(ctx, op, f.SelectionSet, selType, visitedFrags)
-						} else if !isCompositeType(selType) {
-							if len(f.SelectionSet) != 0 {
-								ctx.addErr(&Error{fmt.Sprintf(errLeafFieldSelectionsSelectionNotAllowed, selType.GetName()), nil, nil, nil})
-							}
+					if isCompositeType(selType) {
+						validateSelectionSet(ctx, op, f.SelectionSet, selType, visitedFrags)
+					} else if !isCompositeType(selType) {
+						if len(f.SelectionSet) != 0 {
+							ctx.addErr(&Error{fmt.Sprintf(errLeafFieldSelectionsSelectionNotAllowed, selType.GetName()), nil, nil, nil})
 						}
 					}
 				} else {
@@ -402,20 +398,16 @@ func validateSelectionSet(ctx *gqlCtx, op *ast.Operation, set []ast.Selection, t
 				}
 			} else if i, ok := t.(*Interface); ok {
 				if tf, ok := i.Fields[f.Name]; ok {
+					validateArguments(ctx, op, f.Arguments, tf.Arguments)
+					validateDirectives(ctx, op, f.Directives, FieldLoc)
 
-					// 5.3.1 - Field Selections on Objects, Interfaces, and Unions Types
-					if tf.GetName() == f.Name {
-						validateArguments(ctx, op, f.Arguments, tf.Arguments)
-						validateDirectives(ctx, op, f.Directives, FieldLoc)
-
-						// 5.3.3 - Leaf Field Selections
-						selType := unwrapper(tf.GetType())
-						if isCompositeType(selType) {
-							validateSelectionSet(ctx, op, f.SelectionSet, selType, visitedFrags)
-						} else if !isCompositeType(selType) {
-							if len(f.SelectionSet) != 0 {
-								ctx.addErr(&Error{fmt.Sprintf(errLeafFieldSelectionsSelectionNotAllowed, selType.GetName()), nil, nil, nil})
-							}
+					// 5.3.3 - Leaf Field Selections
+					selType := unwrapper(tf.GetType())
+					if isCompositeType(selType) {
+						validateSelectionSet(ctx, op, f.SelectionSet, selType, visitedFrags)
+					} else if !isCompositeType(selType) {
+						if len(f.SelectionSet) != 0 {
+							ctx.addErr(&Error{fmt.Sprintf(errLeafFieldSelectionsSelectionNotAllowed, selType.GetName()), nil, nil, nil})
 						}
 					}
 

@@ -110,7 +110,6 @@ var (
 		Name: "Query",
 		Fields: gql.Fields{
 			"dog": &gql.Field{
-				Name: "dog",
 				Type: DogType,
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					log.Println("start dog", time.Now())
@@ -120,7 +119,6 @@ var (
 				},
 			},
 			"cat": &gql.Field{
-				Name: "cat",
 				Type: CatType,
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					log.Println("start cat", time.Now())
@@ -130,21 +128,18 @@ var (
 				},
 			},
 			"pet": &gql.Field{
-				Name: "pet",
 				Type: gql.NewList(PetInterface),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []interface{}{Catcy, Doggo}, nil
 				},
 			},
 			"catOrDog": &gql.Field{
-				Name: "catOrDog",
 				Type: gql.NewList(CatOrDogUnion),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []interface{}{Catcy, Doggo}, nil
 				},
 			},
 			"someErr": &gql.Field{
-				Name: "someErr",
 				Type: gql.NewList(CatOrDogUnion),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return nil, gql.NewError("asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
@@ -178,19 +173,15 @@ var (
 		Name: "Dog",
 		Fields: gql.Fields{
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 			},
 			"nickname": &gql.Field{
-				Name: "nickname",
 				Type: gql.String,
 			},
 			"barkVolume": &gql.Field{
-				Name: "barkVolume",
 				Type: gql.Int,
 			},
 			"doesKnowCommand": &gql.Field{
-				Name: "doesKnowCommand",
 				Arguments: gql.Arguments{
 					&gql.Argument{
 						Name: "dogCommand",
@@ -200,7 +191,6 @@ var (
 				Type: gql.NewNonNull(gql.Boolean),
 			},
 			"isHousetrained": &gql.Field{
-				Name: "isHousetrained",
 				Arguments: gql.Arguments{
 					&gql.Argument{
 						Name: "atOtherHomes",
@@ -210,7 +200,6 @@ var (
 				Type: gql.NewNonNull(gql.Boolean),
 			},
 			"owner": &gql.Field{
-				Name: "owner",
 				Type: HumanType,
 			},
 		},
@@ -220,7 +209,6 @@ var (
 		Name: "Sentient",
 		Fields: gql.Fields{
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 			},
 		},
@@ -230,7 +218,6 @@ var (
 		Name: "Pet",
 		Fields: gql.Fields{
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 			},
 		},
@@ -247,11 +234,9 @@ var (
 		Implements: gql.Interfaces{SentientInterface},
 		Fields: gql.Fields{
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 			},
 			"homePlanet": &gql.Field{
-				Name: "homePlanet",
 				Type: gql.String,
 			},
 		},
@@ -262,7 +247,6 @@ var (
 		Implements: gql.Interfaces{SentientInterface},
 		Fields: gql.Fields{
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 			},
 		},
@@ -283,19 +267,15 @@ var (
 		Name: "Cat",
 		Fields: gql.Fields{
 			"name": &gql.Field{
-				Name: "name",
 				Type: gql.NewNonNull(gql.String),
 			},
 			"nickname": &gql.Field{
-				Name: "nickname",
 				Type: gql.String,
 			},
 			"meowVolume": &gql.Field{
-				Name: "meowVolume",
 				Type: gql.Int,
 			},
 			"doesKnowCommand": &gql.Field{
-				Name: "doesKnowCommand",
 				Arguments: gql.Arguments{
 					&gql.Argument{
 						Name: "catCommand",

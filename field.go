@@ -1,21 +1,15 @@
 package gql
 
-import (
-	"reflect"
-	"strings"
-)
-
 type Fields map[string]*Field
 
-func (fs Fields) Add(f *Field) {
-	fs[f.Name] = f
+func (fs Fields) Add(name string, f *Field) {
+	fs[name] = f
 }
 
 type Resolver func(Context) (interface{}, error)
 
 type Field struct {
 	Description string
-	Name        string
 	Arguments   Arguments
 	Type        Type
 	Directives  Directives
@@ -24,10 +18,6 @@ type Field struct {
 
 func (f *Field) GetDescription() string {
 	return f.Description
-}
-
-func (f *Field) GetName() string {
-	return f.Name
 }
 
 func (f *Field) GetArguments() []*Argument {
@@ -42,13 +32,6 @@ func (f *Field) GetDirectives() []Directive {
 	return f.Directives
 }
 
-func (f *Field) Resolve(ctx Context) (interface{}, error) {
-	if f.Resolver == nil {
-		f.Resolver = defaultResolver(f.Name)
-	}
-	return f.Resolver(ctx)
-}
-
 func (f *Field) IsDeprecated() bool {
 	for _, d := range f.Directives {
 		if _, ok := d.(*deprecated); ok {
@@ -56,22 +39,4 @@ func (f *Field) IsDeprecated() bool {
 		}
 	}
 	return false
-}
-
-func defaultResolver(fname string) Resolver {
-	return func(ctx Context) (interface{}, error) {
-		t := reflect.TypeOf(ctx.Parent())
-		v := reflect.ValueOf(ctx.Parent())
-		for i := 0; i < t.NumField(); i++ {
-			// Get the field, returns https://golang.org/pkg/reflect/#StructField
-			field := t.Field(i)
-			// Get the field tag value
-			// TODO: check 'gql' tag first and if that does not exist, check 'json'
-			tag := field.Tag.Get("json")
-			if strings.Split(tag, ",")[0] == fname {
-				return v.FieldByName(field.Name).Interface(), nil
-			}
-		}
-		return nil, nil
-	}
 }

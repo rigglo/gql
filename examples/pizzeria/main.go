@@ -44,22 +44,18 @@ var (
 		Name: "Pizza",
 		Fields: gql.Fields{
 			"id": &gql.Field{
-				Name:        "id",
 				Description: "id of the pizza",
 				Type:        gql.ID,
 			},
 			"name": &gql.Field{
-				Name:        "name",
 				Description: "name of the pizza",
 				Type:        gql.String,
 			},
 			"size": &gql.Field{
-				Name:        "size",
 				Description: "size of the pizza (in cm)",
 				Type:        gql.Int,
 			},
 			"is_spicy": &gql.Field{
-				Name:        "is_spicy",
 				Description: "is the pizza spicy or not",
 				Type:        gql.Boolean,
 			},
@@ -70,7 +66,6 @@ var (
 		Name: "Query",
 		Fields: gql.Fields{
 			"pizzas": &gql.Field{
-				Name: "pizzas",
 				Type: gql.NewList(PizzaType),
 				Resolver: func(c gql.Context) (interface{}, error) {
 					return pizzas, nil
@@ -98,7 +93,6 @@ var (
 		Name: "Mutation",
 		Fields: gql.Fields{
 			"addPizza": &gql.Field{
-				Name: "addPizza",
 				Type: gql.NewNonNull(PizzaType),
 				Arguments: gql.Arguments{
 					&gql.Argument{

@@ -46,7 +46,6 @@ var (
 		Description: "Just the blockbusters root query",
 		Fields: gql.Fields{
 			"top_movies": &gql.Field{
-				Name:        "top_movies",
 				Type:        gql.NewNonNull(gql.NewList(MovieType)),
 				Description: "",
 				Resolver: func(ctx gql.Context) (interface{}, error) {
@@ -63,7 +62,6 @@ var (
 				},
 			},
 			"foo": &gql.Field{
-				Name:        "foo",
 				Type:        gql.String,
 				Description: "",
 				Arguments: gql.Arguments{
@@ -89,7 +87,6 @@ var (
 		Description: "This is a movie from the BlockBusters",
 		Fields: gql.Fields{
 			"id": &gql.Field{
-				Name:        "id",
 				Type:        gql.String,
 				Description: "id of the movie",
 				Arguments: gql.Arguments{
@@ -100,12 +97,10 @@ var (
 				},
 			},
 			"title": &gql.Field{
-				Name:        "title",
 				Type:        gql.String,
 				Description: "title of the movie",
 			},
 			"name": &gql.Field{
-				Name:        "name",
 				Type:        gql.NewNonNull(gql.String),
 				Description: "name of the movie",
 				Directives: gql.Directives{

@@ -760,8 +760,30 @@ func resolveMetaFields(ctx *gqlCtx, fs []*ast.Field, t Type) (interface{}, bool)
 	return nil, true
 }
 
+func defaultResolver(fname string) Resolver {
+	return func(ctx Context) (interface{}, error) {
+		t := reflect.TypeOf(ctx.Parent())
+		v := reflect.ValueOf(ctx.Parent())
+		for i := 0; i < t.NumField(); i++ {
+			// Get the field, returns https://golang.org/pkg/reflect/#StructField
+			field := t.Field(i)
+			// Get the field tag value
+			// TODO: check 'gql' tag first and if that does not exist, check 'json'
+			tag := field.Tag.Get("json")
+			if strings.Split(tag, ",")[0] == fname {
+				return v.FieldByName(field.Name).Interface(), nil
+			}
+		}
+		return nil, nil
+	}
+}
+
 func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Object, ov interface{}, fn string, args map[string]interface{}) interface{} {
-	v, err := ot.Fields[fn].Resolve(&resolveContext{
+	var r Resolver
+	if r = ot.Fields[fn].Resolver; r == nil {
+		r = defaultResolver(fn)
+	}
+	v, err := r(&resolveContext{
 		ctx:    ctx.ctx, // this is the original context
 		gqlCtx: ctx,     // execution context
 		args:   args,

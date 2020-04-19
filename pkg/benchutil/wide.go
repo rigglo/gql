@@ -17,7 +17,6 @@ func WideSchemaWithXFieldsAndYItems(x int, y int) *gql.Schema {
 		Name: "Query",
 		Fields: gql.Fields{
 			"wide": {
-				Name: "wide",
 				Type: gql.NewList(wide),
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					out := make([]struct{}, 0, y)
@@ -40,15 +39,14 @@ func WideSchemaWithXFieldsAndYItems(x int, y int) *gql.Schema {
 func generateXWideFields(x int) gql.Fields {
 	fields := gql.Fields{}
 	for i := 0; i < x; i++ {
-		f := generateWideFieldFromX(i)
-		fields[f.Name] = f
+		fn, f := generateWideFieldFromX(i)
+		fields[fn] = f
 	}
 	return fields
 }
 
-func generateWideFieldFromX(x int) *gql.Field {
-	return &gql.Field{
-		Name:     generateFieldNameFromX(x),
+func generateWideFieldFromX(x int) (string, *gql.Field) {
+	return generateFieldNameFromX(x), &gql.Field{
 		Type:     generateWideTypeFromX(x),
 		Resolver: generateWideResolveFromX(x),
 	}
