@@ -343,7 +343,7 @@ func (v *ListValue) GetLocation() Location {
 }
 
 type ObjectValue struct {
-	Fields   map[string]*ObjectFieldValue
+	Fields   []*ObjectFieldValue
 	Location Location
 }
 
