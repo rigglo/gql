@@ -220,7 +220,11 @@ var (
 
 					if ctx.Parent().(Type).GetKind() == ObjectKind {
 						if includeDeprecated {
-							return ctx.Parent().(*Object).GetFields(), nil
+							out := []*Field{}
+							for _, f := range ctx.Parent().(*Object).GetFields() {
+								out = append(out, f)
+							}
+							return out, nil
 						} else {
 							out := []*Field{}
 							for _, f := range ctx.Parent().(*Object).GetFields() {
@@ -233,7 +237,11 @@ var (
 					}
 					if ctx.Parent().(Type).GetKind() == InterfaceKind {
 						if includeDeprecated {
-							return ctx.Parent().(*Interface).GetFields(), nil
+							out := []*Field{}
+							for _, f := range ctx.Parent().(*Interface).GetFields() {
+								out = append(out, f)
+							}
+							return out, nil
 						} else {
 							out := []*Field{}
 							for _, f := range ctx.Parent().(*Interface).GetFields() {
@@ -347,7 +355,7 @@ var (
 	inputValueIntrospection = &Object{
 		Name: "__InputValue",
 		Fields: Fields{
-			"deprecationReason": &Field{
+			"name": &Field{
 				Name: "name",
 				Type: NewNonNull(String),
 				Resolver: func(ctx Context) (interface{}, error) {
