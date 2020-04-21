@@ -70,7 +70,7 @@ func init() {
 		&Field{
 			Type: NewNonNull(typeIntrospection),
 			Resolver: func(ctx Context) (interface{}, error) {
-				return ctx.Parent().(*Field).GetType(), nil
+				return ctx.Parent().(*iField).field.GetType(), nil
 			},
 		},
 	)
