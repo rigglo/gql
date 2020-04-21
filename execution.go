@@ -349,7 +349,7 @@ func executeSelectionSet(ctx *gqlCtx, path []interface{}, ss []ast.Selection, ot
 			if strings.HasPrefix(fieldName, "__") {
 				rval, hasErr = resolveMetaFields(ctx, fs, ot)
 			} else {
-				fieldType := getFieldOfFields(ctx, fieldName, ot).GetType()
+				fieldType := ot.Fields[fieldName].GetType()
 				rval, hasErr = executeField(ctx, append(path, fs[0].Alias), ot, ov, fieldType, fs)
 			}
 			if hasErr {
@@ -482,35 +482,6 @@ func doesFragmentTypeApply(ctx *gqlCtx, ot *Object, ft Type) bool {
 	return false
 }
 
-func getFieldOfFields(ctx *gqlCtx, fn string, ot *Object) *Field {
-	/*ctx.mu.Lock()
-	fs, ok := ctx.fieldsCache[ot.Name]
-	ctx.mu.Unlock()
-
-	if !ok {
-		fs := map[string]*Field{}
-		for _, f := range ot.Fields {
-			fs[f.Name] = f
-		}
-		ctx.mu.Lock()
-		ctx.fieldsCache[ot.Name] = fs
-		ctx.mu.Unlock()
-
-		return fs[fn]
-	}
-
-	return fs[fn]
-	/*
-		for _, f := range ot.Fields {
-			if fn == f.Name {
-				return f
-			}
-		}
-		return nil
-	*/
-	return ot.Fields[fn]
-}
-
 func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {
 	for _, a := range as {
 		if a.Name == an {
@@ -525,7 +496,7 @@ func executeField(ctx *gqlCtx, path []interface{}, ot *Object, ov interface{}, f
 	fn := f.Name
 	args := coerceArgumentValues(ctx, path, ot, f)
 	resVal := resolveFieldValue(ctx, path, f, ot, ov, fn, args)
-	return completeValue(ctx, path, getFieldOfFields(ctx, fn, ot).GetType(), fs, resVal)
+	return completeValue(ctx, path, ot.Fields[fn].GetType(), fs, resVal)
 }
 
 func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Field) map[string]interface{} {
