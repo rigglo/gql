@@ -22,25 +22,27 @@ func New(c Config) http.Handler {
 	}
 }
 
-type postParams struct {
-	Query         string                 `json:"query"`
-	Variables     map[string]interface{} `json:"variables"`
-	OperationName string                 `json:"operationName"`
-}
-
 type handler struct {
 	conf Config
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var params *gql.Params
+	params := new(gql.Params)
 	switch r.Method {
 	case http.MethodGet:
 		{
 			params = &gql.Params{
 				Query:         html.UnescapeString(r.URL.Query().Get("query")),
-				Variables:     nil, // TODO: find a way of doing this..
+				Variables:     map[string]interface{}{}, // TODO: find a way of doing this..
 				OperationName: r.URL.Query().Get("operationName"),
+			}
+			if r.URL.Query().Get("variables") != "" {
+				varsRaw := html.UnescapeString(r.URL.Query().Get("variables"))
+				err := json.Unmarshal([]byte(varsRaw), &params.Variables)
+				if err != nil {
+					http.Error(w, `{"error": "invalid variables format"}`, http.StatusBadRequest)
+					return
+				}
 			}
 			if h.conf.GraphiQL {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -50,22 +52,17 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	case http.MethodPost:
 		{
-			bs, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				break
-			}
+			if r.Header.Get("Content-Type") == "application/json" {
+				bs, err := ioutil.ReadAll(r.Body)
+				if err != nil {
+					break
+				}
 
-			p := postParams{}
-
-			err = json.Unmarshal(bs, &p)
-			if err != nil {
-				break
-			}
-
-			params = &gql.Params{
-				Query:         p.Query,
-				Variables:     p.Variables,
-				OperationName: p.OperationName,
+				err = json.Unmarshal(bs, params)
+				if err != nil {
+					http.Error(w, `{"error": "invalid parameters format"}`, http.StatusBadRequest)
+					return
+				}
 			}
 		}
 	}
