@@ -7,6 +7,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var String *Scalar = &Scalar{
@@ -259,5 +260,67 @@ var Boolean *Scalar = &Scalar{
 			return i, nil
 		}
 		return nil, fmt.Errorf("couldn't coerce input value '%v'", i)
+	},
+}
+
+var DateTime *Scalar = &Scalar{
+	Name:        "DateTime",
+	Description: "The `DateTime` scalar type represents a DateTime (RFC 3339)",
+	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		switch value := i.(type) {
+		case time.Time:
+			buff, err := value.MarshalText()
+			if err != nil {
+				return nil, err
+			}
+			return string(buff), nil
+		case *time.Time:
+			if value == nil {
+				return nil, nil
+			}
+			buff, err := value.MarshalText()
+			if err != nil {
+				return nil, err
+			}
+			return string(buff), nil
+		default:
+			return nil, nil
+		}
+
+	},
+	CoerceInputFunc: func(i interface{}) (interface{}, error) {
+		switch value := i.(type) {
+		case []byte:
+			t := time.Time{}
+			err := t.UnmarshalText(value)
+			if err != nil {
+				return nil, err
+			}
+
+			return t, nil
+		case string:
+			t := time.Time{}
+			err := t.UnmarshalText([]byte(value))
+			if err != nil {
+				return nil, err
+			}
+
+			return t, nil
+		case *string:
+			if value == nil {
+				return nil, nil
+			}
+			t := time.Time{}
+			err := t.UnmarshalText([]byte(*value))
+			if err != nil {
+				return nil, err
+			}
+
+			return t, nil
+		case time.Time:
+			return value, nil
+		default:
+			return nil, nil
+		}
 	},
 }

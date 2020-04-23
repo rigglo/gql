@@ -11,6 +11,7 @@ This project aims to fulfill some of the most common feature requests that other
 Roadmap for the package
 
 - [x] Custom scalars
+- [x] Extensions
 - [ ] Custom directives
 - [ ] Opentracing
 - [ ] Query complexity
