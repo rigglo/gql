@@ -25,6 +25,7 @@ type ExecutorConfig struct {
 	GoroutineLimit   int
 	EnableGoroutines bool
 	Schema           *Schema
+	Extensions       []Extension
 }
 
 func DefaultExecutor(s *Schema) *Executor {
@@ -44,7 +45,9 @@ func NewExecutor(c ExecutorConfig) *Executor {
 }
 
 func (e *Executor) Execute(ctx context.Context, p Params) *Result {
+	callExtensions(ctx, e.config.Extensions, EventParseStart, nil)
 	t, doc, err := parser.Parse([]byte(p.Query))
+	callExtensions(ctx, e.config.Extensions, EventParseFinish, err)
 	if err != nil {
 		return &Result{
 			Errors: Errors{
@@ -68,8 +71,11 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 	gqlctx.types = types
 	gqlctx.directives = directives
 	gqlctx.implementors = implementors
+	gqlctx.extensions = e.config.Extensions
 
+	callExtensions(ctx, e.config.Extensions, EventValidationStart, nil)
 	validate(gqlctx)
+	callExtensions(ctx, e.config.Extensions, EventValidationFinish, gqlctx.res.Errors)
 	if len(gqlctx.res.Errors) > 0 {
 		return gqlctx.res
 	}
@@ -84,7 +90,10 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 		return gqlctx.res
 	}
 
-	return resolveOperation(gqlctx)
+	callExtensions(ctx, e.config.Extensions, EventExecutionStart, gqlctx.operation)
+	resolveOperation(gqlctx)
+	callExtensions(ctx, e.config.Extensions, EventExecutionFinish, gqlctx.res)
+	return gqlctx.res
 }
 
 type Params struct {
@@ -245,18 +254,16 @@ func resolveAstType(types map[string]Type, t ast.Type) (Type, *Error) {
 	}
 }
 
-func resolveOperation(ctx *gqlCtx) *Result {
+func resolveOperation(ctx *gqlCtx) {
 	switch ctx.operation.OperationType {
 	case ast.Query:
-		return executeQuery(ctx, ctx.operation)
+		ctx.res = executeQuery(ctx, ctx.operation)
 	case ast.Mutation:
-		return executeMutation(ctx, ctx.operation)
-	case ast.Subscription:
-		// TODO: implement ExecuteSubscription
-		break
-	}
-	return &Result{
-		Errors: Errors{&Error{"invalid operation", nil, nil, nil}},
+		ctx.res = executeMutation(ctx, ctx.operation)
+	default:
+		ctx.res = &Result{
+			Errors: Errors{&Error{"invalid operation", nil, nil, nil}},
+		}
 	}
 }
 
@@ -754,13 +761,16 @@ func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Obj
 	if r = ot.Fields[fn].Resolver; r == nil {
 		r = defaultResolver(fn)
 	}
-	v, err := r(&resolveContext{
+	resCtx := &resolveContext{
 		ctx:    ctx.ctx, // this is the original context
 		gqlCtx: ctx,     // execution context
 		args:   args,
 		parent: ov, // parent's value
 		path:   path,
-	})
+	}
+	callExtensions(ctx.ctx, ctx.extensions, EventFieldResolverStart, resCtx)
+	v, err := r(resCtx)
+	callExtensions(ctx.ctx, ctx.extensions, EventFieldResolverFinish, v)
 	if err != nil {
 		if e, ok := err.(CustomError); ok {
 			ctx.addErr(&Error{

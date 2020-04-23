@@ -27,6 +27,7 @@ type gqlCtx struct {
 	fragmentUsage    map[string]bool
 	variableDefs     map[string]map[string]*ast.Variable
 	variableUsages   map[string]map[string]struct{}
+	extensions       []Extension
 }
 
 func newContext(ctx context.Context, schema *Schema, doc *ast.Document, params *Params, concurrencyLimit int, concurrency bool) *gqlCtx {
