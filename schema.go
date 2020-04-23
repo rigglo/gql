@@ -556,7 +556,7 @@ func (f *Field) GetDescription() string {
 /*
 GetArguments of the field
 */
-func (f *Field) GetArguments() []*Argument {
+func (f *Field) GetArguments() Arguments {
 	return f.Arguments
 }
 
@@ -665,7 +665,7 @@ func (u *Union) Resolve(ctx context.Context, v interface{}) *Object {
 /*
 Arguments for fields and directives
 */
-type Arguments []*Argument
+type Arguments map[string]*Argument
 
 /*
 Argument defines an argument for a field or a directive. Default value can be provided
@@ -673,7 +673,6 @@ in case it's not populated during a query. The type of the argument must be an i
 */
 type Argument struct {
 	Description  string
-	Name         string
 	Type         Type
 	DefaultValue interface{}
 }

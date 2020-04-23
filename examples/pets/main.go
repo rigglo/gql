@@ -183,8 +183,7 @@ var (
 			},
 			"doesKnowCommand": &gql.Field{
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "dogCommand",
+					"dogCommand": &gql.Argument{
 						Type: gql.NewNonNull(DogCommandEnum),
 					},
 				},
@@ -192,8 +191,7 @@ var (
 			},
 			"isHousetrained": &gql.Field{
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "atOtherHomes",
+					"atOtherHomes": &gql.Argument{
 						Type: gql.Boolean,
 					},
 				},
@@ -277,8 +275,7 @@ var (
 			},
 			"doesKnowCommand": &gql.Field{
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "catCommand",
+					"catCommand": &gql.Argument{
 						Type: gql.NewNonNull(CatCommandEnum),
 					},
 				},

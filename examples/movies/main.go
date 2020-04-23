@@ -65,12 +65,10 @@ var (
 				Type:        gql.String,
 				Description: "",
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "asd",
+					"asd": &gql.Argument{
 						Type: gql.NewNonNull(FooInput),
 					},
-					&gql.Argument{
-						Name: "bar",
+					"bar": &gql.Argument{
 						Type: gql.String,
 					},
 				},
@@ -90,8 +88,7 @@ var (
 				Type:        gql.String,
 				Description: "id of the movie",
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "foo",
+					"foo": &gql.Argument{
 						Type: gql.String,
 					},
 				},

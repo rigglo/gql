@@ -11,7 +11,7 @@ type Directives []Directive
 type Directive interface {
 	GetName() string
 	GetDescription() string
-	GetArguments() []*Argument
+	GetArguments() Arguments
 	GetLocations() []DirectiveLocation
 }
 
@@ -95,10 +95,9 @@ func (s *skip) GetDescription() string {
 	return "The @skip directive may be provided for fields, fragment spreads, and inline fragments, and allows for conditional exclusion during execution as described by the if argument"
 }
 
-func (s *skip) GetArguments() []*Argument {
-	return []*Argument{
-		&Argument{
-			Name: "if",
+func (s *skip) GetArguments() Arguments {
+	return Arguments{
+		"if": &Argument{
 			Type: NewNonNull(Boolean),
 		},
 	}
@@ -129,10 +128,9 @@ func (s *include) GetDescription() string {
 	return "The @skip directive may be provided for fields, fragment spreads, and inline fragments, and allows for conditional exclusion during execution as described by the if argument"
 }
 
-func (s *include) GetArguments() []*Argument {
-	return []*Argument{
-		&Argument{
-			Name: "if",
+func (s *include) GetArguments() Arguments {
+	return Arguments{
+		"if": &Argument{
 			Type: NewNonNull(Boolean),
 		},
 	}
@@ -169,10 +167,9 @@ func (d *deprecated) GetDescription() string {
 	return "The `@deprecated` directive is used within the type system definition language to indicate deprecated portions of a GraphQL service’s schema, such as deprecated fields on a type or deprecated enum values"
 }
 
-func (d *deprecated) GetArguments() []*Argument {
-	return []*Argument{
-		&Argument{
-			Name:         "reason",
+func (d *deprecated) GetArguments() Arguments {
+	return Arguments{
+		"reason": &Argument{
 			Type:         String,
 			DefaultValue: "",
 		},

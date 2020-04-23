@@ -52,8 +52,8 @@ func init() {
 		&Field{
 			Type: NewNonNull(typeIntrospection),
 			Resolver: func(ctx Context) (interface{}, error) {
-				if v, ok := ctx.Parent().(*Argument); ok {
-					return v.Type, nil
+				if v, ok := ctx.Parent().(*iArgument); ok {
+					return v.arg.Type, nil
 				} else if v, ok := ctx.Parent().(struct {
 					field *InputField
 					name  string
@@ -92,6 +92,11 @@ type iField struct {
 	name  string
 }
 
+type iArgument struct {
+	arg  *Argument
+	name string
+}
+
 type iInputField struct {
 	field *InputField
 	name  string
@@ -109,8 +114,7 @@ var (
 			"__type": &Field{
 				Type: typeIntrospection,
 				Arguments: Arguments{
-					&Argument{
-						Name: "name",
+					"name": &Argument{
 						Type: NewNonNull(String),
 					},
 				},
@@ -212,8 +216,7 @@ var (
 			},
 			"fields": &Field{
 				Arguments: Arguments{
-					&Argument{
-						Name:         "includeDeprecated",
+					"includeDeprecated": &Argument{
 						Type:         Boolean,
 						DefaultValue: false,
 					},
@@ -261,8 +264,7 @@ var (
 			},
 			"enumValues": &Field{
 				Arguments: Arguments{
-					&Argument{
-						Name:         "includeDeprecated",
+					"includeDeprecated": &Argument{
 						Type:         Boolean,
 						DefaultValue: false,
 					},
@@ -327,7 +329,14 @@ var (
 			"args": &Field{
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {
-					return ctx.Parent().(*iField).field.GetArguments(), nil
+					out := []*iArgument{}
+					for aName, a := range ctx.Parent().(*iField).field.GetArguments() {
+						out = append(out, &iArgument{
+							arg:  a,
+							name: aName,
+						})
+					}
+					return out, nil
 				},
 			},
 			"isDeprecated": &Field{
@@ -363,8 +372,8 @@ var (
 				Resolver: func(ctx Context) (interface{}, error) {
 					if v, ok := ctx.Parent().(*EnumValue); ok {
 						return v.Name, nil
-					} else if v, ok := ctx.Parent().(*Argument); ok {
-						return v.Name, nil
+					} else if v, ok := ctx.Parent().(*iArgument); ok {
+						return v.name, nil
 					} else if v, ok := ctx.Parent().(*Scalar); ok {
 						return v.Name, nil
 					} else if v, ok := ctx.Parent().(struct {
@@ -384,6 +393,8 @@ var (
 						name  string
 					}); ok {
 						return f.field.Description, nil
+					} else if a, ok := ctx.Parent().(*iArgument); ok {
+						return a.arg.Description, nil
 					}
 					return nil, nil
 				},
@@ -391,8 +402,8 @@ var (
 			"defaultValue": &Field{
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
-					if v, ok := ctx.Parent().(*Argument); ok && v.IsDefaultValueSet() {
-						return v.DefaultValue, nil
+					if v, ok := ctx.Parent().(*iArgument); ok && v.arg.IsDefaultValueSet() {
+						return v.arg.DefaultValue, nil
 					} else if v, ok := ctx.Parent().(struct {
 						field *InputField
 						name  string
@@ -507,7 +518,14 @@ var (
 			"args": &Field{
 				Type: NewNonNull(NewList(NewNonNull(inputValueIntrospection))),
 				Resolver: func(ctx Context) (interface{}, error) {
-					return ctx.Parent().(Directive).GetArguments(), nil
+					out := []*iArgument{}
+					for aName, a := range ctx.Parent().(Directive).GetArguments() {
+						out = append(out, &iArgument{
+							arg:  a,
+							name: aName,
+						})
+					}
+					return out, nil
 				},
 			},
 		},

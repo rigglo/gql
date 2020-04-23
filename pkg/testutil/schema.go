@@ -128,8 +128,7 @@ var (
 			"findDog": &gql.Field{
 				Type: DogType,
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "complex",
+					"complex": &gql.Argument{
 						Type: ComplexInput,
 					},
 				},
@@ -146,12 +145,10 @@ var (
 			"multipleReqs": &gql.Field{
 				Type: gql.NewNonNull(gql.Int),
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "x",
+					"x": &gql.Argument{
 						Type: gql.NewNonNull(gql.Int),
 					},
-					&gql.Argument{
-						Name: "y",
+					"y": &gql.Argument{
 						Type: gql.NewNonNull(gql.Int),
 					},
 				},
@@ -162,8 +159,7 @@ var (
 			"booleanArgField": &gql.Field{
 				Type: gql.Boolean,
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "booleanArg",
+					"booleanArg": &gql.Argument{
 						Type: gql.Boolean,
 					},
 				},
@@ -174,8 +170,7 @@ var (
 			"floatArgField": &gql.Field{
 				Type: gql.Float,
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "floatArg",
+					"floatArg": &gql.Argument{
 						Type: gql.Float,
 					},
 				},
@@ -186,8 +181,7 @@ var (
 			"intArgField": &gql.Field{
 				Type: gql.Int,
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "intArg",
+					"intArg": &gql.Argument{
 						Type: gql.Int,
 					},
 				},
@@ -198,8 +192,7 @@ var (
 			"nonNullBooleanArgField": &gql.Field{
 				Type: gql.NewNonNull(gql.Boolean),
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "nonNullBooleanArg",
+					"nonNullBooleanArg": &gql.Argument{
 						Type: gql.NewNonNull(gql.Boolean),
 					},
 				},
@@ -210,8 +203,7 @@ var (
 			"booleanListArgField": &gql.Field{
 				Type: gql.NewList(gql.Boolean),
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "booleanListArg",
+					"booleanListArg": &gql.Argument{
 						Type: gql.NewNonNull(gql.NewList(gql.Boolean)),
 					},
 				},
@@ -222,8 +214,7 @@ var (
 			"optionalNonNullBooleanArgField": &gql.Field{
 				Type: gql.Int,
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name:         "optionalBooleanArg",
+					"optionalBooleanArg": &gql.Argument{
 						Type:         gql.NewNonNull(gql.Boolean),
 						DefaultValue: false,
 					},
@@ -282,8 +273,7 @@ var (
 			},
 			"doesKnowCommand": &gql.Field{
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "dogCommand",
+					"dogCommand": &gql.Argument{
 						Type: gql.NewNonNull(DogCommandEnum),
 					},
 				},
@@ -294,8 +284,7 @@ var (
 			},
 			"isHousetrained": &gql.Field{
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "atOtherHomes",
+					"atOtherHomes": &gql.Argument{
 						Type: gql.Boolean,
 					},
 				},
@@ -382,8 +371,7 @@ var (
 			},
 			"doesKnowCommand": &gql.Field{
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "catCommand",
+					"catCommand": &gql.Argument{
 						Type: gql.NewNonNull(CatCommandEnum),
 					},
 				},

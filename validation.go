@@ -497,37 +497,33 @@ func getPossibleTypes(ctx *gqlCtx, t Type) []Type {
 	return []Type{}
 }
 
-func validateArguments(ctx *gqlCtx, op *ast.Operation, astArgs []*ast.Argument, args []*Argument) {
+func validateArguments(ctx *gqlCtx, op *ast.Operation, astArgs []*ast.Argument, args Arguments) {
 	visitesArgs := map[string]*ast.Argument{}
 	for _, a := range astArgs {
-		for _, ta := range args {
-			if a.Name == ta.Name {
-				if _, visited := visitesArgs[a.Name]; visited {
-					ctx.addErr(&Error{fmt.Sprintf("argument '%s' is set multiple times", a.Name), nil, nil, nil})
-				} else {
-					if ta.IsDefaultValueSet() && ta.Type.GetKind() == NonNullKind {
+		if ta, ok := args[a.Name]; ok {
+			if _, visited := visitesArgs[a.Name]; visited {
+				ctx.addErr(&Error{fmt.Sprintf("argument '%s' is set multiple times", a.Name), nil, nil, nil})
+			} else {
+				if ta.IsDefaultValueSet() && ta.Type.GetKind() == NonNullKind {
 
-					}
-					// TODO: don't raise error when arg is NonNull, has default value and the provided value is null
-					validateValue(ctx, op, ta.Type, a.Value)
-					visitesArgs[a.Name] = a
 				}
-				break
+				// TODO: don't raise error when arg is NonNull, has default value and the provided value is null
+				validateValue(ctx, op, ta.Type, a.Value)
+				visitesArgs[a.Name] = a
 			}
-		}
-		if _, ok := visitesArgs[a.Name]; !ok {
+		} else {
 			ctx.addErr(&Error{fmt.Sprintf("argument '%s' is not defined", a.Name), nil, nil, nil})
 		}
 	}
 
-	for _, a := range args {
+	for aName, a := range args {
 		if a.Type.GetKind() == NonNullKind && !a.IsDefaultValueSet() {
-			if astArg, ok := visitesArgs[a.Name]; ok {
+			if astArg, ok := visitesArgs[aName]; ok {
 				if astArg.Value.Kind() == ast.NullValueKind {
-					ctx.addErr(&Error{fmt.Sprintf("argument '%s' is NonNull and the provided value is null", a.Name), nil, nil, nil})
+					ctx.addErr(&Error{fmt.Sprintf("argument '%s' is NonNull and the provided value is null", aName), nil, nil, nil})
 				}
 			} else {
-				ctx.addErr(&Error{fmt.Sprintf("argument '%s' is required (NonNull) but not provided", a.Name), nil, nil, nil})
+				ctx.addErr(&Error{fmt.Sprintf("argument '%s' is required (NonNull) but not provided", aName), nil, nil, nil})
 			}
 		}
 	}

@@ -260,8 +260,7 @@ func init() {
 			"hero": &gql.Field{
 				Type: characterInterface,
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "episode",
+					"episode": &gql.Argument{
 						Type: episodeEnum,
 					},
 				},
@@ -272,8 +271,7 @@ func init() {
 			"human": &gql.Field{
 				Type: humanType,
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "id",
+					"id": &gql.Argument{
 						Type: gql.NewNonNull(gql.String),
 					},
 				},

@@ -502,9 +502,9 @@ func executeField(ctx *gqlCtx, path []interface{}, ot *Object, ov interface{}, f
 func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Field) map[string]interface{} {
 	coercedVals := map[string]interface{}{}
 	argDefs := ot.Fields[f.Name].Arguments
-	for _, argDef := range argDefs {
+	for argName, argDef := range argDefs {
 		defaultValue := argDef.DefaultValue
-		argVal, hasValue := getArgOfArgs(argDef.Name, f.Arguments)
+		argVal, hasValue := getArgOfArgs(argName, f.Arguments)
 		var value interface{}
 		if argVal != nil {
 			if argVal.Value.Kind() == ast.VariableValueKind {
@@ -518,10 +518,10 @@ func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Fi
 			}
 		}
 		if !hasValue && argDef.IsDefaultValueSet() {
-			coercedVals[argDef.Name] = defaultValue
+			coercedVals[argName] = defaultValue
 		} else if argDef.Type.GetKind() == NonNullKind && (!hasValue || value == nil) {
 			ctx.addErr(&Error{
-				Message: fmt.Sprintf("Argument '%s' is a Non-Null field, but got null value", argDef.Name),
+				Message: fmt.Sprintf("Argument '%s' is a Non-Null field, but got null value", argName),
 				Path:    path,
 				Locations: []*ErrorLocation{
 					&ErrorLocation{
@@ -532,9 +532,9 @@ func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Fi
 			})
 		} else if hasValue {
 			if value == nil {
-				coercedVals[argDef.Name] = value
+				coercedVals[argName] = value
 			} else if argVal.Value.Kind() == ast.VariableValueKind {
-				coercedVals[argDef.Name] = value
+				coercedVals[argName] = value
 			} else {
 				coercedVal, err := coerceAstValue(ctx, value, argDef.Type)
 				if err != nil {
@@ -549,7 +549,7 @@ func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Fi
 						},
 					})
 				} else {
-					coercedVals[argDef.Name] = coercedVal
+					coercedVals[argName] = coercedVal
 				}
 			}
 		}

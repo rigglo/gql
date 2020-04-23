@@ -95,8 +95,7 @@ var (
 			"addPizza": &gql.Field{
 				Type: gql.NewNonNull(PizzaType),
 				Arguments: gql.Arguments{
-					&gql.Argument{
-						Name: "input",
+					"input": &gql.Argument{
 						Type: gql.NewNonNull(PizzaInput),
 					},
 				},
