@@ -761,6 +761,14 @@ func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Obj
 	if r = ot.Fields[fn].Resolver; r == nil {
 		r = defaultResolver(fn)
 	}
+
+	// call directives for field definition
+	for _, d := range ot.Fields[fn].Directives {
+		if di, ok := d.(FieldDefinitionDirective); ok {
+			r = di.VisitFieldDefinition(ctx.ctx, *ot.Fields[fn], r)
+		}
+	}
+
 	resCtx := &resolveContext{
 		ctx:    ctx.ctx, // this is the original context
 		gqlCtx: ctx,     // execution context
@@ -768,6 +776,7 @@ func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Obj
 		parent: ov, // parent's value
 		path:   path,
 	}
+
 	callExtensions(ctx.ctx, ctx.extensions, EventFieldResolverStart, resCtx)
 	v, err := r(resCtx)
 	callExtensions(ctx.ctx, ctx.extensions, EventFieldResolverFinish, v)

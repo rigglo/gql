@@ -42,47 +42,58 @@ const (
 )
 
 type SchemaDirective interface {
-	visitSchema(context.Context, Schema) *Schema
+	VisitSchema(context.Context, Schema) *Schema
+	Variables() map[string]interface{}
 }
 
 type ScalarDirective interface {
-	visitScalar(context.Context, Scalar) *Scalar
+	VisitScalar(context.Context, Scalar) *Scalar
+	Variables() map[string]interface{}
 }
 
 type ObjectDirective interface {
-	visitObject(context.Context, Object) *Object
+	VisitObject(context.Context, Object) *Object
+	Variables() map[string]interface{}
 }
 
 type FieldDefinitionDirective interface {
-	visitFieldDefinition(context.Context, Field) *Field
+	VisitFieldDefinition(context.Context, Field, Resolver) Resolver
+	Variables() map[string]interface{}
 }
 
 type ArgumentDirective interface {
-	visitArgument(context.Context, Argument) *Argument
+	VisitArgument(context.Context, Argument)
+	Variables() map[string]interface{}
 }
 
 type InterfaceDirective interface {
-	visitInterface(context.Context, Interface) *Interface
+	VisitInterface(context.Context, Interface) *Interface
+	Variables() map[string]interface{}
 }
 
 type UnionDirective interface {
-	visitUnion(context.Context, Union) *Union
+	VisitUnion(context.Context, Union) *Union
+	Variables() map[string]interface{}
 }
 
 type EnumDirective interface {
-	visitEnum(context.Context, Enum) *Enum
+	VisitEnum(context.Context, Enum) *Enum
+	Variables() map[string]interface{}
 }
 
 type EnumValueDirective interface {
-	visitEnumValue(context.Context, EnumValue) *EnumValue
+	VisitEnumValue(context.Context, EnumValue) *EnumValue
+	Variables() map[string]interface{}
 }
 
 type InputObjectDirective interface {
-	visitInputObject(context.Context, InputObject) *InputObject
+	VisitInputObject(context.Context, InputObject) *InputObject
+	Variables() map[string]interface{}
 }
 
 type InputFieldDirective interface {
-	visitInputField(context.Context, InputField) *InputField
+	VisitInputField(context.Context, InputField) *InputField
+	Variables() map[string]interface{}
 }
 
 type skip struct{}
