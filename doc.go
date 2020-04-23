@@ -23,18 +23,15 @@ At the beginning, we only store the name, size and if the pizza is spicy.
 	var PizzaType = &gql.Object{
 		Name: "Pizza",
 		Fields: gql.Fields{
-			&gql.Field{
-				Name: "name",
+			"name": &gql.Field{
 				Description: "name of the pizza",
 				Type: gql.String,
 			},
-			&gql.Field{
-				Name: "size",
+			"size": &gql.Field{
 				Description: "size of the pizza (in cm)",
 				Type: gql.Int,
 			},
-			&gql.Field{
-				Name: "is_spicy",
+			"is_spicy": &gql.Field{
 				Description: "is the pizza spicy or not",
 				Type: gql.Boolean,
 			},
@@ -49,8 +46,7 @@ Since we need a little logic here to return the available pizzas, we'll use a re
 	var RootQuery = &gql.Object{
 		Name: "Query",
 		Fields: gql.Fields{
-			&gql.Field{
-				Name: "pizzas",
+			"pizzas": &gql.Field{
 				Type: gql.NewList(PizzaType),
 				Resolver: func(c gql.Context) (interface{}, error) {
 					return []Pizza{
