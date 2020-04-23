@@ -1,6 +1,7 @@
 package gql
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +13,14 @@ var String *Scalar = &Scalar{
 	Name:        "String",
 	Description: "This is the built-in 'String' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		if m, ok := i.(json.Marshaler); ok {
+			v, err := m.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			return json.RawMessage(v), nil
+		}
+
 		if i == nil {
 			return nil, nil
 		}
@@ -43,6 +52,14 @@ var ID *Scalar = &Scalar{
 	Name:        "ID",
 	Description: "This is the built-in 'ID' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		if m, ok := i.(json.Marshaler); ok {
+			v, err := m.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			return json.RawMessage(v), nil
+		}
+
 		if i == nil {
 			return nil, nil
 		}
@@ -71,6 +88,14 @@ var Int *Scalar = &Scalar{
 	Name:        "Int",
 	Description: "This is the built-in 'Int' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		if m, ok := i.(json.Marshaler); ok {
+			v, err := m.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			return json.RawMessage(v), nil
+		}
+
 		switch i.(type) {
 		case float32:
 			{
@@ -176,6 +201,13 @@ var Float *Scalar = &Scalar{
 	Name:        "Float",
 	Description: "This is the built-in 'Float' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
+		if m, ok := i.(json.Marshaler); ok {
+			v, err := m.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			return json.RawMessage(v), nil
+		}
 		return i, nil
 	},
 	CoerceInputFunc: func(i interface{}) (interface{}, error) {
@@ -197,7 +229,21 @@ var Boolean *Scalar = &Scalar{
 	Name:        "Boolean",
 	Description: "This is the built-in 'Boolean' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
-		return i, nil
+		if m, ok := i.(json.Marshaler); ok {
+			v, err := m.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			return json.RawMessage(v), nil
+		}
+		switch i.(type) {
+		case bool:
+			return i, nil
+		}
+		if i == nil {
+			return i, nil
+		}
+		return nil, fmt.Errorf("couldn't coerce value to Boolean")
 	},
 	CoerceInputFunc: func(i interface{}) (interface{}, error) {
 		switch i.(type) {
