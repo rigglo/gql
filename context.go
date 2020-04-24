@@ -32,6 +32,7 @@ type gqlCtx struct {
 
 func newContext(ctx context.Context, schema *Schema, doc *ast.Document, params *Params, concurrencyLimit int, concurrency bool) *gqlCtx {
 	return &gqlCtx{
+		ctx:              ctx,
 		sem:              make(chan struct{}, concurrencyLimit),
 		concurrency:      concurrency,
 		concurrencyLimit: concurrencyLimit,

@@ -970,6 +970,8 @@ func typeWalker(types map[string]Type, directives map[string]Directive, implemen
 	wt := unwrapper(t)
 	if _, ok := types[wt.GetName()]; !ok {
 		types[wt.GetName()] = wt
+	} else {
+		return
 	}
 	// TODO: directives are not checked and "walked" through
 	if hf, ok := t.(hasFields); ok {
