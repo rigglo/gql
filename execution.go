@@ -756,6 +756,16 @@ func defaultResolver(fname string) Resolver {
 	return func(ctx Context) (interface{}, error) {
 		t := reflect.TypeOf(ctx.Parent())
 		v := reflect.ValueOf(ctx.Parent())
+
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+			v = v.Elem()
+		}
+
+		if t.Kind() != reflect.Struct {
+			return nil, nil
+		}
+
 		for i := 0; i < t.NumField(); i++ {
 			// Get the field, returns https://golang.org/pkg/reflect/#StructField
 			field := t.Field(i)
@@ -930,11 +940,12 @@ func completeValue(ctx *gqlCtx, path []interface{}, ft Type, fs ast.Fields, resu
 
 func getTypes(s *Schema) (map[string]Type, map[string]Directive, map[string][]Type) {
 	types := map[string]Type{
-		"String":  String,
-		"Boolean": Boolean,
-		"Int":     Int,
-		"ID":      ID,
-		"Float":   Float,
+		"String":   String,
+		"Boolean":  Boolean,
+		"Int":      Int,
+		"ID":       ID,
+		"Float":    Float,
+		"DateTime": DateTime,
 	}
 	directives := map[string]Directive{
 		"skip":       skipDirective,
@@ -974,7 +985,7 @@ func typeWalker(types map[string]Type, directives map[string]Directive, implemen
 		return
 	}
 	// TODO: directives are not checked and "walked" through
-	if hf, ok := t.(hasFields); ok {
+	if hf, ok := wt.(hasFields); ok {
 		if o, ok := t.(*Object); ok {
 			for _, i := range o.Implements {
 				if os, ok := implementors[i.Name]; ok {
@@ -987,14 +998,18 @@ func typeWalker(types map[string]Type, directives map[string]Directive, implemen
 			}
 		}
 		for _, f := range hf.GetFields() {
-			for _, arg := range f.GetArguments() {
+			for _, arg := range f.Arguments {
 				typeWalker(types, directives, implementors, arg.Type)
 			}
-			typeWalker(types, directives, implementors, f.GetType())
+			typeWalker(types, directives, implementors, f.Type)
 		}
 	} else if u, ok := wt.(*Union); ok {
-		for _, m := range u.GetMembers() {
+		for _, m := range u.Members {
 			typeWalker(types, directives, implementors, m)
+		}
+	} else if io, ok := wt.(*InputObject); ok {
+		for _, f := range io.Fields {
+			typeWalker(types, directives, implementors, f.Type)
 		}
 	}
 }

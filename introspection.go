@@ -1,5 +1,9 @@
 package gql
 
+import (
+	"encoding/json"
+)
+
 func init() {
 	typeIntrospection.AddField(
 		"interfaces",
@@ -403,12 +407,27 @@ var (
 				Type: String,
 				Resolver: func(ctx Context) (interface{}, error) {
 					if v, ok := ctx.Parent().(*iArgument); ok && v.arg.IsDefaultValueSet() {
-						return v.arg.DefaultValue, nil
-					} else if v, ok := ctx.Parent().(struct {
-						field *InputField
-						name  string
-					}); ok && v.field.IsDefaultValueSet() {
-						return v.field.DefaultValue, nil
+						if unwrapper(v.arg.Type).GetKind() == EnumKind {
+							return v.arg.DefaultValue, nil
+						}
+						if v.arg.DefaultValue != nil {
+							bs, err := json.Marshal(v.arg.DefaultValue)
+							if err != nil {
+								return nil, err
+							}
+							return string(bs), nil
+						}
+					} else if v, ok := ctx.Parent().(iInputField); ok && v.field.IsDefaultValueSet() {
+						if unwrapper(v.field.Type).GetKind() == EnumKind {
+							return v.field.DefaultValue, nil
+						}
+						if v.field.DefaultValue != nil {
+							bs, err := json.Marshal(v.field.DefaultValue)
+							if err != nil {
+								return nil, err
+							}
+							return string(bs), nil
+						}
 					}
 					return nil, nil
 				},
