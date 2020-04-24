@@ -101,6 +101,9 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 
 	for _, ext := range e.config.Extensions {
 		if r := ext.Result(ctx); r != nil {
+			if gqlctx.res.Extensions == nil {
+				gqlctx.res.Extensions = map[string]interface{}{}
+			}
 			gqlctx.res.Extensions[ext.GetName()] = r
 		}
 	}
