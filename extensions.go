@@ -3,7 +3,7 @@ package gql
 import "context"
 
 type Extension interface {
-	Init(ctx context.Context, p Params)
+	Init(ctx context.Context, p Params) context.Context
 	GetName() string
 	Call(ctx context.Context, e ExtensionEvent, args interface{})
 	Result(ctx context.Context) interface{}

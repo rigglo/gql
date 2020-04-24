@@ -13,8 +13,9 @@ import (
 )
 
 type Result struct {
-	Data   map[string]interface{} `json:"data"`
-	Errors []*Error               `json:"errors,omitempty"`
+	Data       map[string]interface{} `json:"data,omitempty"`
+	Errors     []*Error               `json:"errors,omitempty"`
+	Extensions map[string]interface{} `json:"extensions,omitempty"`
 }
 
 type Executor struct {
@@ -45,6 +46,10 @@ func NewExecutor(c ExecutorConfig) *Executor {
 }
 
 func (e *Executor) Execute(ctx context.Context, p Params) *Result {
+	for _, exts := range e.config.Extensions {
+		ctx = exts.Init(ctx, p)
+	}
+
 	callExtensions(ctx, e.config.Extensions, EventParseStart, nil)
 	t, doc, err := parser.Parse([]byte(p.Query))
 	callExtensions(ctx, e.config.Extensions, EventParseFinish, err)
@@ -93,6 +98,12 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 	callExtensions(ctx, e.config.Extensions, EventExecutionStart, gqlctx.operation)
 	resolveOperation(gqlctx)
 	callExtensions(ctx, e.config.Extensions, EventExecutionFinish, gqlctx.res)
+
+	for _, ext := range e.config.Extensions {
+		if r := ext.Result(ctx); r != nil {
+			gqlctx.res.Extensions[ext.GetName()] = r
+		}
+	}
 	return gqlctx.res
 }
 
