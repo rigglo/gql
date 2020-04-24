@@ -37,8 +37,8 @@ func (e *simpleTracer) GetName() string {
 	return "simpleTracer"
 }
 
-func (e *simpleTracer) Init(ctx context.Context, _ gql.Params) {
-
+func (e *simpleTracer) Init(ctx context.Context, _ gql.Params) context.Context {
+	return ctx
 }
 
 func (e *simpleTracer) Result(ctx context.Context) interface{} {
