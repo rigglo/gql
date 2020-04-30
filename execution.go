@@ -185,7 +185,7 @@ func coerceVariableValues(ctx *gqlCtx) {
 		}
 		value, hasValue := ctx.params.Variables[varDef.Name]
 		if !hasValue && varDef.DefaultValue != nil {
-			defaultValue, err := coerceAstValue(ctx, varDef.DefaultValue, varType)
+			defaultValue, err := coerceValue(ctx, varDef.DefaultValue, varType)
 			if err != nil {
 				ctx.addErr(&Error{
 					Message: "couldn't coerece default value of variable",
@@ -215,7 +215,7 @@ func coerceVariableValues(ctx *gqlCtx) {
 		} else if hasValue {
 			if value == nil {
 				coercedValues[varDef.Name] = nil
-			} else if cv, err := coerceJsonValue(ctx, value, varType); err == nil {
+			} else if cv, err := coerceValue(ctx, value, varType); err == nil {
 				coercedValues[varDef.Name] = cv
 			} else {
 				ctx.addErr(&Error{
@@ -514,10 +514,7 @@ func getArgOfArgs(an string, as []*ast.Argument) (*ast.Argument, bool) {
 
 func executeField(ctx *gqlCtx, path []interface{}, ot *Object, ov interface{}, ft Type, fs ast.Fields) (interface{}, bool) {
 	f := fs[0]
-	fn := f.Name
-	args := coerceArgumentValues(ctx, path, ot, f)
-	resVal := resolveFieldValue(ctx, path, f, ot, ov, fn, args)
-	return completeValue(ctx, path, ot.Fields[fn].GetType(), fs, resVal)
+	return completeValue(ctx, path, ot.Fields[f.Name].GetType(), fs, resolveFieldValue(ctx, path, f, ot, ov, f.Name, coerceArgumentValues(ctx, path, ot, f)))
 }
 
 func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Field) map[string]interface{} {
@@ -532,7 +529,7 @@ func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Fi
 				varName := argVal.Value.(*ast.VariableValue).Name
 
 				//ctx.mu.Lock()
-				value, hasValue = ctx.params.Variables[varName]
+				value, hasValue = ctx.variables[varName]
 				//ctx.mu.Unlock()
 			} else {
 				value = argVal.Value
@@ -557,7 +554,7 @@ func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Fi
 			} else if argVal.Value.Kind() == ast.VariableValueKind {
 				coercedVals[argName] = value
 			} else {
-				coercedVal, err := coerceAstValue(ctx, value, argDef.Type)
+				coercedVal, err := coerceValue(ctx, value, argDef.Type)
 				if err != nil {
 					ctx.addErr(&Error{
 						Message: err.Error(),
@@ -579,165 +576,136 @@ func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Fi
 	return coercedVals
 }
 
-func coerceJsonValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
+func coerceValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 	switch {
 	case t.GetKind() == NonNullKind:
-		if val == nil {
+		if _, ok := val.(ast.NullValue); ok || val == nil {
 			return nil, errors.New("Null value on NonNull type")
 		}
-		return coerceJsonValue(ctx, val, t.(*NonNull).Unwrap())
+		return coerceValue(ctx, val, t.(*NonNull).Unwrap())
 	case t.GetKind() == ListKind:
 		wt := t.(*List).Unwrap()
-		lv, ok := val.([]interface{})
-		if !ok {
-			return nil, errors.New("invalid list value")
-		}
-		res := make([]interface{}, len(lv))
-		for i := 0; i < len(res); i++ {
-			r, err := coerceJsonValue(ctx, lv[i], wt)
-			if err != nil {
-				return nil, err
-			}
-			res[i] = r
-		}
-		return res, nil
-	case t.GetKind() == ScalarKind:
-		s := t.(*Scalar)
-		return s.CoerceInput(val)
-	case t.GetKind() == EnumKind:
-		e := t.(*Enum)
-		if v, ok := val.(string); ok {
-			for _, ev := range e.Values {
-				if ev.Name == v {
-					return ev.Value, nil
-				}
-			}
-			return nil, fmt.Errorf("invalid value for an Enum type")
-		}
-		return nil, fmt.Errorf("invalid value for an Enum type")
-	case t.GetKind() == InputObjectKind:
-		res := map[string]interface{}{}
-		ov, ok := val.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("Invalid input object value")
-		}
-		o := t.(*InputObject)
-		for fn, field := range o.GetFields() {
-			fv, ok := ov[fn]
-			if !ok && field.IsDefaultValueSet() {
-				res[fn] = field.DefaultValue
-			} else if !ok && field.Type.GetKind() == NonNullKind {
-				return nil, fmt.Errorf("No value provided for NonNull type")
-			}
-			if fv == nil && field.Type.GetKind() != NonNullKind {
-				res[fn] = nil
-			}
-			if fv != nil {
-				if cv, err := coerceJsonValue(ctx, fv, field.Type); err == nil {
-					res[fn] = cv
-				} else {
+		switch val := val.(type) {
+		case ast.ListValue:
+			res := make([]interface{}, len(val.Values))
+			for i := 0; i < len(res); i++ {
+				r, err := coerceValue(ctx, val.Values[i].GetValue(), wt)
+				if err != nil {
 					return nil, err
 				}
+				res[i] = r
 			}
-		}
-		return res, nil
-	}
-	return nil, errors.New("invalid value to coerce")
-}
-
-func coerceAstValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
-	switch {
-	case t.GetKind() == NonNullKind:
-		if _, ok := val.(ast.NullValue); ok {
-			return nil, errors.New("Null value on NonNull type")
-		}
-		return coerceAstValue(ctx, val, t.(*NonNull).Unwrap())
-	case t.GetKind() == ListKind:
-		wt := t.(*List).Unwrap()
-		lv := val.(ast.ListValue)
-		res := make([]interface{}, len(lv.Values))
-		for i := 0; i < len(res); i++ {
-			r, err := coerceAstValue(ctx, lv.Values[i].GetValue(), wt)
-			if err != nil {
-				return nil, err
+			return res, nil
+		case []interface{}:
+			res := make([]interface{}, len(val))
+			for i := 0; i < len(res); i++ {
+				r, err := coerceValue(ctx, val[i], wt)
+				if err != nil {
+					return nil, err
+				}
+				res[i] = r
 			}
-			res[i] = r
+			return res, nil
 		}
-		return res, nil
+		return nil, fmt.Errorf("invalid list value")
 	case t.GetKind() == ScalarKind:
 		s := t.(*Scalar)
 		if v, ok := val.(ast.Value); ok {
-			// TODO: this should be nicer...
-			return s.CoerceInput([]byte(v.GetValue().(string)))
+			return s.CoerceInput(trimString(v.GetValue().(string)))
 		}
-		return nil, fmt.Errorf("invalid value on a Scalar type")
+		return t.(*Scalar).CoerceInput(val)
 	case t.GetKind() == EnumKind:
 		e := t.(*Enum)
-		if v, ok := val.(ast.Value); ok {
+		switch val := val.(type) {
+		case ast.Value:
 			for _, ev := range e.Values {
-				if ev.Name == v.GetValue().(string) {
+				if ev.Name == val.GetValue().(string) {
 					return ev.Value, nil
 				}
 			}
-			return nil, fmt.Errorf("invalid value for an Enum type")
-		}
-		return nil, fmt.Errorf("invalid value for an Enum type")
-	case t.GetKind() == InputObjectKind:
-		res := map[string]interface{}{}
-		ov, ok := val.(*ast.ObjectValue)
-		if !ok {
-			return nil, fmt.Errorf("Invalid input object value")
-		}
-		o := t.(*InputObject)
-		for _, astf := range ov.Fields {
-			field, ok := o.Fields[astf.Name]
-			if !ok {
-				return nil, fmt.Errorf("field '%s' is not defined on '%s'", astf.Name, o.Name)
-			}
-
-			if astf.Value.Kind() == ast.NullValueKind && field.Type.GetKind() != NonNullKind {
-				res[astf.Name] = nil
-			}
-			if astf.Value.Kind() != ast.VariableValueKind {
-				if fv, err := coerceAstValue(ctx, astf.Value, field.Type); err == nil {
-					res[astf.Name] = fv
-				} else {
-					return nil, err
+		case string:
+			for _, ev := range e.Values {
+				if ev.Name == val {
+					return ev.Value, nil
 				}
 			}
-			if astf.Value.Kind() == ast.VariableValueKind {
-				vv := astf.Value.(*ast.VariableValue)
+		}
+		return nil, fmt.Errorf("invalid enum value")
+	case t.GetKind() == InputObjectKind:
+		res := map[string]interface{}{}
+		o := t.(*InputObject)
+		switch val := val.(type) {
+		case *ast.ObjectValue:
+			for _, astf := range val.Fields {
+				field, ok := o.Fields[astf.Name]
+				if !ok {
+					return nil, fmt.Errorf("field '%s' is not defined on '%s'", astf.Name, o.Name)
+				}
 
-				ctx.mu.Lock()
-				varVal, ok := ctx.params.Variables[vv.Name]
-				ctx.mu.Unlock()
+				if astf.Value.Kind() == ast.NullValueKind && field.Type.GetKind() != NonNullKind {
+					res[astf.Name] = nil
+				}
+				if astf.Value.Kind() != ast.VariableValueKind {
+					if fv, err := coerceValue(ctx, astf.Value, field.Type); err == nil {
+						res[astf.Name] = fv
+					} else {
+						return nil, err
+					}
+				}
+				if astf.Value.Kind() == ast.VariableValueKind {
+					vv := astf.Value.(*ast.VariableValue)
 
-				if ok && varVal == nil && field.Type.GetKind() == NonNullKind {
-					return nil, fmt.Errorf("null value on NonNull type")
-				} else if ok {
-					res[astf.Name] = varVal
-				} else {
 					ctx.mu.Lock()
-					vDef := ctx.variableDefs[ctx.operation.Name][vv.Name]
+					varVal, ok := ctx.variables[vv.Name]
 					ctx.mu.Unlock()
 
-					if vDef.DefaultValue != nil {
-						defVal, err := coerceAstValue(ctx, vDef.DefaultValue, field.Type)
-						if err != nil {
-							return nil, err
-						}
-						res[astf.Name] = defVal
+					if ok && varVal == nil && field.Type.GetKind() == NonNullKind {
+						return nil, fmt.Errorf("null value on NonNull type")
+					} else if ok {
+						res[astf.Name] = varVal
 					} else {
-						if field.IsDefaultValueSet() {
-							res[astf.Name] = field.DefaultValue
+						ctx.mu.Lock()
+						vDef := ctx.variableDefs[ctx.operation.Name][vv.Name]
+						ctx.mu.Unlock()
+
+						if vDef.DefaultValue != nil {
+							defVal, err := coerceValue(ctx, vDef.DefaultValue, field.Type)
+							if err != nil {
+								return nil, err
+							}
+							res[astf.Name] = defVal
+						} else {
+							if field.IsDefaultValueSet() {
+								res[astf.Name] = field.DefaultValue
+							}
 						}
 					}
 				}
 			}
+			return res, nil
+		case map[string]interface{}:
+			for fn, field := range o.GetFields() {
+				fv, ok := val[fn]
+				if !ok && field.IsDefaultValueSet() {
+					res[fn] = field.DefaultValue
+				} else if !ok && field.Type.GetKind() == NonNullKind {
+					return nil, fmt.Errorf("No value provided for NonNull type")
+				}
+				if fv == nil && field.Type.GetKind() != NonNullKind {
+					res[fn] = nil
+				}
+				if fv != nil {
+					if cv, err := coerceValue(ctx, fv, field.Type); err == nil {
+						res[fn] = cv
+					} else {
+						return nil, err
+					}
+				}
+			}
+			return res, nil
 		}
-		return res, nil
 	}
-	return nil, errors.New("invalid value to coerce")
+	return nil, errors.New("invalid object value")
 }
 
 func resolveMetaFields(ctx *gqlCtx, fs []*ast.Field, t Type) (interface{}, bool) {
@@ -754,21 +722,21 @@ func resolveMetaFields(ctx *gqlCtx, fs []*ast.Field, t Type) (interface{}, bool)
 
 func defaultResolver(fname string) Resolver {
 	return func(ctx Context) (interface{}, error) {
-		t := reflect.TypeOf(ctx.Parent())
 		v := reflect.ValueOf(ctx.Parent())
-
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
+		if v.IsValid() && v.Type().Kind() == reflect.Ptr {
 			v = v.Elem()
 		}
-
-		if t.Kind() != reflect.Struct {
+		if !v.IsValid() {
 			return nil, nil
 		}
 
-		for i := 0; i < t.NumField(); i++ {
+		if v.Type().Kind() != reflect.Struct {
+			return nil, nil
+		}
+
+		for i := 0; i < v.Type().NumField(); i++ {
 			// Get the field, returns https://golang.org/pkg/reflect/#StructField
-			field := t.Field(i)
+			field := v.Type().Field(i)
 			// Get the field tag value
 			// TODO: check 'gql' tag first and if that does not exist, check 'json'
 			tag := field.Tag.Get("json")
@@ -836,6 +804,17 @@ func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Obj
 	return v
 }
 
+func isNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	switch reflect.TypeOf(i).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		return reflect.ValueOf(i).IsNil()
+	}
+	return false
+}
+
 // returns the completed value and a bool value if there is a NonNull error
 func completeValue(ctx *gqlCtx, path []interface{}, ft Type, fs ast.Fields, result interface{}) (interface{}, bool) {
 	if ft.GetKind() == NonNullKind {
@@ -852,7 +831,7 @@ func completeValue(ctx *gqlCtx, path []interface{}, ft Type, fs ast.Fields, resu
 			}
 		}
 		return rval, false
-	} else if result == nil {
+	} else if isNil(result) {
 		// Step 2 - Return null if nil
 		return nil, false
 	} else if ft.GetKind() == ListKind {
