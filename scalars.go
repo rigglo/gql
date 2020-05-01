@@ -61,7 +61,7 @@ var ID *Scalar = &Scalar{
 			if err != nil {
 				return nil, err
 			}
-			return coerceString(trimString(string(v)), false)
+			return trimString(string(v)), nil
 		}
 		return coerceString(i, false)
 	},
@@ -84,11 +84,7 @@ var Int *Scalar = &Scalar{
 	Description: "This is the built-in 'Int' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
 		if m, ok := i.(json.Marshaler); ok {
-			v, err := m.MarshalJSON()
-			if err != nil {
-				return nil, err
-			}
-			return coerceInt(v)
+			return m, nil
 		}
 
 		return coerceInt(i)
@@ -101,11 +97,7 @@ var Float *Scalar = &Scalar{
 	Description: "This is the built-in 'Float' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
 		if m, ok := i.(json.Marshaler); ok {
-			v, err := m.MarshalJSON()
-			if err != nil {
-				return nil, err
-			}
-			return coerceFloat(v)
+			return m, nil
 		}
 		return coerceFloat(i)
 	},
@@ -117,11 +109,7 @@ var Boolean *Scalar = &Scalar{
 	Description: "This is the built-in 'Boolean' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
 		if m, ok := i.(json.Marshaler); ok {
-			v, err := m.MarshalJSON()
-			if err != nil {
-				return nil, err
-			}
-			return coerceBool(v)
+			return m, nil
 		}
 		return coerceBool(i)
 	},
@@ -171,20 +159,12 @@ func unserializeDateTime(value interface{}) (interface{}, error) {
 func serializeDateTime(value interface{}) (interface{}, error) {
 	switch value := value.(type) {
 	case time.Time:
-		buff, err := value.MarshalText()
-		if err != nil {
-			return nil, errors.New("invalid value for DateTime scalar")
-		}
-		return string(buff), nil
+		return value, nil
 	case *time.Time:
 		if value == nil {
 			return nil, nil
 		}
-		buff, err := value.MarshalText()
-		if err != nil {
-			return nil, errors.New("invalid value for DateTime scalar")
-		}
-		return string(buff), nil
+		return *value, nil
 	case int64:
 		return serializeDateTime(time.Unix(value, 0))
 	}
