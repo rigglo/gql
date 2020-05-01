@@ -600,13 +600,9 @@ func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) {
 		return
 	case t.GetKind() == ScalarKind:
 		s := t.(*Scalar)
-		if v, ok := val.GetValue().(string); ok {
-			if _, err := s.CoerceInput([]byte(v)); err != nil {
-				ctx.addErr(&Error{fmt.Sprintf("couldn't coerce value: %s", err.Error()), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
-			}
-			return
+		if _, err := s.CoerceInput(val); err != nil {
+			ctx.addErr(&Error{err.Error(), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
 		}
-		ctx.addErr(&Error{fmt.Sprintf("invalid value for Scalar"), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
 		return
 	case t.GetKind() == EnumKind:
 		if val.Kind() != ast.EnumValueKind {

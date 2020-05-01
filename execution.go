@@ -609,10 +609,6 @@ func coerceValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 		}
 		return nil, fmt.Errorf("invalid list value")
 	case t.GetKind() == ScalarKind:
-		s := t.(*Scalar)
-		if v, ok := val.(ast.Value); ok {
-			return s.CoerceInput(trimString(v.GetValue().(string)))
-		}
 		return t.(*Scalar).CoerceInput(val)
 	case t.GetKind() == EnumKind:
 		e := t.(*Enum)
