@@ -70,3 +70,28 @@ func TestParseObject(t *testing.T) {
 	// spew.Dump(doc)
 
 }
+
+func TestParseInterface(t *testing.T) {
+	query := `
+	interface Person {
+		name(
+			"some example arg"
+			bar: String
+
+			"some other arg"
+			foo: Int
+		): String
+		age: Int
+		picture: Url
+	}
+	`
+	token, doc, err := parser.Parse([]byte(query))
+	if err != nil {
+		t.Errorf("error: %v, at Line: %v, Col: %v", err, token.Line, token.Col)
+		return
+	}
+	log.Printf("%#v", doc.Definitions[0].(*ast.InterfaceDefinition).Fields[0].Arguments[0])
+	//log.Printf("%#v", doc.Definitions[1])
+	// spew.Dump(doc)
+
+}
