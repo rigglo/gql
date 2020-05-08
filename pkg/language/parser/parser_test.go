@@ -112,3 +112,25 @@ func TestParseUnion(t *testing.T) {
 	// spew.Dump(doc)
 
 }
+
+func TestParseEnum(t *testing.T) {
+	query := `
+	enum Direction {
+		"the north remembers.."
+		NORTH @depricated(reason: "got is over.. :(")
+
+		EAST
+		SOUTH
+		WEST
+	}
+	`
+	def, err := parser.ParseDefinition([]byte(query))
+	if err != nil {
+		t.Errorf("error: %v", err)
+		return
+	}
+	log.Printf("%#v", def.(*ast.EnumDefinition))
+	//log.Printf("%#v", doc.Definitions[1])
+	// spew.Dump(doc)
+
+}

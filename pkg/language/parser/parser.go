@@ -126,6 +126,8 @@ func parseDefinition(token lexer.Token, tokens chan lexer.Token, desc string) (l
 		return parseInterface(<-tokens, tokens, desc)
 	case "union":
 		return parseUnion(<-tokens, tokens, desc)
+	case "enum":
+		return parseEnum(<-tokens, tokens, desc)
 	}
 	return token, nil, fmt.Errorf("expected a schema, type or directive definition, got: '%s', err: '%v'", token.Value, token.Err)
 }
@@ -451,6 +453,76 @@ func parseUnion(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.
 			} else {
 				return token, nil, fmt.Errorf("expected Name token, got '%s'", token.Value)
 			}
+		}
+	}
+	return token, def, nil
+}
+
+func parseEnum(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.EnumDefinition{
+		Description: desc,
+	}
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	// parse directives for the enum type
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, fmt.Errorf("couldn't parse directives: %v", err)
+		}
+		def.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
+		def.Values = []*ast.EnumValueDefinition{}
+		token = <-tokens
+
+		// parse all the enum value definitions
+		for {
+			if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
+				return <-tokens, def, nil
+			}
+
+			enumV := &ast.EnumValueDefinition{}
+			if token.Kind == lexer.StringValueToken {
+				enumV.Description = strings.Trim(token.Value, `"`)
+				token = <-tokens
+			}
+			if token.Kind == lexer.NameToken {
+				enumV.Value = &ast.EnumValue{
+					Location: ast.Location{
+						Column: token.Col,
+						Line:   token.Line,
+					},
+					Value: token.Value,
+				}
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected Name token, got '%v'", token.Value)
+			}
+			if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+				var (
+					ds  []*ast.Directive
+					err error
+				)
+				token, ds, err = parseDirectives(tokens)
+				if err != nil {
+					return token, nil, fmt.Errorf("couldn't parse directives on enum value: %v", err)
+				}
+				enumV.Directives = ds
+			}
+			def.Values = append(def.Values, enumV)
 		}
 	}
 	return token, def, nil
