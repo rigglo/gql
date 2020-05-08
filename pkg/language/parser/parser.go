@@ -124,6 +124,8 @@ func parseDefinition(token lexer.Token, tokens chan lexer.Token, desc string) (l
 		return parseObject(<-tokens, tokens, desc)
 	case "interface":
 		return parseInterface(<-tokens, tokens, desc)
+	case "union":
+		return parseUnion(<-tokens, tokens, desc)
 	}
 	return token, nil, fmt.Errorf("expected a schema, type or directive definition, got: '%s', err: '%v'", token.Value, token.Err)
 }
@@ -385,6 +387,72 @@ func parseInterface(token lexer.Token, tokens chan lexer.Token, desc string) (le
 		}
 	}
 
+	return token, def, nil
+}
+
+func parseUnion(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.UnionDefinition{
+		Description: desc,
+	}
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, fmt.Errorf("couldn't parse directives: %v", err)
+		}
+		def.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "=" {
+		def.Members = []*ast.NamedType{}
+		token = <-tokens
+		if token.Kind == lexer.PunctuatorToken && token.Value == "|" {
+			token = <-tokens
+		}
+		if token.Kind == lexer.NameToken {
+			def.Members = append(def.Members, &ast.NamedType{
+				Location: ast.Location{
+					Column: token.Col,
+					Line:   token.Line,
+				},
+				Name: token.Value,
+			})
+			token = <-tokens
+		} else {
+			return token, nil, fmt.Errorf("expected Name token, got '%s'", token.Value)
+		}
+		for {
+			if token.Kind == lexer.PunctuatorToken && token.Value == "|" {
+				token = <-tokens
+			} else {
+				return token, def, nil
+			}
+			if token.Kind == lexer.NameToken {
+				def.Members = append(def.Members, &ast.NamedType{
+					Location: ast.Location{
+						Column: token.Col,
+						Line:   token.Line,
+					},
+					Name: token.Value,
+				})
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected Name token, got '%s'", token.Value)
+			}
+		}
+	}
 	return token, def, nil
 }
 

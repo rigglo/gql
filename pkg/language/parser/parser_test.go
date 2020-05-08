@@ -97,3 +97,18 @@ func TestParseInterface(t *testing.T) {
 	// spew.Dump(doc)
 
 }
+
+func TestParseUnion(t *testing.T) {
+	query := `
+	union Entity @asd = Person | Company | Animal
+	`
+	def, err := parser.ParseDefinition([]byte(query))
+	if err != nil {
+		t.Errorf("error: %v", err)
+		return
+	}
+	log.Printf("%#v", def.(*ast.UnionDefinition))
+	//log.Printf("%#v", doc.Definitions[1])
+	// spew.Dump(doc)
+
+}
