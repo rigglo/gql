@@ -33,7 +33,9 @@ query {
 
 func TestParseScalar(t *testing.T) {
 	query := `
-	"""some scalar""" scalar foo @depricated(reason: "just")
+	"""some scalar"""
+	scalar foo @depricated(reason: "just")
+
 	scalar bar`
 	token, doc, err := parser.Parse([]byte(query))
 	if err != nil {
@@ -65,7 +67,7 @@ func TestParseObject(t *testing.T) {
 		t.Errorf("error: %v, at Line: %v, Col: %v", err, token.Line, token.Col)
 		return
 	}
-	log.Printf("%#v", doc.Definitions[0].(*ast.ObjectDefinition).Fields[0].Arguments[0])
+	log.Printf("%#v", doc.Definitions[0].(*ast.ObjectDefinition))
 	//log.Printf("%#v", doc.Definitions[1])
 	// spew.Dump(doc)
 
@@ -85,12 +87,12 @@ func TestParseInterface(t *testing.T) {
 		picture: Url
 	}
 	`
-	token, doc, err := parser.Parse([]byte(query))
+	def, err := parser.ParseDefinition([]byte(query))
 	if err != nil {
-		t.Errorf("error: %v, at Line: %v, Col: %v", err, token.Line, token.Col)
+		t.Errorf("error: %v", err)
 		return
 	}
-	log.Printf("%#v", doc.Definitions[0].(*ast.InterfaceDefinition).Fields[0].Arguments[0])
+	log.Printf("%#v", def.(*ast.InterfaceDefinition))
 	//log.Printf("%#v", doc.Definitions[1])
 	// spew.Dump(doc)
 

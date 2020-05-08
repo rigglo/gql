@@ -11,10 +11,10 @@ import (
 	"github.com/rigglo/gql/pkg/language/lexer"
 )
 
-// Parse parses a gql query
-func Parse(query []byte) (lexer.Token, *ast.Document, error) {
+// Parse parses a gql document
+func Parse(document []byte) (lexer.Token, *ast.Document, error) {
 	tokens := make(chan lexer.Token)
-	src := bytes.NewReader(query)
+	src := bytes.NewReader(document)
 	readr := bufio.NewReader(src)
 	go lexer.Lex(readr, tokens)
 	t, doc, err := parseDocument(tokens)
@@ -22,6 +22,27 @@ func Parse(query []byte) (lexer.Token, *ast.Document, error) {
 		return t, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 	return t, doc, err
+}
+
+// ParseDefinition parses a single schema, type, directive definition
+func ParseDefinition(definition []byte) (ast.Definition, error) {
+	tokens := make(chan lexer.Token)
+	src := bytes.NewReader(definition)
+	readr := bufio.NewReader(src)
+	go lexer.Lex(readr, tokens)
+	token := <-tokens
+	desc := ""
+	if token.Kind == lexer.StringValueToken {
+		desc = strings.Trim(token.Value, `"`)
+		token = <-tokens
+	}
+	t, def, err := parseDefinition(token, tokens, desc)
+	if err != nil {
+		return nil, err
+	} else if t.Kind != lexer.BadToken && err == nil {
+		return nil, fmt.Errorf("invalid token after definition: '%s'", t.Value)
+	}
+	return def, nil
 }
 
 func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) {
