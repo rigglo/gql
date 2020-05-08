@@ -134,3 +134,21 @@ func TestParseEnum(t *testing.T) {
 	// spew.Dump(doc)
 
 }
+
+func TestParseInputObject(t *testing.T) {
+	query := `
+	input Point2D {
+		x: Float
+		y: Float
+	}
+	`
+	def, err := parser.ParseDefinition([]byte(query))
+	if err != nil {
+		t.Errorf("error: %v", err)
+		return
+	}
+	log.Printf("%#v", def.(*ast.InputObjectDefinition))
+	//log.Printf("%#v", doc.Definitions[1])
+	// spew.Dump(doc)
+
+}
