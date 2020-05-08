@@ -152,3 +152,17 @@ func TestParseInputObject(t *testing.T) {
 	// spew.Dump(doc)
 
 }
+
+func TestParseDirective(t *testing.T) {
+	query := `
+	directive @foo on FIELD_DEFINITION
+	`
+	def, err := parser.ParseDefinition([]byte(query))
+	if err != nil {
+		t.Errorf("error: %v", err)
+		return
+	}
+	log.Printf("%#v", def.(*ast.DirectiveDefinition))
+	//log.Printf("%#v", doc.Definitions[1])
+	// spew.Dump(doc)
+}

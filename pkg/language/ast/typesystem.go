@@ -108,7 +108,7 @@ func (d *InputObjectDefinition) Kind() DefinitionKind {
 type DirectiveDefinition struct {
 	Description string
 	Name        string
-	Directives  []*Directive
+	Locations   []string
 	Arguments   []*InputValueDefinition
 }
 

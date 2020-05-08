@@ -130,6 +130,8 @@ func parseDefinition(token lexer.Token, tokens chan lexer.Token, desc string) (l
 		return parseEnum(<-tokens, tokens, desc)
 	case "input":
 		return parseInputObject(<-tokens, tokens, desc)
+	case "directive":
+		return parseDirectiveDefinition(<-tokens, tokens, desc)
 	}
 	return token, nil, fmt.Errorf("expected a schema, type or directive definition, got: '%s', err: '%v'", token.Value, token.Err)
 }
@@ -525,6 +527,53 @@ func parseEnum(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.T
 				enumV.Directives = ds
 			}
 			def.Values = append(def.Values, enumV)
+		}
+	}
+	return token, def, nil
+}
+
+func parseDirectiveDefinition(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.DirectiveDefinition{
+		Description: desc,
+	}
+
+	// parse Name
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		token = <-tokens
+	} else {
+		return token, nil, fmt.Errorf("expected token '@', got: '%s'", token.Value)
+	}
+	if token.Kind != lexer.NameToken {
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.NameToken && token.Value == "on" {
+		def.Locations = []string{}
+		token = <-tokens
+
+		if token.Kind == lexer.PunctuatorToken && token.Value == "|" {
+			token = <-tokens
+		}
+		if token.Kind == lexer.NameToken {
+			def.Locations = append(def.Locations, token.Value)
+			token = <-tokens
+		} else {
+			return token, nil, fmt.Errorf("expected Name token, got '%s'", token.Value)
+		}
+		for {
+			if token.Kind == lexer.PunctuatorToken && token.Value == "|" {
+				token = <-tokens
+			} else {
+				return token, def, nil
+			}
+			if token.Kind == lexer.NameToken && ast.IsValidDirective(token.Value) {
+				def.Locations = append(def.Locations, token.Value)
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected Name token with a valid directive locaton, got '%s'", token.Value)
+			}
 		}
 	}
 	return token, def, nil
