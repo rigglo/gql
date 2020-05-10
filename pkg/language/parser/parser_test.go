@@ -22,9 +22,9 @@ query {
 	}
 }
 `
-	token, _, err := parser.Parse([]byte(query))
+	_, err := parser.Parse([]byte(query))
 	if err != nil {
-		t.Errorf("error: %v, at Line: %v, Col: %v", err, token.Line, token.Col)
+		t.Errorf("error: %v", err)
 		return
 	}
 	// spew.Dump(doc)
@@ -37,9 +37,9 @@ func TestParseScalar(t *testing.T) {
 	scalar foo @depricated(reason: "just")
 
 	scalar bar`
-	token, doc, err := parser.Parse([]byte(query))
+	doc, err := parser.Parse([]byte(query))
 	if err != nil {
-		t.Errorf("error: %v, at Line: %v, Col: %v", err, token.Line, token.Col)
+		t.Errorf("error: %v", err)
 		return
 	}
 	log.Printf("%#v", doc.Definitions[0])
@@ -62,9 +62,9 @@ func TestParseObject(t *testing.T) {
 		picture: Url
 	}
 	`
-	token, doc, err := parser.Parse([]byte(query))
+	doc, err := parser.Parse([]byte(query))
 	if err != nil {
-		t.Errorf("error: %v, at Line: %v, Col: %v", err, token.Line, token.Col)
+		t.Errorf("error: %v", err)
 		return
 	}
 	log.Printf("%#v", doc.Definitions[0].(*ast.ObjectDefinition))

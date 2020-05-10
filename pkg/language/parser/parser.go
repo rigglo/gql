@@ -11,17 +11,33 @@ import (
 	"github.com/rigglo/gql/pkg/language/lexer"
 )
 
+type ParserError struct {
+	Message string
+	Line    int
+	Column  int
+	Token   lexer.Token
+}
+
+func (e *ParserError) Error() string {
+	return e.Message
+}
+
 // Parse parses a gql document
-func Parse(document []byte) (lexer.Token, *ast.Document, error) {
+func Parse(document []byte) (*ast.Document, error) {
 	tokens := make(chan lexer.Token)
 	src := bytes.NewReader(document)
 	readr := bufio.NewReader(src)
 	go lexer.Lex(readr, tokens)
 	t, doc, err := parseDocument(tokens)
 	if err != nil && t.Value == "" {
-		return t, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, &ParserError{
+			Message: err.Error(),
+			Line:    t.Line,
+			Column:  t.Col,
+			Token:   t,
+		}
 	}
-	return t, doc, err
+	return doc, nil
 }
 
 // ParseDefinition parses a single schema, type, directive definition
@@ -37,7 +53,12 @@ func ParseDefinition(definition []byte) (ast.Definition, error) {
 		desc = strings.Trim(token.Value, `"`)
 		token = <-tokens
 		if token.Kind == lexer.NameToken && token.Value == "schema" {
-			return nil, fmt.Errorf("expected everything but 'schema'.. a Schema does NOT have description")
+			return nil, &ParserError{
+				Message: "expected everything but 'schema'.. a Schema does NOT have description",
+				Line:    token.Line,
+				Column:  token.Col,
+				Token:   token,
+			}
 		}
 	}
 	if token.Kind == lexer.NameToken && token.Value == "schema" {
@@ -45,15 +66,30 @@ func ParseDefinition(definition []byte) (ast.Definition, error) {
 		if err != nil {
 			return nil, err
 		} else if t.Kind != lexer.BadToken && err == nil {
-			return nil, fmt.Errorf("invalid token after schema definition: '%s'", t.Value)
+			return nil, &ParserError{
+				Message: fmt.Sprintf("invalid token after schema definition: '%s'", t.Value),
+				Line:    token.Line,
+				Column:  token.Col,
+				Token:   token,
+			}
 		}
 		return def, nil
 	}
 	t, def, err := parseDefinition(token, tokens, desc)
 	if err != nil {
-		return nil, err
+		return nil, &ParserError{
+			Message: err.Error(),
+			Line:    token.Line,
+			Column:  token.Col,
+			Token:   token,
+		}
 	} else if t.Kind != lexer.BadToken && err == nil {
-		return nil, fmt.Errorf("invalid token after definition: '%s'", t.Value)
+		return nil, &ParserError{
+			Message: fmt.Sprintf("invalid token after definition: '%s'", t.Value),
+			Line:    token.Line,
+			Column:  token.Col,
+			Token:   token,
+		}
 	}
 	return def, nil
 }
