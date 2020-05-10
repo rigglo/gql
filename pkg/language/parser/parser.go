@@ -31,10 +31,23 @@ func ParseDefinition(definition []byte) (ast.Definition, error) {
 	readr := bufio.NewReader(src)
 	go lexer.Lex(readr, tokens)
 	token := <-tokens
+
 	desc := ""
 	if token.Kind == lexer.StringValueToken {
 		desc = strings.Trim(token.Value, `"`)
 		token = <-tokens
+		if token.Kind == lexer.NameToken && token.Value == "schema" {
+			return nil, fmt.Errorf("expected everything but 'schema'.. a Schema does NOT have description")
+		}
+	}
+	if token.Kind == lexer.NameToken && token.Value == "schema" {
+		t, def, err := parseSchema(<-tokens, tokens)
+		if err != nil {
+			return nil, err
+		} else if t.Kind != lexer.BadToken && err == nil {
+			return nil, fmt.Errorf("invalid token after schema definition: '%s'", t.Value)
+		}
+		return def, nil
 	}
 	t, def, err := parseDefinition(token, tokens, desc)
 	if err != nil {
@@ -71,22 +84,29 @@ func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) 
 					}
 					doc.Operations = append(doc.Operations, op)
 				}
-			case "schema", "scalar", "type", "interface", "union", "enum", "input", "directive":
+			case "scalar", "type", "interface", "union", "enum", "input", "directive":
 				var def ast.Definition
 				token, def, err = parseDefinition(token, tokens, "")
 				if err != nil {
 					return token, nil, err
 				}
 				doc.Definitions = append(doc.Definitions, def)
+			case "schema":
+				var def ast.Definition
+				token, def, err = parseSchema(token, tokens)
+				if err != nil {
+					return token, nil, err
+				}
+				doc.Definitions = append(doc.Definitions, def)
 			default:
-				return token, nil, fmt.Errorf("unexpected token: %s...", token.Value)
+				return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 			}
 			break
 		case token.Kind == lexer.StringValueToken:
 			desc := strings.Trim(token.Value, `"`)
 			token = <-tokens
 			switch token.Value {
-			case "schema", "scalar", "type", "interface", "union", "enum", "input", "directive":
+			case "scalar", "type", "interface", "union", "enum", "input", "directive":
 				var def ast.Definition
 				token, def, err = parseDefinition(token, tokens, desc)
 				if err != nil {
@@ -134,6 +154,84 @@ func parseDefinition(token lexer.Token, tokens chan lexer.Token, desc string) (l
 		return parseDirectiveDefinition(<-tokens, tokens, desc)
 	}
 	return token, nil, fmt.Errorf("expected a schema, type or directive definition, got: '%s', err: '%v'", token.Value, token.Err)
+}
+
+func parseSchema(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Definition, error) {
+	def := new(ast.SchemaDefinition)
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		def.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
+		def.RootOperations = map[ast.OperationType]*ast.NamedType{}
+
+		token = <-tokens
+		for {
+			// quit if it's the end of the field definition list
+			if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
+				return <-tokens, def, nil
+			}
+
+			var ot ast.OperationType
+
+			// parse operation type
+			if token.Kind == lexer.NameToken {
+				switch token.Value {
+				case "query":
+					ot = ast.Query
+				case "mutation":
+					ot = ast.Mutation
+				case "subscription":
+					ot = ast.Subscription
+				default:
+					return token, nil, fmt.Errorf("expected root operation type, one of 'query', 'mutation' or 'subscription', got '%s'", token.Value)
+				}
+				if _, ok := def.RootOperations[ot]; ok {
+					return token, nil, fmt.Errorf("the given operation type '%s' is already defined in the schema definition", token.Value)
+				}
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected NameToken, got '%s'", token.Value)
+			}
+
+			if token.Kind == lexer.PunctuatorToken && token.Value == ":" {
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected token ':', got '%s'", token.Value)
+			}
+
+			if token.Kind == lexer.NameToken {
+				def.RootOperations[ot] = &ast.NamedType{
+					Name: token.Value,
+					Location: ast.Location{
+						Column: token.Col,
+						Line:   token.Line,
+					},
+				}
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected NameToken, got '%s'", token.Value)
+			}
+		}
+	}
+	return token, nil, fmt.Errorf("expected '{', and a list of root operation types, got '%s'", token.Value)
 }
 
 func parseScalar(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {

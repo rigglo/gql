@@ -10,11 +10,21 @@ const (
 	UnionKind
 	EnumKind
 	InputObjectKind
-	DirectiveKinnd
+	DirectiveKind
 )
 
 type Definition interface {
 	Kind() DefinitionKind
+}
+
+type SchemaDefinition struct {
+	Name           string
+	Directives     []*Directive
+	RootOperations map[OperationType]*NamedType
+}
+
+func (d *SchemaDefinition) Kind() DefinitionKind {
+	return SchemaKind
 }
 
 type ScalarDefinition struct {
@@ -113,5 +123,5 @@ type DirectiveDefinition struct {
 }
 
 func (d *DirectiveDefinition) Kind() DefinitionKind {
-	return DirectiveKinnd
+	return DirectiveKind
 }

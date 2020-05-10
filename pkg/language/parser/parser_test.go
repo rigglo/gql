@@ -166,3 +166,20 @@ func TestParseDirective(t *testing.T) {
 	//log.Printf("%#v", doc.Definitions[1])
 	// spew.Dump(doc)
 }
+
+func TestParseSchema(t *testing.T) {
+	query := `
+	schema MySchema @somedirective {
+		query: MyRootQuery
+		mutation: MyRootMutation
+	}
+	`
+	def, err := parser.ParseDefinition([]byte(query))
+	if err != nil {
+		t.Errorf("error: %v", err)
+		return
+	}
+	log.Printf("%#v", def.(*ast.SchemaDefinition))
+	//log.Printf("%#v", doc.Definitions[1])
+	// spew.Dump(doc)
+}
