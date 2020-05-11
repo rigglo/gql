@@ -24,7 +24,7 @@ const (
 	// BadToken is bad.. too bad..
 	BadToken TokenKind = iota
 	// PunctuatorToken has special characters
-	PunctuatorToken // !	$	(	)	...	:	=	@	[	]	{	|	}
+	PunctuatorToken // !	$	(	)	...	:	=	@	[	]	{	|	}	&
 	// NameToken has names
 	NameToken // /[_A-Za-z][_0-9A-Za-z]*/
 	// IntValueToken has iteger numbers
@@ -149,7 +149,7 @@ func eatSpace(src *bufio.Reader, tokens chan<- Token, line, col int) (lexFn, int
 	case 'a' <= r && r <= 'z', 'A' <= r && r <= 'Z', r == '_':
 		return lexName, line, col
 	// Checking for Punctation
-	case strings.ContainsRune("!$().:=@[]{|}", r):
+	case strings.ContainsRune("!$().:=@[]{|}&", r):
 		if r == '.' {
 			return lexThreeDot(src, tokens, line, col)
 		}

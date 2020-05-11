@@ -5,18 +5,6 @@ type Location struct {
 	Line   int
 }
 
-type Document struct {
-	Operations []*Operation
-	Fragments  []*Fragment
-}
-
-func NewDocument() *Document {
-	return &Document{
-		Operations: []*Operation{},
-		Fragments:  []*Fragment{},
-	}
-}
-
 type Fragment struct {
 	Name          string
 	TypeCondition string

@@ -51,7 +51,7 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 	}
 
 	callExtensions(ctx, e.config.Extensions, EventParseStart, nil)
-	t, doc, err := parser.Parse([]byte(p.Query))
+	doc, err := parser.Parse([]byte(p.Query))
 	callExtensions(ctx, e.config.Extensions, EventParseFinish, err)
 	if err != nil {
 		return &Result{
@@ -60,8 +60,8 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 					err.Error(),
 					[]*ErrorLocation{
 						{
-							Column: t.Col,
-							Line:   t.Line,
+							Column: err.(*parser.ParserError).Column,
+							Line:   err.(*parser.ParserError).Line,
 						},
 					},
 					nil,

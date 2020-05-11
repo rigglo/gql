@@ -4,22 +4,94 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/rigglo/gql/pkg/language/ast"
 	"github.com/rigglo/gql/pkg/language/lexer"
 )
 
-// Parse parses a gql query
-func Parse(query []byte) (lexer.Token, *ast.Document, error) {
+type ParserError struct {
+	Message string
+	Line    int
+	Column  int
+	Token   lexer.Token
+}
+
+func (e *ParserError) Error() string {
+	return e.Message
+}
+
+// Parse parses a gql document
+func Parse(document []byte) (*ast.Document, error) {
 	tokens := make(chan lexer.Token)
-	src := bytes.NewReader(query)
+	src := bytes.NewReader(document)
 	readr := bufio.NewReader(src)
 	go lexer.Lex(readr, tokens)
 	t, doc, err := parseDocument(tokens)
 	if err != nil && t.Value == "" {
-		return t, nil, fmt.Errorf("unexpected EOF")
+		return nil, &ParserError{
+			Message: err.Error(),
+			Line:    t.Line,
+			Column:  t.Col,
+			Token:   t,
+		}
 	}
-	return t, doc, err
+	return doc, nil
+}
+
+// ParseDefinition parses a single schema, type, directive definition
+func ParseDefinition(definition []byte) (ast.Definition, error) {
+	tokens := make(chan lexer.Token)
+	src := bytes.NewReader(definition)
+	readr := bufio.NewReader(src)
+	go lexer.Lex(readr, tokens)
+	token := <-tokens
+
+	desc := ""
+	if token.Kind == lexer.StringValueToken {
+		desc = strings.Trim(token.Value, `"`)
+		token = <-tokens
+		if token.Kind == lexer.NameToken && token.Value == "schema" {
+			return nil, &ParserError{
+				Message: "expected everything but 'schema'.. a Schema does NOT have description",
+				Line:    token.Line,
+				Column:  token.Col,
+				Token:   token,
+			}
+		}
+	}
+	if token.Kind == lexer.NameToken && token.Value == "schema" {
+		t, def, err := parseSchema(<-tokens, tokens)
+		if err != nil {
+			return nil, err
+		} else if t.Kind != lexer.BadToken && err == nil {
+			return nil, &ParserError{
+				Message: fmt.Sprintf("invalid token after schema definition: '%s'", t.Value),
+				Line:    token.Line,
+				Column:  token.Col,
+				Token:   token,
+			}
+		}
+		return def, nil
+	}
+	t, def, err := parseDefinition(token, tokens, desc)
+	if err != nil {
+		return nil, &ParserError{
+			Message: err.Error(),
+			Line:    token.Line,
+			Column:  token.Col,
+			Token:   token,
+		}
+	} else if t.Kind != lexer.BadToken && err == nil {
+		return nil, &ParserError{
+			Message: fmt.Sprintf("invalid token after definition: '%s'", t.Value),
+			Line:    token.Line,
+			Column:  token.Col,
+			Token:   token,
+		}
+	}
+	return def, nil
 }
 
 func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) {
@@ -28,21 +100,58 @@ func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) 
 	token := <-tokens
 	for {
 		switch {
-		case token.Kind == lexer.NameToken && token.Value == "fragment":
-			f := new(ast.Fragment)
-			token, f, err = parseFragment(tokens)
-			if err != nil {
-				return token, nil, err
-			}
-			doc.Fragments = append(doc.Fragments, f)
-			break
 		case token.Kind == lexer.NameToken:
-			op := new(ast.Operation)
-			token, op, err = parseOperation(token, tokens)
-			if err != nil {
-				return token, nil, err
+			switch token.Value {
+			case "fragment":
+				{
+					f := new(ast.Fragment)
+					token, f, err = parseFragment(tokens)
+					if err != nil {
+						return token, nil, err
+					}
+					doc.Fragments = append(doc.Fragments, f)
+				}
+			case "query", "mutation", "subscription":
+				{
+					op := new(ast.Operation)
+					token, op, err = parseOperation(token, tokens)
+					if err != nil {
+						return token, nil, err
+					}
+					doc.Operations = append(doc.Operations, op)
+				}
+			case "scalar", "type", "interface", "union", "enum", "input", "directive":
+				var def ast.Definition
+				token, def, err = parseDefinition(token, tokens, "")
+				if err != nil {
+					return token, nil, err
+				}
+				doc.Definitions = append(doc.Definitions, def)
+			case "schema":
+				var def ast.Definition
+				token, def, err = parseSchema(token, tokens)
+				if err != nil {
+					return token, nil, err
+				}
+				doc.Definitions = append(doc.Definitions, def)
+			default:
+				return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
 			}
-			doc.Operations = append(doc.Operations, op)
+			break
+		case token.Kind == lexer.StringValueToken:
+			desc := strings.Trim(token.Value, `"`)
+			token = <-tokens
+			switch token.Value {
+			case "scalar", "type", "interface", "union", "enum", "input", "directive":
+				var def ast.Definition
+				token, def, err = parseDefinition(token, tokens, desc)
+				if err != nil {
+					return token, nil, err
+				}
+				doc.Definitions = append(doc.Definitions, def)
+			default:
+				return token, nil, fmt.Errorf("unexpected token: '%s', kind: %v", token.Value, token.Kind)
+			}
 			break
 		case token.Kind == lexer.PunctuatorToken && token.Value == "{":
 			set := []ast.Selection{}
@@ -58,9 +167,663 @@ func parseDocument(tokens chan lexer.Token) (lexer.Token, *ast.Document, error) 
 		case token.Kind == lexer.BadToken && token.Err == nil:
 			return token, doc, nil
 		default:
-			return token, nil, fmt.Errorf("unexpected token: %s", token.Value)
+			return token, nil, fmt.Errorf("unexpected token: %s, kind: %v", token.Value, token.Kind)
 		}
 	}
+}
+
+func parseDefinition(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	switch token.Value {
+	case "scalar":
+		return parseScalar(<-tokens, tokens, desc)
+	case "type":
+		return parseObject(<-tokens, tokens, desc)
+	case "interface":
+		return parseInterface(<-tokens, tokens, desc)
+	case "union":
+		return parseUnion(<-tokens, tokens, desc)
+	case "enum":
+		return parseEnum(<-tokens, tokens, desc)
+	case "input":
+		return parseInputObject(<-tokens, tokens, desc)
+	case "directive":
+		return parseDirectiveDefinition(<-tokens, tokens, desc)
+	}
+	return token, nil, fmt.Errorf("expected a schema, type or directive definition, got: '%s', err: '%v'", token.Value, token.Err)
+}
+
+func parseSchema(token lexer.Token, tokens chan lexer.Token) (lexer.Token, ast.Definition, error) {
+	def := new(ast.SchemaDefinition)
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		def.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
+		def.RootOperations = map[ast.OperationType]*ast.NamedType{}
+
+		token = <-tokens
+		for {
+			// quit if it's the end of the field definition list
+			if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
+				return <-tokens, def, nil
+			}
+
+			var ot ast.OperationType
+
+			// parse operation type
+			if token.Kind == lexer.NameToken {
+				switch token.Value {
+				case "query":
+					ot = ast.Query
+				case "mutation":
+					ot = ast.Mutation
+				case "subscription":
+					ot = ast.Subscription
+				default:
+					return token, nil, fmt.Errorf("expected root operation type, one of 'query', 'mutation' or 'subscription', got '%s'", token.Value)
+				}
+				if _, ok := def.RootOperations[ot]; ok {
+					return token, nil, fmt.Errorf("the given operation type '%s' is already defined in the schema definition", token.Value)
+				}
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected NameToken, got '%s'", token.Value)
+			}
+
+			if token.Kind == lexer.PunctuatorToken && token.Value == ":" {
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected token ':', got '%s'", token.Value)
+			}
+
+			if token.Kind == lexer.NameToken {
+				def.RootOperations[ot] = &ast.NamedType{
+					Name: token.Value,
+					Location: ast.Location{
+						Column: token.Col,
+						Line:   token.Line,
+					},
+				}
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected NameToken, got '%s'", token.Value)
+			}
+		}
+	}
+	return token, nil, fmt.Errorf("expected '{', and a list of root operation types, got '%s'", token.Value)
+}
+
+func parseScalar(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.ScalarDefinition{
+		Description: desc,
+	}
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		token, ds, err := parseDirectives(tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		def.Directives = ds
+		return token, def, nil
+	}
+
+	return token, def, nil
+}
+
+func parseObject(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.ObjectDefinition{
+		Description: desc,
+		Fields:      []*ast.FieldDefinition{},
+	}
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.NameToken && token.Value == "implements" {
+		token = <-tokens
+		ints := []*ast.NamedType{}
+		for {
+			if token.Kind == lexer.NameToken {
+				ints = append(ints, &ast.NamedType{
+					Name: token.Value,
+					Location: ast.Location{
+						Column: token.Col,
+						Line:   token.Line,
+					},
+				})
+				token = <-tokens
+			} else if token.Kind == lexer.PunctuatorToken && token.Value == "&" {
+				token = <-tokens
+			} else {
+				break
+			}
+		}
+		if len(ints) == 0 {
+			return token, nil, fmt.Errorf("language error..")
+		}
+		def.Implements = ints
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, fmt.Errorf("couldn't parse directives: %v", err)
+		}
+		def.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
+		token = <-tokens
+		for {
+			// quit if it's the end of the field definition list
+			if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
+				return <-tokens, def, nil
+			}
+			field := &ast.FieldDefinition{}
+
+			// parse optional description
+			if token.Kind == lexer.StringValueToken {
+				field.Description = strings.Trim(token.Value, `"`)
+				token = <-tokens
+			}
+			if token.Kind == lexer.NameToken {
+				field.Name = token.Value
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected NameToken, got token kind '%v', with value '%s'", token.Kind, token.Value)
+			}
+
+			// parse arguments definition
+			if token.Kind == lexer.PunctuatorToken && token.Value == "(" {
+				token = <-tokens
+				field.Arguments = []*ast.InputValueDefinition{}
+				for {
+					if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
+						token = <-tokens
+						break
+					}
+					var (
+						inputDef *ast.InputValueDefinition
+						err      error
+					)
+					token, inputDef, err = parseInputValueDefinition(token, tokens)
+					if err != nil {
+						return token, nil, err
+					}
+					field.Arguments = append(field.Arguments, inputDef)
+				}
+			}
+
+			if token.Kind == lexer.PunctuatorToken && token.Value == ":" {
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected ':', got token kind '%v', with value '%s'", token.Kind, token.Value)
+			}
+
+			// parse the type of the field
+			var (
+				t   ast.Type
+				err error
+			)
+			token, t, err = parseType(token, tokens)
+			if err != nil {
+				return token, nil, err
+			}
+			field.Type = t
+
+			// parse directives for field
+			if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+				var (
+					ds  []*ast.Directive
+					err error
+				)
+				token, ds, err = parseDirectives(tokens)
+				if err != nil {
+					return token, nil, err
+				}
+				field.Directives = ds
+			}
+
+			def.Fields = append(def.Fields, field)
+		}
+	}
+
+	return token, def, nil
+}
+
+func parseInterface(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.InterfaceDefinition{
+		Description: desc,
+		Fields:      []*ast.FieldDefinition{},
+	}
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, fmt.Errorf("couldn't parse directives: %v", err)
+		}
+		def.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
+		token = <-tokens
+		for {
+			// quit if it's the end of the field definition list
+			if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
+				return <-tokens, def, nil
+			}
+			field := &ast.FieldDefinition{}
+
+			// parse optional description
+			if token.Kind == lexer.StringValueToken {
+				field.Description = strings.Trim(token.Value, `"`)
+				token = <-tokens
+			}
+			if token.Kind == lexer.NameToken {
+				field.Name = token.Value
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected NameToken, got token kind '%v', with value '%s'", token.Kind, token.Value)
+			}
+
+			// parse arguments definition
+			if token.Kind == lexer.PunctuatorToken && token.Value == "(" {
+				token = <-tokens
+				field.Arguments = []*ast.InputValueDefinition{}
+				for {
+					if token.Kind == lexer.PunctuatorToken && token.Value == ")" {
+						token = <-tokens
+						break
+					}
+					var (
+						inputDef *ast.InputValueDefinition
+						err      error
+					)
+					token, inputDef, err = parseInputValueDefinition(token, tokens)
+					if err != nil {
+						return token, nil, err
+					}
+					field.Arguments = append(field.Arguments, inputDef)
+				}
+			}
+
+			if token.Kind == lexer.PunctuatorToken && token.Value == ":" {
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected ':', got token kind '%v', with value '%s'", token.Kind, token.Value)
+			}
+
+			// parse the type of the field
+			var (
+				t   ast.Type
+				err error
+			)
+			token, t, err = parseType(token, tokens)
+			if err != nil {
+				return token, nil, err
+			}
+			field.Type = t
+
+			// parse directives for field
+			if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+				var (
+					ds  []*ast.Directive
+					err error
+				)
+				token, ds, err = parseDirectives(tokens)
+				if err != nil {
+					return token, nil, err
+				}
+				field.Directives = ds
+			}
+
+			def.Fields = append(def.Fields, field)
+		}
+	}
+
+	return token, def, nil
+}
+
+func parseUnion(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.UnionDefinition{
+		Description: desc,
+	}
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, fmt.Errorf("couldn't parse directives: %v", err)
+		}
+		def.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "=" {
+		def.Members = []*ast.NamedType{}
+		token = <-tokens
+		if token.Kind == lexer.PunctuatorToken && token.Value == "|" {
+			token = <-tokens
+		}
+		if token.Kind == lexer.NameToken {
+			def.Members = append(def.Members, &ast.NamedType{
+				Location: ast.Location{
+					Column: token.Col,
+					Line:   token.Line,
+				},
+				Name: token.Value,
+			})
+			token = <-tokens
+		} else {
+			return token, nil, fmt.Errorf("expected Name token, got '%s'", token.Value)
+		}
+		for {
+			if token.Kind == lexer.PunctuatorToken && token.Value == "|" {
+				token = <-tokens
+			} else {
+				return token, def, nil
+			}
+			if token.Kind == lexer.NameToken {
+				def.Members = append(def.Members, &ast.NamedType{
+					Location: ast.Location{
+						Column: token.Col,
+						Line:   token.Line,
+					},
+					Name: token.Value,
+				})
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected Name token, got '%s'", token.Value)
+			}
+		}
+	}
+	return token, def, nil
+}
+
+func parseEnum(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.EnumDefinition{
+		Description: desc,
+	}
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	// parse directives for the enum type
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, fmt.Errorf("couldn't parse directives: %v", err)
+		}
+		def.Directives = ds
+	}
+
+	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
+		def.Values = []*ast.EnumValueDefinition{}
+		token = <-tokens
+
+		// parse all the enum value definitions
+		for {
+			if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
+				return <-tokens, def, nil
+			}
+
+			enumV := &ast.EnumValueDefinition{}
+			if token.Kind == lexer.StringValueToken {
+				enumV.Description = strings.Trim(token.Value, `"`)
+				token = <-tokens
+			}
+			if token.Kind == lexer.NameToken {
+				enumV.Value = &ast.EnumValue{
+					Location: ast.Location{
+						Column: token.Col,
+						Line:   token.Line,
+					},
+					Value: token.Value,
+				}
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected Name token, got '%v'", token.Value)
+			}
+			if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+				var (
+					ds  []*ast.Directive
+					err error
+				)
+				token, ds, err = parseDirectives(tokens)
+				if err != nil {
+					return token, nil, fmt.Errorf("couldn't parse directives on enum value: %v", err)
+				}
+				enumV.Directives = ds
+			}
+			def.Values = append(def.Values, enumV)
+		}
+	}
+	return token, def, nil
+}
+
+func parseDirectiveDefinition(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.DirectiveDefinition{
+		Description: desc,
+	}
+
+	// parse Name
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		token = <-tokens
+	} else {
+		return token, nil, fmt.Errorf("expected token '@', got: '%s'", token.Value)
+	}
+	if token.Kind != lexer.NameToken {
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	if token.Kind == lexer.NameToken && token.Value == "on" {
+		def.Locations = []string{}
+		token = <-tokens
+
+		if token.Kind == lexer.PunctuatorToken && token.Value == "|" {
+			token = <-tokens
+		}
+		if token.Kind == lexer.NameToken {
+			def.Locations = append(def.Locations, token.Value)
+			token = <-tokens
+		} else {
+			return token, nil, fmt.Errorf("expected Name token, got '%s'", token.Value)
+		}
+		for {
+			if token.Kind == lexer.PunctuatorToken && token.Value == "|" {
+				token = <-tokens
+			} else {
+				return token, def, nil
+			}
+			if token.Kind == lexer.NameToken && ast.IsValidDirective(token.Value) {
+				def.Locations = append(def.Locations, token.Value)
+				token = <-tokens
+			} else {
+				return token, nil, fmt.Errorf("expected Name token with a valid directive locaton, got '%s'", token.Value)
+			}
+		}
+	}
+	return token, def, nil
+}
+
+func parseInputObject(token lexer.Token, tokens chan lexer.Token, desc string) (lexer.Token, ast.Definition, error) {
+	def := &ast.InputObjectDefinition{
+		Description: desc,
+	}
+
+	// parse Name
+	if token.Kind != lexer.NameToken {
+		log.Println(token.Kind)
+		return token, nil, fmt.Errorf("expected NameToken, got: '%s', err: '%v'", token.Value, token.Err)
+	}
+	def.Name = token.Value
+	token = <-tokens
+
+	// parse directives for the enum type
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, fmt.Errorf("couldn't parse directives: %v", err)
+		}
+		def.Directives = ds
+	}
+
+	// parse input object field definitions
+	if token.Kind == lexer.PunctuatorToken && token.Value == "{" {
+		token = <-tokens
+		def.Fields = []*ast.InputValueDefinition{}
+		for {
+			if token.Kind == lexer.PunctuatorToken && token.Value == "}" {
+				token = <-tokens
+				break
+			}
+			var (
+				inputDef *ast.InputValueDefinition
+				err      error
+			)
+			token, inputDef, err = parseInputValueDefinition(token, tokens)
+			if err != nil {
+				return token, nil, err
+			}
+			def.Fields = append(def.Fields, inputDef)
+		}
+	}
+	return token, def, nil
+}
+
+func parseInputValueDefinition(token lexer.Token, tokens chan lexer.Token) (lexer.Token, *ast.InputValueDefinition, error) {
+	val := &ast.InputValueDefinition{}
+
+	// parse description for input
+	if token.Kind == lexer.StringValueToken {
+		val.Description = strings.Trim(token.Value, `"`)
+		token = <-tokens
+	}
+
+	// parse name of the input
+	if token.Kind == lexer.NameToken {
+		val.Name = token.Value
+		token = <-tokens
+	} else {
+		return token, nil, fmt.Errorf("expected NameToken, got token kind '%v', with value '%s'", token.Kind, token.Value)
+	}
+
+	// parse type for the input
+	if token.Kind == lexer.PunctuatorToken && token.Value == ":" {
+		token = <-tokens
+		var (
+			t   ast.Type
+			err error
+		)
+		token, t, err = parseType(token, tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		val.Type = t
+	} else {
+		// raise error since ':' and type are required in SDL
+		return token, nil, fmt.Errorf("expected ':', got token kind '%v', with value '%s'", token.Kind, token.Value)
+	}
+
+	// parse default value ()
+	if token.Kind == lexer.PunctuatorToken && token.Value == "=" {
+		token = <-tokens
+		var (
+			v   ast.Value
+			err error
+		)
+		token, v, err = parseValue(token, tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		val.DefaultValue = v
+	}
+
+	// parse directives for input
+	if token.Kind == lexer.PunctuatorToken && token.Value == "@" {
+		var (
+			ds  []*ast.Directive
+			err error
+		)
+		token, ds, err = parseDirectives(tokens)
+		if err != nil {
+			return token, nil, err
+		}
+		val.Directives = ds
+	}
+
+	return token, val, nil
 }
 
 func parseFragment(tokens chan lexer.Token) (lexer.Token, *ast.Fragment, error) {
