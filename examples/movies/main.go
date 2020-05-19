@@ -11,8 +11,8 @@ import (
 
 func main() {
 	h := handler.New(handler.Config{
-		Executor: gql.DefaultExecutor(BlockBusters),
-		GraphiQL: true,
+		Executor:   gql.DefaultExecutor(BlockBusters),
+		Playground: true,
 	})
 	http.Handle("/graphql", h)
 	if err := http.ListenAndServe(":9999", nil); err != nil {

@@ -9,8 +9,8 @@ import (
 
 func main() {
 	http.Handle("/graphql", handler.New(handler.Config{
-		Executor: gql.DefaultExecutor(Schema),
-		GraphiQL: true,
+		Executor:   gql.DefaultExecutor(Schema),
+		Playground: true,
 	}))
 	if err := http.ListenAndServe(":9999", nil); err != nil {
 		panic(err)
