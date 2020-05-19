@@ -11,9 +11,9 @@ import (
 )
 
 type Config struct {
-	Executor *gql.Executor
-	GraphiQL bool
-	Pretty   bool
+	Executor   *gql.Executor
+	Playground bool
+	Pretty     bool
 }
 
 func New(c Config) http.Handler {
@@ -31,6 +31,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		{
+			if h.conf.Playground {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				fmt.Fprint(w, playground)
+				return
+			}
 			params = &gql.Params{
 				Query:         html.UnescapeString(r.URL.Query().Get("query")),
 				Variables:     map[string]interface{}{}, // TODO: find a way of doing this..
@@ -43,11 +48,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, `{"error": "invalid variables format"}`, http.StatusBadRequest)
 					return
 				}
-			}
-			if h.conf.GraphiQL {
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				fmt.Fprint(w, graphiql)
-				return
 			}
 		}
 	case http.MethodPost:

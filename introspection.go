@@ -11,7 +11,10 @@ func init() {
 			Type: NewList(NewNonNull(typeIntrospection)),
 			Resolver: func(ctx Context) (interface{}, error) {
 				if ctx.Parent().(Type).GetKind() == ObjectKind {
-					return ctx.Parent().(*Object).GetInterfaces(), nil
+					if ctx.Parent().(*Object).Implements == nil {
+						return []struct{}{}, nil
+					}
+					return ctx.Parent().(*Object).Implements, nil
 				}
 				return nil, nil
 			},

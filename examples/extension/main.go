@@ -25,8 +25,8 @@ func main() {
 	})
 
 	h := handler.New(handler.Config{
-		Executor: exec,
-		GraphiQL: true,
+		Executor:   exec,
+		Playground: true,
 	})
 	http.Handle("/graphql", h)
 	if err := http.ListenAndServe(":9999", nil); err != nil {

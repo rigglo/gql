@@ -110,6 +110,45 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 	return gqlctx.res
 }
 
+func (e *Executor) Subscribe(ctx context.Context, query string, operationName string, variables map[string]interface{}) (<-chan interface{}, error) {
+	if e.config.Schema.Subscription == nil {
+		return nil, errors.New("Schema does not provide subscriptions")
+	}
+	p := Params{
+		Query:         query,
+		OperationName: operationName,
+		Variables:     variables,
+	}
+
+	doc, err := parser.Parse([]byte(p.Query))
+	if err != nil {
+		return nil, err
+	}
+	types, directives, implementors := getTypes(e.config.Schema)
+
+	gqlctx := newContext(ctx, e.config.Schema, doc, &p, e.config.GoroutineLimit, e.config.EnableGoroutines)
+	gqlctx.types = types
+	gqlctx.directives = directives
+	gqlctx.implementors = implementors
+
+	validate(gqlctx)
+	if len(gqlctx.res.Errors) > 0 {
+		return nil, errors.New("validation error: invalid document")
+	}
+
+	getOperation(gqlctx)
+	if len(gqlctx.res.Errors) > 0 {
+		return nil, errors.New("invalid operation")
+	}
+
+	coerceVariableValues(gqlctx)
+	if len(gqlctx.res.Errors) > 0 {
+		return nil, errors.New("invalid variables")
+	}
+
+	return subscribe(gqlctx)
+}
+
 type Params struct {
 	Query         string                 `json:"query"`
 	Variables     map[string]interface{} `json:"variables"`
@@ -282,7 +321,7 @@ func resolveOperation(ctx *gqlCtx) {
 }
 
 func executeQuery(ctx *gqlCtx, op *ast.Operation) *Result {
-	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.Query, nil)
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.Query, ctx.schema.RootValue)
 	if hasNullErrs {
 		ctx.res.Data = nil
 	} else {
@@ -292,13 +331,62 @@ func executeQuery(ctx *gqlCtx, op *ast.Operation) *Result {
 }
 
 func executeMutation(ctx *gqlCtx, op *ast.Operation) *Result {
-	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.Mutation, nil)
+	rmap, hasNullErrs := executeSelectionSet(ctx, []interface{}{}, op.SelectionSet, ctx.schema.Mutation, ctx.schema.RootValue)
 	if hasNullErrs {
 		ctx.res.Data = nil
 	} else {
 		ctx.res.Data = rmap
 	}
 	return ctx.res
+}
+
+func subscribe(ctx *gqlCtx) (<-chan interface{}, error) {
+	gfields := collectFields(ctx, ctx.schema.Subscription, ctx.operation.SelectionSet, nil)
+
+	out := make(chan interface{})
+
+	// Since the subscription operations must have ONE selection ONLY
+	// it's not a problem to run the field.Subscribe function serially
+	for rkey, fs := range gfields {
+		fieldName := fs[0].Name
+		if !strings.HasPrefix(fieldName, "__") {
+			res, err := ctx.schema.Subscription.Fields[fieldName].Resolver(
+				&resolveContext{
+					ctx:    ctx.ctx, // this is the original context
+					gqlCtx: ctx,     // execution context
+					args:   coerceArgumentValues(ctx, []interface{}{rkey}, ctx.schema.Subscription, fs[0]),
+					parent: ctx.schema.RootValue, // root value
+					path:   []interface{}{rkey},
+				},
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			if ch, ok := res.(chan interface{}); ok {
+				go func() {
+					for v := range ch {
+						res, hasErr := completeValue(ctx, nil, ctx.schema.Subscription.Fields[fieldName].Type, fs, v)
+						if hasErr {
+							out <- &Result{
+								Data:   nil,
+								Errors: ctx.res.Errors,
+							}
+							ctx.res.Errors = []*Error{}
+						}
+						out <- &Result{
+							Data: map[string]interface{}{
+								rkey: res,
+							},
+						}
+					}
+					close(out)
+				}()
+			}
+			return out, nil
+		}
+	}
+	return nil, errors.New("invalid subscription")
 }
 
 func executeSelectionSet(ctx *gqlCtx, path []interface{}, ss []ast.Selection, ot *Object, ov interface{}) (map[string]interface{}, bool) {
@@ -932,6 +1020,9 @@ func getTypes(s *Schema) (map[string]Type, map[string]Directive, map[string][]Ty
 	typeWalker(types, directives, implementors, s.Query)
 	if s.Mutation != nil {
 		typeWalker(types, directives, implementors, s.Mutation)
+	}
+	if s.Subscription != nil {
+		typeWalker(types, directives, implementors, s.Subscription)
 	}
 	return types, directives, implementors
 }
