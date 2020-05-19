@@ -110,9 +110,14 @@ func (e *Executor) Execute(ctx context.Context, p Params) *Result {
 	return gqlctx.res
 }
 
-func (e *Executor) Subscribe(ctx context.Context, p Params) (<-chan *Result, error) {
+func (e *Executor) Subscribe(ctx context.Context, query string, operationName string, variables map[string]interface{}) (<-chan interface{}, error) {
 	if e.config.Schema.Subscription == nil {
 		return nil, errors.New("Schema does not provide subscriptions")
+	}
+	p := Params{
+		Query:         query,
+		OperationName: operationName,
+		Variables:     variables,
 	}
 
 	doc, err := parser.Parse([]byte(p.Query))
@@ -148,7 +153,6 @@ type Params struct {
 	Query         string                 `json:"query"`
 	Variables     map[string]interface{} `json:"variables"`
 	OperationName string                 `json:"operationName"`
-	RootValue     interface{}            `json:"-"`
 }
 
 func Execute(ctx context.Context, s *Schema, p Params) *Result {
@@ -336,10 +340,10 @@ func executeMutation(ctx *gqlCtx, op *ast.Operation) *Result {
 	return ctx.res
 }
 
-func subscribe(ctx *gqlCtx) (<-chan *Result, error) {
+func subscribe(ctx *gqlCtx) (<-chan interface{}, error) {
 	gfields := collectFields(ctx, ctx.schema.Subscription, ctx.operation.SelectionSet, nil)
 
-	out := make(chan *Result)
+	out := make(chan interface{})
 
 	// Since the subscription operations must have ONE selection ONLY
 	// it's not a problem to run the field.Subscribe function serially
