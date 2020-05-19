@@ -18,6 +18,7 @@ type Schema struct {
 	Mutation     *Object
 	Subscription *Object
 	Directives   Directives
+	RootValue    interface{}
 }
 
 // TypeKind shows the kind of a Type
