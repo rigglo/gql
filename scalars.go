@@ -70,10 +70,8 @@ var ID *Scalar = &Scalar{
 			if sv, ok := v.(*ast.StringValue); ok {
 				return trimString(sv.Value), nil
 			} else if iv, ok := v.(*ast.IntValue); ok {
-				return coerceInt(iv)
+				return coerceString(iv.Value, true)
 			}
-		} else if i, err := coerceInt(i); err == nil {
-			return i, nil
 		}
 		return coerceString(i, true)
 	},

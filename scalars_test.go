@@ -200,7 +200,7 @@ func Test_IDScalarInput(t *testing.T) {
 			value: &ast.IntValue{
 				Value: `42`,
 			},
-			expected: int(42),
+			expected: "42",
 			hasErr:   false,
 		},
 		{
@@ -212,7 +212,7 @@ func Test_IDScalarInput(t *testing.T) {
 		{
 			name:     "numericString",
 			value:    "42",
-			expected: 42,
+			expected: "42",
 			hasErr:   false,
 		},
 		{
@@ -230,19 +230,13 @@ func Test_IDScalarInput(t *testing.T) {
 				s := "42"
 				return &s
 			}(),
-			expected: 42,
+			expected: "42",
 			hasErr:   false,
 		},
 		{
 			name:     "[]byte",
 			value:    []byte("bar"),
 			expected: `bar`,
-			hasErr:   false,
-		},
-		{
-			name:     "int",
-			value:    int(42),
-			expected: 42,
 			hasErr:   false,
 		},
 		{
@@ -256,12 +250,6 @@ func Test_IDScalarInput(t *testing.T) {
 			value:    float64(3.14),
 			expected: nil,
 			hasErr:   true,
-		},
-		{
-			name:     "validFloat64",
-			value:    float64(42),
-			expected: 42,
-			hasErr:   false,
 		},
 	}
 	for _, tt := range tests {
