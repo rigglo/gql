@@ -72,6 +72,11 @@ var ID *Scalar = &Scalar{
 			} else if iv, ok := v.(*ast.IntValue); ok {
 				return coerceString(iv.Value, true)
 			}
+		} else if i, err := coerceInt(i); err == nil {
+			if i == nil {
+				return nil, nil
+			}
+			return fmt.Sprintf("%v", i), nil
 		}
 		return coerceString(i, true)
 	},
