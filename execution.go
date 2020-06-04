@@ -32,8 +32,7 @@ type ExecutorConfig struct {
 func DefaultExecutor(s *Schema) *Executor {
 	return &Executor{
 		config: &ExecutorConfig{
-			EnableGoroutines: true,
-			GoroutineLimit:   10,
+			EnableGoroutines: false,
 			Schema:           s,
 		},
 	}
