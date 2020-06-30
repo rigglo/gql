@@ -69,6 +69,8 @@ type Context interface {
 	Args() map[string]interface{}
 	// Parent object's data
 	Parent() interface{}
+	// Schema that's currently being executed
+	Schema() Schema
 }
 
 type resolveContext struct {
@@ -98,4 +100,8 @@ func (r *resolveContext) Args() map[string]interface{} {
 
 func (r *resolveContext) Parent() interface{} {
 	return r.parent
+}
+
+func (r *resolveContext) Schema() Schema {
+	return *r.gqlCtx.schema
 }
