@@ -595,7 +595,7 @@ func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) {
 	case t.GetKind() == ListKind:
 		lv := val.(*ast.ListValue)
 		for i := 0; i < len(lv.Values); i++ {
-			validateValue(ctx, op, t.(*List).Unwrap(), val)
+			validateValue(ctx, op, t.(*List).Unwrap(), lv.Values[i])
 		}
 		return
 	case t.GetKind() == ScalarKind:

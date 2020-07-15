@@ -673,7 +673,7 @@ func coerceValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 	case t.GetKind() == ListKind:
 		wt := t.(*List).Unwrap()
 		switch val := val.(type) {
-		case ast.ListValue:
+		case *ast.ListValue:
 			res := make([]interface{}, len(val.Values))
 			for i := 0; i < len(res); i++ {
 				r, err := coerceValue(ctx, val.Values[i].GetValue(), wt)
