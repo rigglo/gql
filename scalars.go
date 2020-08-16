@@ -16,39 +16,34 @@ var String *Scalar = &Scalar{
 	Name:        "String",
 	Description: "This is the built-in 'String' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
-		if m, ok := i.(json.Marshaler); ok {
-			return m, nil
+		switch i := i.(type) {
+		case json.Marshaler:
+			return i, nil
+		case string, *string:
+			return i, nil
+		case []byte:
+			return string(i), nil
+		case fmt.Stringer:
+			return i.String(), nil
+		default:
+			return fmt.Sprintf("%v", i), nil
 		}
-		if v, ok := i.(string); ok {
-			return v, nil
-		} else if v, ok := i.(*string); ok {
-			if v == nil {
-				return nil, nil
-			}
-			return *v, nil
-		} else if v, ok := i.([]byte); ok {
-			if v == nil {
-				return nil, nil
-			}
-			return string(v), nil
-		}
-		return fmt.Sprintf("%v", i), nil
 	},
 	CoerceInputFunc: func(i interface{}) (interface{}, error) {
 		switch i := i.(type) {
-		case ast.Value:
-			if v, ok := i.(*ast.StringValue); ok {
-				return trimString(v.Value), nil
-			}
-			return nil, errors.New("invalid value for String scalar")
 		case string:
 			return i, nil
-		case *string:
-			return *i, nil
-		case []byte:
-			return string(i), nil
+		default:
+			return nil, fmt.Errorf("invalid value for String scalar, got type: '%T'", i)
 		}
-		return nil, errors.New("invalid value for String scalar")
+	},
+	AstValidator: func(v ast.Value) error {
+		switch v.(type) {
+		case *ast.StringValue:
+			return nil
+		default:
+			return errors.New("invalid value type for String scalar")
+		}
 	},
 }
 
@@ -56,29 +51,34 @@ var ID *Scalar = &Scalar{
 	Name:        "ID",
 	Description: "This is the built-in 'ID' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
-		if m, ok := i.(json.Marshaler); ok {
-			v, err := m.MarshalJSON()
-			if err != nil {
-				return nil, err
-			}
-			return trimString(string(v)), nil
+		switch i := i.(type) {
+		case json.Marshaler:
+			return i, nil
+		case int, int8, int16, int32, uint, uint8, uint16, uint32, string:
+			return i, nil
+		case []byte:
+			return string(i), nil
+		case fmt.Stringer:
+			return i.String(), nil
+		default:
+			return fmt.Sprintf("%s", i), nil
 		}
-		return coerceString(i, false)
 	},
 	CoerceInputFunc: func(i interface{}) (interface{}, error) {
-		if v, ok := i.(ast.Value); ok {
-			if sv, ok := v.(*ast.StringValue); ok {
-				return trimString(sv.Value), nil
-			} else if iv, ok := v.(*ast.IntValue); ok {
-				return coerceString(iv.Value, true)
-			}
-		} else if i, err := coerceInt(i); err == nil {
-			if i == nil {
-				return nil, nil
-			}
-			return fmt.Sprintf("%v", i), nil
+		switch i := i.(type) {
+		case string:
+			return i, nil
+		default:
+			return nil, fmt.Errorf("invalid value for ID scalar, got type: '%T'", i)
 		}
-		return coerceString(i, true)
+	},
+	AstValidator: func(v ast.Value) error {
+		switch v.(type) {
+		case *ast.StringValue, *ast.IntValue:
+			return nil
+		default:
+			return errors.New("invalid value type for ID scalar")
+		}
 	},
 }
 
@@ -86,13 +86,22 @@ var Int *Scalar = &Scalar{
 	Name:        "Int",
 	Description: "This is the built-in 'Int' scalar type",
 	CoerceResultFunc: func(i interface{}) (interface{}, error) {
-		if m, ok := i.(json.Marshaler); ok {
-			return m, nil
+		switch i := i.(type) {
+		case json.Marshaler:
+			return i, nil
+		default:
+			return coerceInt(i)
 		}
-
-		return coerceInt(i)
 	},
 	CoerceInputFunc: coerceInt,
+	AstValidator: func(v ast.Value) error {
+		switch v.(type) {
+		case *ast.IntValue:
+			return nil
+		default:
+			return errors.New("invalid value type for Int scalar")
+		}
+	},
 }
 
 var Float *Scalar = &Scalar{
@@ -105,6 +114,14 @@ var Float *Scalar = &Scalar{
 		return coerceFloat(i)
 	},
 	CoerceInputFunc: coerceFloat,
+	AstValidator: func(v ast.Value) error {
+		switch v.(type) {
+		case *ast.IntValue, *ast.FloatValue:
+			return nil
+		default:
+			return errors.New("invalid value type for Float scalar")
+		}
+	},
 }
 
 var Boolean *Scalar = &Scalar{
@@ -117,6 +134,14 @@ var Boolean *Scalar = &Scalar{
 		return coerceBool(i)
 	},
 	CoerceInputFunc: coerceBool,
+	AstValidator: func(v ast.Value) error {
+		switch v.(type) {
+		case *ast.BooleanValue:
+			return nil
+		default:
+			return errors.New("invalid value type for Boolean scalar")
+		}
+	},
 }
 
 var DateTime *Scalar = &Scalar{
@@ -129,6 +154,14 @@ var DateTime *Scalar = &Scalar{
 		return serializeDateTime(i)
 	},
 	CoerceInputFunc: unserializeDateTime,
+	AstValidator: func(v ast.Value) error {
+		switch v.(type) {
+		case *ast.StringValue:
+			return nil
+		default:
+			return errors.New("invalid value type for DateTime scalar")
+		}
+	},
 }
 
 func trimString(value string) string {

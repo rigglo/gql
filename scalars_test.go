@@ -17,14 +17,6 @@ func Test_StringScalarInput(t *testing.T) {
 		hasErr   bool
 	}{
 		{
-			name: "astString",
-			value: &ast.StringValue{
-				Value: `"asd"`,
-			},
-			expected: `asd`,
-			hasErr:   false,
-		},
-		{
 			name: "astInt",
 			value: &ast.IntValue{
 				Value: `3`,
@@ -44,14 +36,14 @@ func Test_StringScalarInput(t *testing.T) {
 				s := "foo"
 				return &s
 			}(),
-			expected: "foo",
-			hasErr:   false,
+			expected: nil,
+			hasErr:   true,
 		},
 		{
 			name:     "[]byte",
 			value:    []byte("bar"),
-			expected: "bar",
-			hasErr:   false,
+			expected: nil,
+			hasErr:   true,
 		},
 		{
 			name:     "int",
@@ -192,16 +184,16 @@ func Test_IDScalarInput(t *testing.T) {
 			value: &ast.StringValue{
 				Value: `"asd"`,
 			},
-			expected: `asd`,
-			hasErr:   false,
+			expected: nil,
+			hasErr:   true,
 		},
 		{
 			name: "astInt",
 			value: &ast.IntValue{
 				Value: `42`,
 			},
-			expected: "42",
-			hasErr:   false,
+			expected: nil,
+			hasErr:   true,
 		},
 		{
 			name:     "nonNumericString",
@@ -221,8 +213,8 @@ func Test_IDScalarInput(t *testing.T) {
 				s := "foo"
 				return &s
 			}(),
-			expected: `foo`,
-			hasErr:   false,
+			expected: nil,
+			hasErr:   true,
 		},
 		{
 			name: "numericStringPointer",
@@ -230,14 +222,14 @@ func Test_IDScalarInput(t *testing.T) {
 				s := "42"
 				return &s
 			}(),
-			expected: "42",
-			hasErr:   false,
+			expected: nil,
+			hasErr:   true,
 		},
 		{
 			name:     "[]byte",
 			value:    []byte("bar"),
-			expected: `bar`,
-			hasErr:   false,
+			expected: nil,
+			hasErr:   true,
 		},
 		{
 			name:     "bool",

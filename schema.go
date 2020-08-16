@@ -3,6 +3,8 @@ package gql
 import (
 	"context"
 	"reflect"
+
+	"github.com/rigglo/gql/pkg/language/ast"
 )
 
 /*
@@ -184,6 +186,9 @@ type CoerceResultFunc func(interface{}) (interface{}, error)
 // CoerceInputFunc coerces the input value to a type which will be used during field resolve
 type CoerceInputFunc func(interface{}) (interface{}, error)
 
+// ScalarAstValueValidator validates if the ast value is right
+type ScalarAstValueValidator func(ast.Value) error
+
 /*
 Scalar types represent primitive leaf values in a GraphQL type system. GraphQL responses
 take the form of a hierarchical tree; the leaves of this tree are typically
@@ -195,6 +200,7 @@ type Scalar struct {
 	Directives       Directives
 	CoerceResultFunc CoerceResultFunc
 	CoerceInputFunc  CoerceInputFunc
+	AstValidator     ScalarAstValueValidator
 }
 
 // GetName returns the name of the scalar
