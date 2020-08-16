@@ -1,31 +1,193 @@
-package lexer_test
+package lexer
 
-import (
-	"bufio"
-	"strings"
-	"testing"
+import "testing"
 
-	"github.com/rigglo/gql/pkg/language/lexer"
-)
+func TestStringValue(t *testing.T) {
+	l := &Lexer{
+		input: NewInput([]byte(`
+		"Hello,\n  World!\n\nYours,\n  GraphQL."
+		"""
+	Hello,
+	  World!
+	
+	Yours,
+	  GraphQL.
+  """
+`)),
+	}
+	token1 := l.Read()
+	token2 := l.Read()
+	if token1.Value != token2.Value {
+		t.Fatalf("expected '%s' == '%s'", token1.Value, token2.Value)
+	}
+}
+
+func TestBlockStringValue(t *testing.T) {
+	block := ` 
+    Hello,
+      World!
+    
+    Yours,
+      GraphQL.
+	  `
+	expect := "Hello,\n  World!\n\nYours,\n  GraphQL."
+	res := string(BlockStringValue([]byte(block)))
+	if expect != res {
+		t.Fatalf("invalid res, \n'%s'\n'%s'", res, expect)
+	}
+}
 
 func TestLexer(t *testing.T) {
-	query := `
-	query  {
-		foo {
-			bar
+	l := &Lexer{
+		input: NewInput([]byte(`
+		type Person {
+			name(
+				"""
+				some example arg
+				"""
+				bar: String
+	
+				"some other arg"
+				foo: Int
+			): String
+			age: Int
+			picture: Url
+		}
+`)),
+	}
+	token := l.Read()
+	for {
+		t.Log(token.Kind, token.Value)
+		if token.Kind == EOFToken {
+			return
+		}
+		token = l.Read()
+	}
+}
+
+var example string = `
+type Character { 
+	name: String!
+	appearsIn: [Episode!]!
+}`
+
+var introspectionQuery = `query IntrospectionQuery {
+	__schema {
+	  queryType {
+		name
+	  }
+	  mutationType {
+		name
+	  }
+	  subscriptionType {
+		name
+	  }
+	  types {
+		...FullType
+	  }
+	  directives {
+		name
+		description
+		locations
+		args {
+		  ...InputValue
 		}
 	  }
-`
+	}
+  }
+  
+  fragment FullType on __Type {
+	kind
+	name
+	description
+	fields(includeDeprecated: true) {
+	  name
+	  description
+	  args {
+		...InputValue
+	  }
+	  type {
+		...TypeRef
+	  }
+	  isDeprecated
+	  deprecationReason
+	}
+	inputFields {
+	  ...InputValue
+	}
+	interfaces {
+	  ...TypeRef
+	}
+	enumValues(includeDeprecated: true) {
+	  name
+	  description
+	  isDeprecated
+	  deprecationReason
+	}
+	possibleTypes {
+	  ...TypeRef
+	}
+  }
+  
+  fragment InputValue on __InputValue {
+	name
+	description
+	type {
+	  ...TypeRef
+	}
+	defaultValue
+  }
+  
+  fragment TypeRef on __Type {
+	kind
+	name
+	ofType {
+	  kind
+	  name
+	  ofType {
+		kind
+		name
+		ofType {
+		  kind
+		  name
+		  ofType {
+			kind
+			name
+			ofType {
+			  kind
+			  name
+			  ofType {
+				kind
+				name
+				ofType {
+				  kind
+				  name
+				}
+			  }
+			}
+		  }
+		}
+	  }
+	}
+  }`
 
-	tokens := make(chan lexer.Token)
-	src := strings.NewReader(query)
-	readr := bufio.NewReader(src)
-	go lexer.Lex(readr, tokens)
-	for token := range tokens {
-		// log.Printf("token: %#v", token)
-		//log.Print(token.Value)
-		if token.Err != nil {
-			t.Error(token.Err.Error())
+func BenchmarkLexer(b *testing.B) {
+	inputBytes := []byte(introspectionQuery)
+
+	lexer := &Lexer{
+		input: NewInput(inputBytes),
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.SetBytes(int64(len(inputBytes)))
+
+	for i := 0; i < b.N; i++ {
+		lexer.input.Reset()
+		var kind TokenKind
+
+		for kind != EOFToken {
+			kind = lexer.Read().Kind
 		}
 	}
 }

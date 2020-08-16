@@ -33,7 +33,9 @@ query {
 
 func TestParseScalar(t *testing.T) {
 	query := `
-	"""some scalar"""
+	"""
+	some scalar
+	"""
 	scalar foo @depricated(reason: "just")
 
 	scalar bar`
