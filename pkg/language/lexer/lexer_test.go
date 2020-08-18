@@ -1,6 +1,8 @@
 package lexer
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestStringValue(t *testing.T) {
 	l := &Lexer{
@@ -20,6 +22,36 @@ func TestStringValue(t *testing.T) {
 	if token1.Value != token2.Value {
 		t.Fatalf("expected '%s' == '%s'", token1.Value, token2.Value)
 	}
+}
+
+func TestFloatAsInt(t *testing.T) {
+	l := &Lexer{
+		input: NewInput([]byte(`123`)),
+	}
+	token := l.Read()
+	if token.Value != "123" || token.Kind != IntValueToken {
+		t.Fatalf("expected '%s' == '%s'", token.Value, "123")
+	}
+}
+func TestFloatAsSimpleFloat(t *testing.T) {
+	l := &Lexer{
+		input: NewInput([]byte(`123.123`)),
+	}
+	token := l.Read()
+	if token.Value != "123.123" || token.Kind != FloatValueToken {
+		t.Fatalf("expected '%s' == '%s' & '%v' == '%v'", token.Value, "123.123", token.Kind.String(), FloatValueToken.String())
+	}
+	t.Logf("got '%s' == '%s' & '%v' == '%v'", token.Value, "123.123", token.Kind.String(), FloatValueToken.String())
+}
+func TestFloatAsComplexFloat(t *testing.T) {
+	l := &Lexer{
+		input: NewInput([]byte(`123.123e+20`)),
+	}
+	token := l.Read()
+	if token.Value != "123.123e+20" || token.Kind != FloatValueToken {
+		t.Fatalf("expected '%s' == '%s' & '%v' == '%v'", token.Value, "123.123e+20", token.Kind.String(), FloatValueToken.String())
+	}
+	t.Logf("got '%s' == '%s' & '%v' == '%v'", token.Value, "123.123e+20", token.Kind.String(), FloatValueToken.String())
 }
 
 func TestBlockStringValue(t *testing.T) {

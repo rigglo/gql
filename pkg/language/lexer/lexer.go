@@ -67,7 +67,7 @@ func (l *Lexer) peekEqual(bs ...rune) bool {
 
 func (l *Lexer) peekRules(bs ...func(rune) bool) bool {
 	for i := 0; i < len(bs); i++ {
-		if !bs[i](l.input.PeekOne(i + 1)) {
+		if !bs[i](l.input.PeekOne(i)) {
 			return false
 		}
 	}

@@ -55,6 +55,9 @@ const (
 
 	// negative sign for numeric values
 	runeNegativeSign = '-'
+
+	// plus sign
+	runePlusSign = '+'
 )
 
 func isSourceCharacter(r rune) bool {
@@ -111,6 +114,10 @@ func isDigit(r rune) bool {
 
 func isNonZeroDigit(r rune) bool {
 	return '1' <= r && r <= '9'
+}
+
+func isExponentIndicator(r rune) bool {
+	return r == 'e' || r == 'E'
 }
 
 // TODO: check for triple dots

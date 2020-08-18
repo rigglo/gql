@@ -177,12 +177,10 @@ func (l *Lexer) readIntValue(t *Token) bool {
 		for isDigit(l.input.PeekOne(0)) {
 			l.input.Pos++
 		}
-		if l.peekRules(func(r rune) bool {
-			return r == runeDot || isNameStart(r)
-		}) {
+		if l.input.PeekOne(0) == runeDot || isNameStart(l.input.PeekOne(0)) {
 			// TODO: return undefined token error
 			l.input.Pos = t.Start
-			return false
+			return l.readFloatValue(t)
 		}
 	}
 	t.Kind = IntValueToken
@@ -212,10 +210,26 @@ func (l *Lexer) readFloatValue(t *Token) bool {
 		for isDigit(l.input.PeekOne(0)) {
 			l.input.Pos++
 		}
-		if l.input.PeekOne(0) == runeDot || isNameStart(l.input.PeekOne(0)) {
-			// TODO: return undefined token error
-			l.input.Pos = t.Start
-			return false
+	}
+	if l.peekRules(
+		func(r rune) bool { return r == runeDot },
+		isDigit,
+	) {
+		l.input.Pos++
+		for isDigit(l.input.PeekOne(0)) {
+			l.input.Pos++
+		}
+	}
+	if l.peekRules(
+		isExponentIndicator,
+		func(r rune) bool { return isDigit(r) || (r == runeNegativeSign || r == runePlusSign) },
+	) {
+		l.input.Pos++
+		if l.input.PeekOne(0) == runeNegativeSign || l.input.PeekOne(0) == runePlusSign {
+			l.input.Pos++
+		}
+		for isDigit(l.input.PeekOne(0)) {
+			l.input.Pos++
 		}
 	}
 	t.Kind = FloatValueToken
