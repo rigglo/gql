@@ -1,5 +1,10 @@
 package ast
 
+import (
+	"encoding/json"
+	"strings"
+)
+
 type DefinitionKind uint
 
 const (
@@ -15,6 +20,7 @@ const (
 
 type Definition interface {
 	Kind() DefinitionKind
+	String() string
 }
 
 type SchemaDefinition struct {
@@ -27,6 +33,25 @@ func (d *SchemaDefinition) Kind() DefinitionKind {
 	return SchemaKind
 }
 
+func (d *SchemaDefinition) String() string {
+	out := "schema "
+	for _, dir := range d.Directives {
+		out += dir.String() + " "
+	}
+	out += "{\n"
+	if nt, ok := d.RootOperations[Query]; ok && nt != nil {
+		out += "\tquery: " + nt.Name + "\n"
+	}
+	if nt, ok := d.RootOperations[Mutation]; ok && nt != nil {
+		out += "\tmutation: " + nt.Name + "\n"
+	}
+	if nt, ok := d.RootOperations[Subscription]; ok && nt != nil {
+		out += "\tsubscription: " + nt.Name + "\n"
+	}
+	out += "}\n"
+	return out
+}
+
 type ScalarDefinition struct {
 	Description string
 	Name        string
@@ -35,6 +60,19 @@ type ScalarDefinition struct {
 
 func (d *ScalarDefinition) Kind() DefinitionKind {
 	return ScalarKind
+}
+
+func (d *ScalarDefinition) String() string {
+	out := ""
+	if d.Description != "" {
+		out += `"""` + jsonEscape(d.Description) + "\"\"\"\n"
+	}
+	out += "scalar " + d.Name + " "
+	for _, dir := range d.Directives {
+		out += dir.String() + " "
+	}
+	out += "\n"
+	return out
 }
 
 type ObjectDefinition struct {
@@ -49,6 +87,26 @@ func (d *ObjectDefinition) Kind() DefinitionKind {
 	return ObjectKind
 }
 
+func (d *ObjectDefinition) String() string {
+	out := ""
+	if d.Description != "" {
+		out += `"""` + jsonEscape(d.Description) + "\"\"\"\n"
+	}
+	out += "type " + d.Name + " "
+	for _, dir := range d.Directives {
+		out += dir.String() + " "
+	}
+	out += "{\n"
+	for i, f := range d.Fields {
+		if i != 0 {
+			out += "\n"
+		}
+		out += f.String()
+	}
+	out += "}\n"
+	return out
+}
+
 type FieldDefinition struct {
 	Description string
 	Name        string
@@ -57,12 +115,41 @@ type FieldDefinition struct {
 	Directives  []*Directive
 }
 
+func (d *FieldDefinition) String() string {
+	out := ""
+	if d.Description != "" {
+		out += "\t\"\"\"" + jsonEscape(d.Description) + "\"\"\"\n"
+	}
+	out += "\t" + d.Name
+	if d.Arguments != nil && len(d.Arguments) != 0 {
+		out += "(\n\t\t"
+		for i, a := range d.Arguments {
+			out += a.String()
+			if i+1 == len(d.Arguments) {
+				out += "\n\t)"
+			} else {
+				out += "\n\t\t"
+			}
+		}
+	}
+	out += ": " + d.Type.String()
+	for _, dir := range d.Directives {
+		out += " " + dir.String()
+	}
+	out += "\n"
+	return out
+}
+
 type InputValueDefinition struct {
 	Description  string
 	Name         string
 	Type         Type
 	DefaultValue Value
 	Directives   []*Directive
+}
+
+func (d *InputValueDefinition) String() string {
+	return d.Name + ": " + d.Type.String()
 }
 
 type InterfaceDefinition struct {
@@ -76,6 +163,26 @@ func (d *InterfaceDefinition) Kind() DefinitionKind {
 	return InterfaceKind
 }
 
+func (d *InterfaceDefinition) String() string {
+	out := ""
+	if d.Description != "" {
+		out += `"""` + jsonEscape(d.Description) + "\"\"\"\n"
+	}
+	out += "interface " + d.Name + " "
+	for _, dir := range d.Directives {
+		out += dir.String() + " "
+	}
+	out += "{\n"
+	for i, f := range d.Fields {
+		if i != 0 {
+			out += "\n"
+		}
+		out += f.String()
+	}
+	out += "}\n"
+	return out
+}
+
 type UnionDefinition struct {
 	Description string
 	Name        string
@@ -87,6 +194,25 @@ func (d *UnionDefinition) Kind() DefinitionKind {
 	return UnionKind
 }
 
+func (d *UnionDefinition) String() string {
+	out := ""
+	if d.Description != "" {
+		out += `"""` + jsonEscape(d.Description) + "\"\"\"\n"
+	}
+	out += "union " + d.Name + " "
+	for _, dir := range d.Directives {
+		out += dir.String() + " "
+	}
+	out += "= "
+	for i, m := range d.Members {
+		if i != 0 {
+			out += " | "
+		}
+		out += m.Name
+	}
+	return out + "\n"
+}
+
 type EnumDefinition struct {
 	Description string
 	Name        string
@@ -96,6 +222,19 @@ type EnumDefinition struct {
 
 func (d *EnumDefinition) Kind() DefinitionKind {
 	return EnumKind
+}
+
+func (d *EnumDefinition) String() string {
+	out := ""
+	if d.Description != "" {
+		out += `"""` + jsonEscape(d.Description) + "\"\"\"\n"
+	}
+	out += "enum " + d.Name + " "
+	for _, dir := range d.Directives {
+		out += dir.String() + " "
+	}
+	out += "{\n}\n"
+	return out
 }
 
 type EnumValueDefinition struct {
@@ -115,6 +254,19 @@ func (d *InputObjectDefinition) Kind() DefinitionKind {
 	return InputObjectKind
 }
 
+func (d *InputObjectDefinition) String() string {
+	out := ""
+	if d.Description != "" {
+		out += `"""` + jsonEscape(d.Description) + "\"\"\"\n"
+	}
+	out += "input " + d.Name + " "
+	for _, dir := range d.Directives {
+		out += dir.String() + " "
+	}
+	out += "{\n}\n"
+	return out
+}
+
 type DirectiveDefinition struct {
 	Description string
 	Name        string
@@ -124,4 +276,22 @@ type DirectiveDefinition struct {
 
 func (d *DirectiveDefinition) Kind() DefinitionKind {
 	return DirectiveKind
+}
+
+func (d *DirectiveDefinition) String() string {
+	out := ""
+	if d.Description != "" {
+		out += `"""` + jsonEscape(d.Description) + "\"\"\"\n"
+	}
+	out += "directive @" + d.Name + " on " + strings.Join(d.Locations, " | ") + "\n"
+	return out
+}
+
+func jsonEscape(i string) string {
+	b, err := json.Marshal(i)
+	if err != nil {
+		panic(err)
+	}
+	s := string(b)
+	return s[1 : len(s)-1]
 }

@@ -30,7 +30,7 @@ var (
 		Fields: gql.Fields{
 			"someErr": &gql.Field{
 				Type:       gql.NewList(gql.String),
-				Directives: gql.Directives{&myDirective{}},
+				Directives: gql.TypeSystemDirectives{&myDirective{}},
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return nil, gql.NewError("asdasdasd", map[string]interface{}{"code": "SOME_ERR_CODE"})
 				},
@@ -58,7 +58,7 @@ func (d *myDirective) GetLocations() []gql.DirectiveLocation {
 	return []gql.DirectiveLocation{gql.FieldDefinitionLoc}
 }
 
-func (d *myDirective) Variables() map[string]interface{} {
+func (d *myDirective) GetValues() map[string]interface{} {
 	return nil
 }
 

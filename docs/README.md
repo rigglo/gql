@@ -1,4 +1,4 @@
-# gql
+# About gql
 
 ![tests](https://github.com/rigglo/gql/workflows/tests/badge.svg)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/rigglo/gql)](https://pkg.go.dev/github.com/rigglo/gql)
@@ -13,7 +13,6 @@ This project aims to fulfill some of the most common feature requests missing fr
 - [x] Custom scalars
 - [x] Extensions
 - [x] Subscriptions
-- [x] Apollo Federation
 - [ ] Custom directives
   - [x] Field directives
   - [ ] Executable directives
@@ -21,17 +20,12 @@ This project aims to fulfill some of the most common feature requests missing fr
 - [ ] Opentracing
 - [ ] Query complexity
 - [ ] Apollo File Upload
+- [ ] Apollo Federation
 - [ ] Custom validation for input and arguments
 - [ ] Access to the requested fields in a resolver
 - [ ] Custom rules-based introspection
 - [ ] Converting structs into GraphQL types
 - [ ] Parse inputs into structs
-
-## Examples
-
-There are examples in the `examples` folder, these are only uses this `gql` package, they don't have any other dependencies. 
-
-Additional examples can be found for Apollo Federation, Subscriptions in the [rigglo/gql-examples](https://github.com/rigglo/gql-examples) repository.
 
 ## Getting started
 
@@ -95,8 +89,8 @@ var PizzeriaSchema = &gql.Schema{
 
 At this point, what's only left is an executor, so we can run our queries, and a handler to be able to serve our schema.
 
-For our example, let's use the default executor, but if you want to experiment, customise it, add extensions, you can create your own the `gql.NewExecutor` function. 
-Let's fire up our handler using the `github.com/rigglo/gql/pkg/handler` package and also enable the playground, so we can check it from our browser.
+For our example, let's use the default executor, but if you want to experiment, customise it, add extensions, you can create your own the gql.NewExecutor function. 
+Let's fire up our handler using the github.com/rigglo/gql/pkg/handler package and also enable the playground, so we can check it from our browser.
 
 ```go
 func main() {
@@ -111,17 +105,3 @@ func main() {
 ```
 
 After running the code, you can go to the http://localhost:9999/graphql address in your browser and see the GraphQL Playground, and you can start playing with it.
-
-### NOTES
-
-#### Directives
-
-Adding directives in the type system is possible, but currently only the field directives are being executed.
-
-#### Apollo Federation
-
-The support for Apollo Federation is provided by the `github.com/rigglo/gql/pkg/federation` package, which adds the required fields, types and directives to your schema.
-
-#### SDL
-
-The support for generating SDL from the Schema is not production ready, in most cases it's enough, but it requires some work, use it for your own risk.

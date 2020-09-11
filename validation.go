@@ -599,8 +599,17 @@ func validateValue(ctx *gqlCtx, op *ast.Operation, t Type, val ast.Value) {
 		}
 		return
 	case t.GetKind() == ScalarKind:
-		s := t.(*Scalar)
-		if _, err := s.CoerceInput(val); err != nil {
+		var err error
+		if raw, ok := val.(ast.Value); ok {
+			if err = t.(*Scalar).AstValidator(val); err != nil {
+				ctx.addErr(&Error{err.Error(), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
+			} else {
+				_, err = t.(*Scalar).CoerceInputFunc(raw.GetValue())
+			}
+		} else {
+			_, err = t.(*Scalar).CoerceInputFunc(val)
+		}
+		if err != nil {
 			ctx.addErr(&Error{err.Error(), []*ErrorLocation{{Line: val.GetLocation().Line, Column: val.GetLocation().Column}}, nil, nil})
 		}
 		return

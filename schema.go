@@ -2,7 +2,11 @@ package gql
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"strings"
+
+	"github.com/rigglo/gql/pkg/language/ast"
 )
 
 /*
@@ -14,11 +18,18 @@ supports as well as the root operation types for each kind of operation: query,
 mutation, and subscription; this determines the place in the type system where those operations begin.
 */
 type Schema struct {
-	Query        *Object
-	Mutation     *Object
-	Subscription *Object
-	Directives   Directives
-	RootValue    interface{}
+	Query           *Object
+	Mutation        *Object
+	Subscription    *Object
+	Directives      TypeSystemDirectives
+	AdditionalTypes []Type
+	RootValue       interface{}
+}
+
+// SDL generates an SDL string from your schema
+func (s Schema) SDL() string {
+	b := newSDLBuilder(&s)
+	return b.Build()
 }
 
 // TypeKind shows the kind of a Type
@@ -48,6 +59,7 @@ type Type interface {
 	GetName() string
 	GetDescription() string
 	GetKind() TypeKind
+	String() string
 }
 
 func isInputType(t Type) bool {
@@ -123,6 +135,11 @@ func (l *List) Unwrap() Type {
 	return l.Wrapped
 }
 
+// String implements the fmt.Stringer
+func (l *List) String() string {
+	return fmt.Sprintf("[%s]", l.Wrapped.String())
+}
+
 /*
  _   _  ___  _   _       _   _ _   _ _     _
 | \ | |/ _ \| \ | |     | \ | | | | | |   | |
@@ -170,6 +187,11 @@ func (l *NonNull) Unwrap() Type {
 	return l.Wrapped
 }
 
+// String implements the fmt.Stringer
+func (l *NonNull) String() string {
+	return fmt.Sprintf("%s!", l.Wrapped.String())
+}
+
 /*
  ____   ____    _    _        _    ____  ____
 / ___| / ___|  / \  | |      / \  |  _ \/ ___|
@@ -184,6 +206,9 @@ type CoerceResultFunc func(interface{}) (interface{}, error)
 // CoerceInputFunc coerces the input value to a type which will be used during field resolve
 type CoerceInputFunc func(interface{}) (interface{}, error)
 
+// ScalarAstValueValidator validates if the ast value is right
+type ScalarAstValueValidator func(ast.Value) error
+
 /*
 Scalar types represent primitive leaf values in a GraphQL type system. GraphQL responses
 take the form of a hierarchical tree; the leaves of this tree are typically
@@ -192,9 +217,10 @@ GraphQL Scalar types (but may also be Enum types or null values)
 type Scalar struct {
 	Name             string
 	Description      string
-	Directives       Directives
+	Directives       TypeSystemDirectives
 	CoerceResultFunc CoerceResultFunc
 	CoerceInputFunc  CoerceInputFunc
+	AstValidator     ScalarAstValueValidator
 }
 
 // GetName returns the name of the scalar
@@ -213,7 +239,7 @@ func (s *Scalar) GetKind() TypeKind {
 }
 
 // GetDirectives returns the directives added to the scalar
-func (s *Scalar) GetDirectives() []Directive {
+func (s *Scalar) GetDirectives() []TypeSystemDirective {
 	return s.Directives
 }
 
@@ -225,6 +251,11 @@ func (s *Scalar) CoerceResult(i interface{}) (interface{}, error) {
 // CoerceInput coerces the input value to the type used in execution
 func (s *Scalar) CoerceInput(i interface{}) (interface{}, error) {
 	return s.CoerceInputFunc(i)
+}
+
+// String implements the fmt.Stringer
+func (s *Scalar) String() string {
+	return s.Name
 }
 
 /*
@@ -242,7 +273,7 @@ However Enum types describe the set of possible values.
 type Enum struct {
 	Name        string
 	Description string
-	Directives  Directives
+	Directives  TypeSystemDirectives
 	Values      EnumValues
 }
 
@@ -263,7 +294,7 @@ func (e *Enum) GetName() string {
 /*
 GetDirectives returns all the directives set for the Enum
 */
-func (e *Enum) GetDirectives() []Directive {
+func (e *Enum) GetDirectives() []TypeSystemDirective {
 	return e.Directives
 }
 
@@ -281,6 +312,11 @@ func (e *Enum) GetValues() []*EnumValue {
 	return e.Values
 }
 
+// String implements the fmt.Stringer
+func (e *Enum) String() string {
+	return e.Name
+}
+
 /*
 EnumValues is an alias for a bunch of "EnumValue"s
 */
@@ -292,7 +328,7 @@ EnumValue is one single value in an Enum
 type EnumValue struct {
 	Name        string
 	Description string
-	Directives  Directives
+	Directives  TypeSystemDirectives
 	Value       interface{}
 }
 
@@ -306,7 +342,7 @@ func (e EnumValue) GetDescription() string {
 /*
 GetDirectives returns the directives set for the enum value
 */
-func (e EnumValue) GetDirectives() []Directive {
+func (e EnumValue) GetDirectives() []TypeSystemDirective {
 	return e.Directives
 }
 
@@ -366,7 +402,7 @@ type Object struct {
 	Description string
 	Name        string
 	Implements  Interfaces
-	Directives  Directives
+	Directives  TypeSystemDirectives
 	Fields      Fields
 }
 
@@ -401,7 +437,7 @@ func (o *Object) GetInterfaces() []*Interface {
 /*
 GetDirectives returns all the directives that are used on the object
 */
-func (o *Object) GetDirectives() []Directive {
+func (o *Object) GetDirectives() []TypeSystemDirective {
 	return o.Directives
 }
 
@@ -432,6 +468,11 @@ func (o *Object) DoesImplement(i *Interface) bool {
 	return false
 }
 
+// String implements the fmt.Stringer
+func (o *Object) String() string {
+	return o.Name
+}
+
 /*
  ___ _   _ _____ _____ ____  _____ _    ____ _____ ____
 |_ _| \ | |_   _| ____|  _ \|  ___/ \  / ___| ____/ ___|
@@ -456,7 +497,7 @@ can be Scalar, Object, Enum, Interface, or Union, or any wrapping type whose bas
 type Interface struct {
 	Description  string
 	Name         string
-	Directives   Directives
+	Directives   TypeSystemDirectives
 	Fields       Fields
 	TypeResolver TypeResolver
 }
@@ -490,7 +531,7 @@ func (i *Interface) GetKind() TypeKind {
 /*
 GetDirectives returns all the directives that are set to the interface
 */
-func (i *Interface) GetDirectives() []Directive {
+func (i *Interface) GetDirectives() []TypeSystemDirective {
 	return i.Directives
 }
 
@@ -506,6 +547,11 @@ Resolve the return type of the interface
 */
 func (i *Interface) Resolve(ctx context.Context, v interface{}) *Object {
 	return i.TypeResolver(ctx, v)
+}
+
+// String implements the fmt.Stringer
+func (i *Interface) String() string {
+	return i.Name
 }
 
 /*
@@ -543,7 +589,7 @@ type Field struct {
 	Description string
 	Arguments   Arguments
 	Type        Type
-	Directives  Directives
+	Directives  TypeSystemDirectives
 	Resolver    Resolver
 }
 
@@ -571,7 +617,7 @@ func (f *Field) GetType() Type {
 /*
 GetDirectives returns the directives set for the field
 */
-func (f *Field) GetDirectives() []Directive {
+func (f *Field) GetDirectives() []TypeSystemDirective {
 	return f.Directives
 }
 
@@ -609,7 +655,7 @@ type Union struct {
 	Description  string
 	Name         string
 	Members      Members
-	Directives   Directives
+	Directives   TypeSystemDirectives
 	TypeResolver TypeResolver
 }
 
@@ -644,7 +690,7 @@ func (u *Union) GetMembers() []Type {
 /*
 GetDirectives returns all the directives applied to the Union type
 */
-func (u *Union) GetDirectives() []Directive {
+func (u *Union) GetDirectives() []TypeSystemDirective {
 	return u.Directives
 }
 
@@ -653,6 +699,11 @@ Resolve helps decide the executor which contained type to resolve
 */
 func (u *Union) Resolve(ctx context.Context, v interface{}) *Object {
 	return u.TypeResolver(ctx, v)
+}
+
+// String implements the fmt.Stringer
+func (u *Union) String() string {
+	return u.Name
 }
 
 /*
@@ -667,6 +718,27 @@ func (u *Union) Resolve(ctx context.Context, v interface{}) *Object {
 Arguments for fields and directives
 */
 type Arguments map[string]*Argument
+
+func (args Arguments) String() (out string) {
+	if args == nil {
+		return
+	}
+	argsS := []string{}
+	for name, arg := range args {
+		if arg.Description != "" {
+			out += `"` + arg.Description + `" `
+		}
+		out += name + `: `
+		out += fmt.Sprint(arg.Type)
+		if arg.IsDefaultValueSet() {
+			out += fmt.Sprint(arg.DefaultValue)
+		}
+		argsS = append(argsS, out)
+		out = ""
+	}
+	out = `(` + strings.Join(argsS, ", ") + `)`
+	return
+}
 
 /*
 Argument defines an argument for a field or a directive. Default value can be provided
@@ -700,7 +772,7 @@ at least one input field set. Its fields can have default values if needed.
 type InputObject struct {
 	Description string
 	Name        string
-	Directives  Directives
+	Directives  TypeSystemDirectives
 	Fields      InputFields
 }
 
@@ -731,7 +803,7 @@ func (o *InputObject) GetKind() TypeKind {
 /*
 GetDirectives returns the directives set for the input object
 */
-func (o *InputObject) GetDirectives() []Directive {
+func (o *InputObject) GetDirectives() []TypeSystemDirective {
 	return o.Directives
 }
 
@@ -742,6 +814,11 @@ func (o *InputObject) GetFields() map[string]*InputField {
 	return o.Fields
 }
 
+// String implements the fmt.Stringer
+func (o *InputObject) String() string {
+	return o.Name
+}
+
 /*
 InputField is a field for an InputObject. As an Argument, it can be used as an input too,
 can have a default value and must have an input type.
@@ -750,7 +827,7 @@ type InputField struct {
 	Description  string
 	Type         Type
 	DefaultValue interface{}
-	Directives   Directives
+	Directives   TypeSystemDirectives
 }
 
 /*

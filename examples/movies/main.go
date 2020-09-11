@@ -100,7 +100,7 @@ var (
 			"name": &gql.Field{
 				Type:        gql.NewNonNull(gql.String),
 				Description: "name of the movie",
-				Directives: gql.Directives{
+				Directives: gql.TypeSystemDirectives{
 					gql.Deprecate("It's just not implemented and movies have titles, not names"),
 				},
 				Resolver: func(ctx gql.Context) (interface{}, error) {

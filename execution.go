@@ -200,7 +200,7 @@ func coerceVariableValues(ctx *gqlCtx) {
 				Message: "invalid type for variable",
 				Path:    []interface{}{},
 				Locations: []*ErrorLocation{
-					&ErrorLocation{
+					{
 						Column: varDef.Location.Column,
 						Line:   varDef.Location.Line,
 					},
@@ -213,7 +213,7 @@ func coerceVariableValues(ctx *gqlCtx) {
 				Message: "variable type is not input type",
 				Path:    []interface{}{},
 				Locations: []*ErrorLocation{
-					&ErrorLocation{
+					{
 						Column: varDef.Location.Column,
 						Line:   varDef.Location.Line,
 					},
@@ -229,7 +229,7 @@ func coerceVariableValues(ctx *gqlCtx) {
 					Message: "couldn't coerece default value of variable",
 					Path:    []interface{}{},
 					Locations: []*ErrorLocation{
-						&ErrorLocation{
+						{
 							Column: varDef.Location.Column,
 							Line:   varDef.Location.Line,
 						},
@@ -243,7 +243,7 @@ func coerceVariableValues(ctx *gqlCtx) {
 				Message: "null value or missing value for non null type",
 				Path:    []interface{}{},
 				Locations: []*ErrorLocation{
-					&ErrorLocation{
+					{
 						Column: varDef.Location.Column,
 						Line:   varDef.Location.Line,
 					},
@@ -260,7 +260,7 @@ func coerceVariableValues(ctx *gqlCtx) {
 					Message: err.Error(),
 					Path:    []interface{}{},
 					Locations: []*ErrorLocation{
-						&ErrorLocation{
+						{
 							Column: varDef.Location.Column,
 							Line:   varDef.Location.Line,
 						},
@@ -629,7 +629,7 @@ func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Fi
 				Message: fmt.Sprintf("Argument '%s' is a Non-Null field, but got null value", argName),
 				Path:    path,
 				Locations: []*ErrorLocation{
-					&ErrorLocation{
+					{
 						Column: f.Location.Column,
 						Line:   f.Location.Line,
 					},
@@ -647,7 +647,7 @@ func coerceArgumentValues(ctx *gqlCtx, path []interface{}, ot *Object, f *ast.Fi
 						Message: err.Error(),
 						Path:    path,
 						Locations: []*ErrorLocation{
-							&ErrorLocation{
+							{
 								Column: argVal.Location.Column,
 								Line:   argVal.Location.Line,
 							},
@@ -696,7 +696,10 @@ func coerceValue(ctx *gqlCtx, val interface{}, t Type) (interface{}, error) {
 		}
 		return nil, fmt.Errorf("invalid list value")
 	case t.GetKind() == ScalarKind:
-		return t.(*Scalar).CoerceInput(val)
+		if raw, ok := val.(ast.Value); ok {
+			return t.(*Scalar).CoerceInputFunc(raw.GetValue())
+		}
+		return t.(*Scalar).CoerceInputFunc(val)
 	case t.GetKind() == EnumKind:
 		e := t.(*Enum)
 		switch val := val.(type) {
@@ -861,7 +864,7 @@ func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Obj
 				Message: e.GetMessage(),
 				Path:    path,
 				Locations: []*ErrorLocation{
-					&ErrorLocation{
+					{
 						Column: fast.Location.Column,
 						Line:   fast.Location.Line,
 					},
@@ -873,7 +876,7 @@ func resolveFieldValue(ctx *gqlCtx, path []interface{}, fast *ast.Field, ot *Obj
 				Message: err.Error(),
 				Path:    path,
 				Locations: []*ErrorLocation{
-					&ErrorLocation{
+					{
 						Column: fast.Location.Column,
 						Line:   fast.Location.Line,
 					},
@@ -1016,6 +1019,9 @@ func getTypes(s *Schema) (map[string]Type, map[string]Directive, map[string][]Ty
 	}
 	implementors := map[string][]Type{}
 	addIntrospectionTypes(types)
+	for _, t := range s.AdditionalTypes {
+		typeWalker(types, directives, implementors, t)
+	}
 	typeWalker(types, directives, implementors, s.Query)
 	if s.Mutation != nil {
 		typeWalker(types, directives, implementors, s.Mutation)
@@ -1079,8 +1085,8 @@ func typeWalker(types map[string]Type, directives map[string]Directive, implemen
 	}
 }
 
-func gatherDirectives(directives map[string]Directive, t Type) {
-	ds := []Directive{}
+func gatherDirectives(directives map[string]TypeSystemDirective, t Type) {
+	ds := TypeSystemDirectives{}
 	switch t.GetKind() {
 	case ScalarKind:
 		ds = t.(*Scalar).GetDirectives()
