@@ -2,7 +2,6 @@ package federation
 
 import (
 	"context"
-	"log"
 
 	"github.com/rigglo/gql"
 )
@@ -24,7 +23,6 @@ type (
 // https://www.apollographql.com/docs/apollo-server/federation/federation-spec
 func Federate(s *gql.Schema) *gql.Schema {
 	f := loadFederation(s)
-	log.Printf("entities: %v", f.Entities)
 	s.Query.Fields["_service"] = &gql.Field{
 		Type: &gql.Object{
 			Name:        "_Service",
@@ -49,8 +47,6 @@ func Federate(s *gql.Schema) *gql.Schema {
 			Description: "A Federated service",
 			Members:     f.Entities,
 			TypeResolver: func(ctx context.Context, v interface{}) *gql.Object {
-				log.Println("_entities type resolver")
-				log.Println(v)
 				if v, ok := v.(map[string]interface{}); ok {
 					if t, ok := v["__typename"]; ok {
 						if tname, ok := t.(string); ok {
@@ -71,8 +67,7 @@ func Federate(s *gql.Schema) *gql.Schema {
 			},
 		},
 		Resolver: func(ctx gql.Context) (interface{}, error) {
-			log.Printf("representations: '%+v'", ctx.Args()["representations"])
-			return ctx.Args()["representations"].([]interface{}), nil
+			return ctx.Args()["representations"], nil
 		},
 	}
 	return s
