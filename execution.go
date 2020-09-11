@@ -1019,6 +1019,9 @@ func getTypes(s *Schema) (map[string]Type, map[string]Directive, map[string][]Ty
 	}
 	implementors := map[string][]Type{}
 	addIntrospectionTypes(types)
+	for _, t := range s.AdditionalTypes {
+		typeWalker(types, directives, implementors, t)
+	}
 	typeWalker(types, directives, implementors, s.Query)
 	if s.Mutation != nil {
 		typeWalker(types, directives, implementors, s.Mutation)
@@ -1082,8 +1085,8 @@ func typeWalker(types map[string]Type, directives map[string]Directive, implemen
 	}
 }
 
-func gatherDirectives(directives map[string]Directive, t Type) {
-	ds := []Directive{}
+func gatherDirectives(directives map[string]TypeSystemDirective, t Type) {
+	ds := TypeSystemDirectives{}
 	switch t.GetKind() {
 	case ScalarKind:
 		ds = t.(*Scalar).GetDirectives()

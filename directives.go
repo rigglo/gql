@@ -15,6 +15,37 @@ type Directive interface {
 	GetLocations() []DirectiveLocation
 }
 
+/*
+	type ExecutableDirective interface {
+		// any Executable Directive specific function comes here
+	}
+*/
+
+type TypeSystemDirective interface {
+	Directive
+	GetValues() map[string]interface{}
+}
+
+func (ds TypeSystemDirectives) ast() []*ast.Directive {
+	out := []*ast.Directive{}
+	for _, d := range ds {
+		od := ast.Directive{
+			Name:      d.GetName(),
+			Arguments: make([]*ast.Argument, 0),
+		}
+		for an, a := range d.GetArguments() {
+			od.Arguments = append(od.Arguments, &ast.Argument{
+				Name:  an,
+				Value: toAstValue(a.Type, d.GetValues()[an]),
+			})
+		}
+		out = append(out, &od)
+	}
+	return out
+}
+
+type TypeSystemDirectives []TypeSystemDirective
+
 type DirectiveLocation string
 
 const (
@@ -43,57 +74,46 @@ const (
 
 type SchemaDirective interface {
 	VisitSchema(context.Context, Schema) *Schema
-	Variables() map[string]interface{}
 }
 
 type ScalarDirective interface {
 	VisitScalar(context.Context, Scalar) *Scalar
-	Variables() map[string]interface{}
 }
 
 type ObjectDirective interface {
 	VisitObject(context.Context, Object) *Object
-	Variables() map[string]interface{}
 }
 
 type FieldDefinitionDirective interface {
 	VisitFieldDefinition(context.Context, Field, Resolver) Resolver
-	Variables() map[string]interface{}
 }
 
 type ArgumentDirective interface {
 	VisitArgument(context.Context, Argument)
-	Variables() map[string]interface{}
 }
 
 type InterfaceDirective interface {
 	VisitInterface(context.Context, Interface) *Interface
-	Variables() map[string]interface{}
 }
 
 type UnionDirective interface {
 	VisitUnion(context.Context, Union) *Union
-	Variables() map[string]interface{}
 }
 
 type EnumDirective interface {
 	VisitEnum(context.Context, Enum) *Enum
-	Variables() map[string]interface{}
 }
 
 type EnumValueDirective interface {
 	VisitEnumValue(context.Context, EnumValue) *EnumValue
-	Variables() map[string]interface{}
 }
 
 type InputObjectDirective interface {
 	VisitInputObject(context.Context, InputObject) *InputObject
-	Variables() map[string]interface{}
 }
 
 type InputFieldDirective interface {
 	VisitInputField(context.Context, InputField) *InputField
-	Variables() map[string]interface{}
 }
 
 type skip struct{}
@@ -162,7 +182,7 @@ func (s *include) Include(args []*ast.Argument) bool {
 	return false
 }
 
-func Deprecate(reason string) Directive {
+func Deprecate(reason string) TypeSystemDirective {
 	return &deprecated{reason}
 }
 
@@ -196,6 +216,12 @@ func (d *deprecated) GetLocations() []DirectiveLocation {
 
 func (d *deprecated) Reason() string {
 	return d.reason
+}
+
+func (d *deprecated) GetValues() map[string]interface{} {
+	return map[string]interface{}{
+		"reason": d.reason,
+	}
 }
 
 var (
