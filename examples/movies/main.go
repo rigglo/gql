@@ -29,6 +29,9 @@ var (
 	BlockBusters = &gql.Schema{
 		Query:    Query,
 		Mutation: nil,
+		AdditionalTypes: []gql.Type{
+			FooInput,
+		},
 	}
 
 	FooInput = &gql.InputObject{
@@ -50,11 +53,11 @@ var (
 				Description: "",
 				Resolver: func(ctx gql.Context) (interface{}, error) {
 					return []Movie{
-						Movie{
+						{
 							ID:    "22424234",
 							Title: "Interstellar",
 						},
-						Movie{
+						{
 							ID:    "34363453",
 							Title: "Titanic",
 						},

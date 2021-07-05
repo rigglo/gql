@@ -263,7 +263,14 @@ func (d *InputObjectDefinition) String() string {
 	for _, dir := range d.Directives {
 		out += dir.String() + " "
 	}
-	out += "{\n}\n"
+	out += "{\n"
+	for i, f := range d.Fields {
+		if i != 0 {
+			out += "\n"
+		}
+		out += "\t" + f.String()
+	}
+	out += "\n}\n"
 	return out
 }
 
